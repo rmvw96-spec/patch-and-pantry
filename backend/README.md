@@ -143,3 +143,4 @@ Once you are done, regenerate the templates used by the application:
 ```console
 $ bun run email:export
 ```
+Practice repo for a simulation agent test layer.
