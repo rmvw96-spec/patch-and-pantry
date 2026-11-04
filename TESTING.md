@@ -1,0 +1,155 @@
+# Testing
+
+A living record of this repository's test layers, CI timings, and changes to them. Started
+2026-11-03; last updated 2026-11-03.
+
+## Current snapshot
+
+| Measure | Template baseline | Now |
+| --- | --- | --- |
+| Backend tests | 58 | 95 |
+| Backend statements measured | 570 | 811 |
+| Backend coverage | 92% | 92% |
+| Backend suite, local run | 16.4 s | 30.9 s |
+| Browser E2E specs | 6 files | 7 files (adds `studies.spec.ts`, 6 tests) |
+
+Local times are single runs on one development machine, not CI. Most of the backend increase is
+the Prefect test server starting once for the studies API tests.
+
+## CI timings
+
+### Baseline (unmodified template, 2026-11-03)
+
+| Workflow | Trigger | What it runs | Duration |
+| --- | --- | --- | --- |
+| Test Backend | Push to `master`, PRs | Postgres and Mailpit via Docker Compose, migrations, pytest with coverage | 46 s |
+| Test Docker Compose | Push to `master`, PRs | Builds images, runs migrations, starts the stack, checks the health endpoint and frontend | 1 m 48 s |
+| Playwright Tests | Push to `master`, PRs, manual; only when `backend/`, `frontend/`, `.env`, compose files, or the workflow change | Browser E2E in 4 parallel shards with `--fail-on-flaky-tests` | 4 m 29 s |
+
+The three workflows run in parallel, so a PR waits on the slowest one. Target: PR feedback under
+15 minutes.
+
+### After the PRs below
+
+| Workflow | Duration now | Change vs baseline |
+| --- | --- | --- |
+| Test Backend | 1m 7s | +21s |
+| Test Docker Compose | 1m 41s | +7s |
+| Playwright Tests | 3m 10s | -1m 19s |
+
+### Other workflows
+
+| Status | Workflows | Why |
+| --- | --- | --- |
+| Disabled | Deploy (`if: false` in `deploy.yml`) | Deploys to FastAPI Cloud, which this project does not use |
+| Not used | Smokeshow | Publishes coverage reports; needs a `SMOKESHOW_AUTH_KEY` secret this repository does not have |
+| Kept | Zizmor, Conflict detector | Security lint for workflow files; merge-conflict labels on PRs |
+| PR-only | pre-commit (prek), Guard Dependencies | Static checks and client regeneration; blocks dependency changes from non-owners |
+| Inactive here | Add to Project, Issue Manager, Bump pre-commit hooks, release workflows, Deploy with Docker Compose | Restricted to the `fastapi` organization, or manual only |
+
+## Test inventory
+
+| Layer | Location | Size | Notes |
+| --- | --- | --- | --- |
+| Static checks | `.pre-commit-config.yaml` | 14 hooks | Ruff, strict mypy and `ty` on `backend/app`, Biome, typos, `zizmor`, client generation |
+| Backend unit: simulator | `backend/tests/agents/test_simulator.py` | 9 | Known answers plus physics invariants |
+| Backend: agent logic, no live LLM | `backend/tests/agents/test_study_agent.py`, `test_demo_model.py` | 16 | `TestModel` / `FunctionModel`; live model calls blocked globally |
+| Backend integration: studies API | `backend/tests/api/routes/test_studies.py` | 12 | Real Postgres, Redis, and Prefect test harness |
+| Backend: template API and CRUD | `backend/tests/api/routes/`, `backend/tests/crud/` | 58 | Items, login, users, private routes, user CRUD |
+| Browser E2E: studies | `frontend/tests/studies.spec.ts` | 6 | Full stack in demo mode (`SIM_MODEL=demo`) |
+| Browser E2E: template | `frontend/tests/*.spec.ts` | 6 files | Admin, items, login, reset password, sign-up, user settings |
+| Stack smoke check | `.github/workflows/test-docker-compose.yml` | 2 HTTP checks | Health endpoint and served frontend |
+
+## Mapping notes
+
+
+**Fixtures and scope.**
+- `db` (session scope, autouse): opens a database session and creates the first superuser. When
+  the session ends it deletes all items and users, so every backend test shares one database,
+  which is also the development database.
+- `client` (module scope): one FastAPI `TestClient` per test file.
+- `superuser_token_headers`, `normal_user_token_headers` (module scope): log in through the real
+  API. The normal user is created on first use, and gets a fresh random password each module.
+- `tests/agents/conftest.py`: a fake simulator that records calls, and the anyio backend.
+- `test_studies.py`: a module-scoped Prefect test harness, and model injection through FastAPI
+  dependency overrides.
+- Playwright: a `setup` project logs in once as the superuser and saves the browser state; other
+  specs reuse it, or create their own users through the development-only private API.
+
+**Coverage by layer.** The backend tests cover every API route, including authentication,
+permissions, and validation, through the real HTTP layer and a real database. Browser tests cover
+the main user journeys: login, sign-up, password reset (through Mailpit), user settings, admin, items,
+and studies.
+
+**Gaps.**
+- No frontend unit tests: the template has no component test runner, so all frontend behavior is
+  checked through the browser.
+- Migrations are only tested going up (`prestart.sh` upgrades); nothing in CI checks downgrades.
+- The backend tests run background jobs synchronously, so true async execution is untested.
+- No load, concurrency, or failure-injection tests.
+- No evaluation of real model behavior; everything runs on scripted models.
+
+**Flakiness and speed risks.**
+- The shared database, plus deleting all users at session end, ties the backend tests together:
+  they cannot run in parallel safely, and a crash mid-run can leave state behind.
+- Module-scoped clients and logins couple tests within a file.
+- In CI, Playwright retries failures twice, but `--fail-on-flaky-tests` still fails the build if a
+  test only passes on retry. That keeps retries from hiding flakiness.
+- The first study in a fresh stack waits about 10 seconds for Prefect to start, so E2E studies use
+  a 60-second timeout.
+
+## Status of planned additions
+
+| Addition | Layer | Status |
+| --- | --- | --- |
+| Agent logic tests (`TestModel` / `FunctionModel`) | Agent logic | Done (PR #2) |
+| Async studies API: Redis idempotency, Prefect flow, submit → poll → finish | Integration | Done (PR #3) |
+| Deterministic demo model (`SIM_MODEL=demo`) | Supports all layers | Done (PR #3) |
+| Studies page E2E against the demo-mode stack | Browser E2E | Done (PR #4) |
+| Phoenix tracing, Pydantic Evals golden cases, nightly reference run | Evals and nightly | Next |
+| Load and failure tests (Locust, Chaos Mesh) | Resilience | Not planned before the interview |
+
+## How the tests were validated
+
+Each behavior was broken on purpose and the suite rerun; every bug was caught by the test written
+for it.
+
+| Deliberate bug | Caught by |
+| --- | --- |
+| Pressure guard removed | `test_unsafe_pressure_never_reaches_simulator`, `test_retry_message_tells_the_model_why` |
+| Usage cap removed from `run_study` | `test_runaway_loop_is_capped` |
+| Sub-agent override dropped | `test_wiring_with_test_model` |
+| Model errors not translated | `test_malformed_output_becomes_clear_user_error` |
+| `Idempotency-Key` ignored | `test_same_idempotency_key_returns_same_study`, `test_key_reserved_by_an_in_flight_request_returns_409` |
+| Simulator retries removed | `test_transient_simulator_error_is_retried` |
+| Job runner's catch-all removed | `test_unexpected_crash_still_ends_in_a_failed_state` |
+| Idempotency keys not scoped per user | `test_idempotency_keys_are_scoped_per_user` |
+| Ownership check removed | `test_other_users_cannot_read_a_study` |
+| "Feasible" label inverted | `Feasible study shows its result`, `Infeasible study is reported as not feasible` |
+| Sidebar link points to the wrong page | `Studies link in the sidebar opens the page` |
+| Page stops polling | `Feasible study shows its result` |
+
+## Lessons learned
+
+- **A lint fix silently removed a test's setup.** Ruff's unused-argument rule flagged a fixture
+  requested only for its side effect; deleting the parameter satisfied the linter, and the
+  fixture never ran. Fix: request side-effect fixtures with `@pytest.mark.usefixtures`, or move
+  the setup into the test body.
+- **Passed locally, failed in CI.** `crypto.randomUUID()` exists only in secure contexts (HTTPS or
+  `localhost`). Local runs used `localhost`; CI serves the app at `http://backend:8000`. Fix:
+  generate UUIDs with `crypto.getRandomValues()`, which works everywhere. The CI environment is
+  the one to trust.
+- **A test harness can pass without testing anything.** While checking that the E2E tests catch
+  bugs, a failed build left the previous build in place, and the tests ran against it. The fix
+  was to stop on build failures, which is the same reason CI gates must fail loudly.
+- **Tests share the development database.** The template's teardown deletes all users, so rerun
+  `scripts/prestart.sh` before logging in after a test run.
+
+## Change log
+
+| Date | Change | Tests | CI effect |
+| --- | --- | --- | --- |
+| 2026-11-03 | Baseline recorded on the unmodified template | 58 backend | Test Backend 46 s, Test Docker Compose 1 m 48 s, Playwright 4 m 29 s |
+| 2026-11-03 | PR #2: agent logic tests; live model calls blocked in all tests | +8 backend | ___ |
+| 2026-11-03 | PR #3: async studies API, Prefect simulator, Redis idempotency, demo mode | +29 backend | ___ |
+| 2026-11-03 | PR #4: Studies page with browser E2E in demo mode; idempotency keys that work over plain HTTP | +6 E2E | ___ |
