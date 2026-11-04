@@ -31,13 +31,11 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 
 ### After the PRs below
 
-Fill these in from the Actions tab (open each workflow's latest run on `master`):
-
 | Workflow | Duration now | Change vs baseline |
 | --- | --- | --- |
-| Test Backend | ___ | ___ |
-| Test Docker Compose | ___ | ___ |
-| Playwright Tests | ___ | ___ |
+| Test Backend | 1m 7s | +21s |
+| Test Docker Compose | 1m 41s | +7s |
+| Playwright Tests | 3m 10s | -1m 19s |
 
 ### Other workflows
 
@@ -62,9 +60,8 @@ Fill these in from the Actions tab (open each workflow's latest run on `master`)
 | Browser E2E: template | `frontend/tests/*.spec.ts` | 6 files | Admin, items, login, reset password, sign-up, user settings |
 | Stack smoke check | `.github/workflows/test-docker-compose.yml` | 2 HTTP checks | Health endpoint and served frontend |
 
-## Day 2 mapping notes
+## Mapping notes
 
-*Draft written from the code. Review it and put it in your own words.*
 
 **Fixtures and scope.**
 - `db` (session scope, autouse): opens a database session and creates the first superuser. When
