@@ -1,4 +1,4 @@
-"""Toy pipeline simulator, run as a Prefect flow.
+"""Small pipeline simulator, run as a Prefect flow.
 
 Stands in for a physics simulator: given a pipeline case and an inlet pressure, it returns the
 outlet pressure. The work runs as a Prefect task that retries failures, the way a real simulator

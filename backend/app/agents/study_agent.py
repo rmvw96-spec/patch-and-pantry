@@ -15,7 +15,19 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.usage import UsageLimits
 
 # defer_model_check=True lets this module import in CI with no Azure credentials configured.
+# SIM_MODEL=demo swaps in a deterministic scripted model (app/agents/demo_model.py), for running
+# the platform locally, in E2E tests, or in nightly runs without an LLM API key.
 PRODUCTION_MODEL = os.environ.get("SIM_MODEL", "azure:gpt-4o")
+
+
+def _model_for(role: str) -> models.Model | str:
+    if PRODUCTION_MODEL != "demo":
+        return PRODUCTION_MODEL
+    from app.agents.demo_model import demo_reviewer_model, demo_study_model
+
+    return demo_study_model() if role == "study" else demo_reviewer_model()
+
+
 # Hard cap per study, so a looping agent cannot burn budget forever
 MAX_MODEL_REQUESTS = 8
 
@@ -57,14 +69,14 @@ class StudyFailed(Exception):
 
 
 reviewer_agent = Agent(
-    PRODUCTION_MODEL,
+    _model_for("reviewer"),
     defer_model_check=True,
     output_type=str,
     instructions="Review a simulation summary for physical plausibility in one sentence.",
 )
 
 study_agent = Agent(
-    PRODUCTION_MODEL,
+    _model_for("study"),
     defer_model_check=True,
     deps_type=SimClient,
     output_type=StudyResult,

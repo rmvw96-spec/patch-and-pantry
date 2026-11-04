@@ -76,6 +76,8 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       REDIS_URL: redis://redis:6379/0
       SIM_DELAY_SECONDS: ${SIM_DELAY_SECONDS:-0}
+      # SIM_MODEL=demo runs studies with a deterministic scripted model instead of Azure OpenAI.
+      SIM_MODEL: ${SIM_MODEL:-azure:gpt-4o}
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/utils/health-check/"]
