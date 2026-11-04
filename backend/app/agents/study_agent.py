@@ -10,12 +10,24 @@ from dataclasses import dataclass
 from typing import TypedDict
 
 from pydantic import BaseModel
-from pydantic_ai import Agent, ModelRetry, RunContext
+from pydantic_ai import Agent, ModelRetry, RunContext, models
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.usage import UsageLimits
 
 # defer_model_check=True lets this module import in CI with no Azure credentials configured.
+# SIM_MODEL=demo swaps in a deterministic scripted model (app/agents/demo_model.py), for running
+# the platform locally, in E2E tests, or in nightly runs without an LLM API key.
 PRODUCTION_MODEL = os.environ.get("SIM_MODEL", "azure:gpt-4o")
+
+
+def _model_for(role: str) -> models.Model | str:
+    if PRODUCTION_MODEL != "demo":
+        return PRODUCTION_MODEL
+    from app.agents.demo_model import demo_reviewer_model, demo_study_model
+
+    return demo_study_model() if role == "study" else demo_reviewer_model()
+
+
 # Hard cap per study, so a looping agent cannot burn budget forever
 MAX_MODEL_REQUESTS = 8
 
@@ -57,14 +69,14 @@ class StudyFailed(Exception):
 
 
 reviewer_agent = Agent(
-    PRODUCTION_MODEL,
+    _model_for("reviewer"),
     defer_model_check=True,
     output_type=str,
     instructions="Review a simulation summary for physical plausibility in one sentence.",
 )
 
 study_agent = Agent(
-    PRODUCTION_MODEL,
+    _model_for("study"),
     defer_model_check=True,
     deps_type=SimClient,
     output_type=StudyResult,
@@ -86,7 +98,11 @@ async def run_simulation(
         raise ModelRetry(
             f"inlet_bar {inlet_bar} exceeds the limit of {ctx.deps.max_inlet_bar} bar; choose a lower value"
         )
-    return await ctx.deps.run(case_id, inlet_bar)
+    try:
+        return await ctx.deps.run(case_id, inlet_bar)
+    except ValueError as exc:
+        # Bad input (for example an unknown case_id): tell the model so it can correct itself.
+        raise ModelRetry(str(exc)) from exc
 
 
 @study_agent.tool
@@ -97,12 +113,15 @@ async def request_review(ctx: RunContext[SimClient], summary: str) -> str:
     return result.output
 
 
-async def run_study(prompt: str, sim: SimClient) -> StudyResult:
+async def run_study(
+    prompt: str, sim: SimClient, model: models.Model | str | None = None
+) -> StudyResult:
     """Production entry point, called by the API handler or a Prefect task."""
     try:
         result = await study_agent.run(
             prompt,
             deps=sim,
+            model=model,
             usage_limits=UsageLimits(request_limit=MAX_MODEL_REQUESTS),
         )
     except UsageLimitExceeded as exc:

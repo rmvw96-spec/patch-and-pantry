@@ -1,7 +1,9 @@
 import uuid
 from datetime import UTC, datetime
+from typing import Any, Literal
 
 from pydantic import EmailStr
+from sqlalchemy import JSON, DateTime
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -53,6 +55,7 @@ class User(UserBase, table=True):
     hashed_password: str
     created_at: datetime | None = Field(default_factory=get_datetime_utc)
     items: list[Item] = Relationship(back_populates="owner", cascade_delete=True)
+    studies: list[Study] = Relationship(back_populates="owner", cascade_delete=True)
 
 
 # Properties to return via API, id is always required
@@ -103,6 +106,55 @@ class ItemPublic(ItemBase):
 class ItemsPublic(SQLModel):
     data: list[ItemPublic]
     count: int
+
+
+# Lifecycle of an asynchronous study job: queued -> running -> succeeded | failed
+StudyStatus = Literal["queued", "running", "succeeded", "failed"]
+
+
+# Properties to receive on study submission
+class StudyCreate(SQLModel):
+    prompt: str = Field(min_length=1, max_length=2000)
+
+
+# Structured result of a successful study (mirrors app.agents.study_agent.StudyResult)
+class StudyOutcome(SQLModel):
+    objective: float
+    feasible: bool
+    review: str | None = None
+
+
+# Database model: one row per submitted study job. Postgres is the source of truth for job state.
+class Study(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE"
+    )
+    owner: User | None = Relationship(back_populates="studies")
+    prompt: str = Field(max_length=2000)
+    status: str = Field(default="queued", max_length=20, index=True)
+    result: dict[str, Any] | None = Field(default=None, sa_type=JSON)
+    error_reason: str | None = Field(default=None, max_length=50)
+    error_message: str | None = Field(default=None, max_length=500)
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc, sa_type=DateTime(timezone=True)
+    )
+    started_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
+    finished_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
+
+
+# Properties to return via API
+class StudyPublic(SQLModel):
+    id: uuid.UUID
+    owner_id: uuid.UUID
+    prompt: str
+    status: StudyStatus
+    result: StudyOutcome | None = None
+    error_reason: str | None = None
+    error_message: str | None = None
+    created_at: datetime | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
 
 
 # Generic message

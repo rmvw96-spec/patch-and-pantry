@@ -159,6 +159,77 @@ export type PrivateUserCreate = {
 };
 
 /**
+ * StudyCreate
+ */
+export type StudyCreate = {
+    /**
+     * Prompt
+     */
+    prompt: string;
+};
+
+/**
+ * StudyOutcome
+ */
+export type StudyOutcome = {
+    /**
+     * Objective
+     */
+    objective: number;
+    /**
+     * Feasible
+     */
+    feasible: boolean;
+    /**
+     * Review
+     */
+    review?: string | null;
+};
+
+/**
+ * StudyPublic
+ */
+export type StudyPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Owner Id
+     */
+    owner_id: string;
+    /**
+     * Prompt
+     */
+    prompt: string;
+    /**
+     * Status
+     */
+    status: 'queued' | 'running' | 'succeeded' | 'failed';
+    result?: StudyOutcome | null;
+    /**
+     * Error Reason
+     */
+    error_reason?: string | null;
+    /**
+     * Error Message
+     */
+    error_message?: string | null;
+    /**
+     * Created At
+     */
+    created_at?: string | null;
+    /**
+     * Started At
+     */
+    started_at?: string | null;
+    /**
+     * Finished At
+     */
+    finished_at?: string | null;
+};
+
+/**
  * Token
  */
 export type Token = {
@@ -920,6 +991,67 @@ export type itemsUpdateItemResponses = {
 };
 
 export type itemsUpdateItemResponse = itemsUpdateItemResponses[keyof itemsUpdateItemResponses];
+
+export type studiesCreateStudyData = {
+    body: StudyCreate;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'idempotency-key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/studies/';
+};
+
+export type studiesCreateStudyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type studiesCreateStudyError = studiesCreateStudyErrors[keyof studiesCreateStudyErrors];
+
+export type studiesCreateStudyResponses = {
+    /**
+     * Successful Response
+     */
+    202: StudyPublic;
+};
+
+export type studiesCreateStudyResponse = studiesCreateStudyResponses[keyof studiesCreateStudyResponses];
+
+export type studiesReadStudyData = {
+    body?: never;
+    path: {
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/studies/{id}';
+};
+
+export type studiesReadStudyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type studiesReadStudyError = studiesReadStudyErrors[keyof studiesReadStudyErrors];
+
+export type studiesReadStudyResponses = {
+    /**
+     * Successful Response
+     */
+    200: StudyPublic;
+};
+
+export type studiesReadStudyResponse = studiesReadStudyResponses[keyof studiesReadStudyResponses];
 
 export type privateCreateUserData = {
     body: PrivateUserCreate;

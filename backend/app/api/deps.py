@@ -2,15 +2,18 @@ from collections.abc import Generator
 from typing import Annotated
 
 import jwt
+import redis
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
+from pydantic_ai import models
 from sqlmodel import Session
 
 from app.core import security
 from app.core.config import settings
 from app.core.db import engine
+from app.core.redis import get_redis_client
 from app.models import TokenPayload, User
 
 reusable_oauth2 = OAuth2PasswordBearer(
@@ -55,3 +58,22 @@ def get_current_active_superuser(current_user: CurrentUser) -> User:
             status_code=403, detail="The user doesn't have enough privileges"
         )
     return current_user
+
+
+def get_redis() -> redis.Redis:
+    return get_redis_client()
+
+
+RedisDep = Annotated[redis.Redis, Depends(get_redis)]
+
+
+def get_study_model() -> models.Model | str | None:
+    """Model for the study agents. None means each agent's configured default (Azure OpenAI).
+
+    Tests replace this dependency (app.dependency_overrides) to inject Pydantic AI's FunctionModel
+    or TestModel, so API tests never depend on a live model or on context variables.
+    """
+    return None
+
+
+StudyModelDep = Annotated[models.Model | str | None, Depends(get_study_model)]
