@@ -45,6 +45,9 @@ jobs:
     if: ${{ needs.changes.outputs.changed == 'true' }}
     timeout-minutes: 15
     runs-on: ubuntu-latest
+    env:
+      # Studies run with the deterministic demo model: no LLM API key needed, same results every run.
+      SIM_MODEL: demo
     strategy:
       matrix:
         shardIndex: [1, 2, 3, 4]
