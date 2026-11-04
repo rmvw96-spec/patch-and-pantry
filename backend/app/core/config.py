@@ -39,6 +39,14 @@ class Settings(BaseSettings):
                 return database_url.replace(scheme, "postgresql+psycopg://", 1)
         return database_url
 
+    # Redis holds short-lived job coordination state (idempotency keys for study submissions).
+    REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Toy pipeline simulator used by the study agent (see app/agents/simulator.py).
+    SIM_MAX_INLET_BAR: float = 80.0
+    # Artificial delay per simulation, to imitate long-running jobs in demos and nightly runs.
+    SIM_DELAY_SECONDS: float = 0.0
+
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
     SMTP_PORT: int = 587
