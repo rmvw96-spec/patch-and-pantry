@@ -1,12 +1,12 @@
+"""Fixtures for agent tests. pytest applies this file only to tests in tests/agents/.
+
+The live-model safety switch lives in tests/conftest.py, so it protects every test in the backend.
+Model overrides are entered inside each test body rather than in fixtures here.
+"""
+
 import pytest
-from pydantic_ai import models
-from pydantic_ai.models.test import TestModel
 
-from app.agents.study_agent import SimCall, SimClient, reviewer_agent
-
-# Safety switch: any request to a real model provider now raises. TestModel and FunctionModel are unaffected,
-# so this suite needs no API keys and can never spend model budget by accident.
-models.ALLOW_MODEL_REQUESTS = False
+from app.agents.study_agent import SimCall, SimClient, SimOutput
 
 
 class FakeSimClient(SimClient):
@@ -16,7 +16,7 @@ class FakeSimClient(SimClient):
         super().__init__(max_inlet_bar)
         self.calls: list[SimCall] = []
 
-    async def run(self, case_id: str, inlet_bar: float) -> dict:
+    async def run(self, case_id: str, inlet_bar: float) -> SimOutput:
         self.calls.append(SimCall(case_id, inlet_bar))
         return {
             "case_id": case_id,
@@ -33,12 +33,3 @@ def anyio_backend():
 @pytest.fixture
 def fake_sim() -> FakeSimClient:
     return FakeSimClient(max_inlet_bar=80.0)
-
-
-@pytest.fixture
-def plausible_reviewer():
-    """Override the sub-agent so any test that reaches request_review gets a fixed answer, offline."""
-    with reviewer_agent.override(
-        model=TestModel(custom_output_text="Looks physically plausible.")
-    ):
-        yield

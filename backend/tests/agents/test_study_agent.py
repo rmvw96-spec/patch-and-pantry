@@ -74,10 +74,15 @@ async def test_safety_switch_blocks_live_model_calls(fake_sim, monkeypatch):
 async def test_wiring_with_test_model(fake_sim):
     """TestModel calls every tool with schema-valid (but arbitrary) args, then returns valid output.
 
-    It also calls request_review, which runs the reviewer sub-agent: that is why the
-    plausible_reviewer fixture overrides the reviewer too. Remove it and this test fails.
+    It also calls request_review, which runs the reviewer sub-agent, so the reviewer is overridden
+    too. Both overrides sit in the test body, where they are visible and can't be silently dropped.
     """
-    with study_agent.override(model=TestModel()):
+    with (
+        study_agent.override(model=TestModel()),
+        reviewer_agent.override(
+            model=TestModel(custom_output_text="Looks physically plausible.")
+        ),
+    ):
         result = await run_study("Optimize case A", fake_sim)
 
     assert len(fake_sim.calls) == 1  # run_simulation executed against the fake

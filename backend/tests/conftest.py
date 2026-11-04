@@ -2,6 +2,7 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic_ai import models
 from sqlmodel import Session, delete
 
 from app.core.config import settings
@@ -10,6 +11,10 @@ from app.main import app
 from app.models import Item, User
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import get_superuser_token_headers
+
+# Safety switch: any request to a real model provider now raises. Pydantic AI's TestModel and
+# FunctionModel are unaffected, so tests need no API keys and can never spend model budget.
+models.ALLOW_MODEL_REQUESTS = False
 
 
 @pytest.fixture(scope="session", autouse=True)

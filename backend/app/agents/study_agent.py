@@ -44,7 +44,7 @@ class SimClient:
     def __init__(self, max_inlet_bar: float) -> None:
         self.max_inlet_bar = max_inlet_bar
 
-    async def run(self, case_id: str, inlet_bar: float) -> dict:
+    async def run(self, case_id: str, inlet_bar: float) -> SimOutput:
         raise NotImplementedError("production client submits a simulation job")
 
 
@@ -79,7 +79,7 @@ study_agent = Agent(
 @study_agent.tool
 async def run_simulation(
     ctx: RunContext[SimClient], case_id: str, inlet_bar: float
-) -> dict:
+) -> SimOutput:
     """Run the simulator for one case at a given inlet pressure in bar."""
     if inlet_bar > ctx.deps.max_inlet_bar:
         # ModelRetry sends this message back to the model so it can choose a safer value.
