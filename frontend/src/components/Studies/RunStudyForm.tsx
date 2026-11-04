@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
 import useCustomToast from "@/hooks/useCustomToast"
+import { newIdempotencyKey } from "@/lib/idempotency"
 import { handleError } from "@/utils"
 
 const formSchema = z.object({
@@ -48,7 +49,7 @@ const RunStudyForm = ({ onSubmitted }: RunStudyFormProps) => {
       (
         await StudiesService.createStudy({
           body: { prompt: data.prompt },
-          headers: { "idempotency-key": crypto.randomUUID() },
+          headers: { "idempotency-key": newIdempotencyKey() },
         })
       ).data,
     onSuccess: (study) => onSubmitted(study),
