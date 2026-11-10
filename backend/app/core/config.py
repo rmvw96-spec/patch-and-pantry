@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     # Artificial delay per simulation, to imitate long-running jobs in demos and nightly runs.
     SIM_DELAY_SECONDS: float = 0.0
 
+    # OpenTelemetry tracing for the study agent (see app/core/tracing.py). Unset means tracing is
+    # off. For a local Phoenix from compose.override.yml: http://localhost:6006/v1/traces
+    PHOENIX_COLLECTOR_ENDPOINT: str | None = None
+    # Record prompts, model responses, and tool arguments in spans. Turn off where those may hold
+    # data that should not leave the process.
+    TRACE_INCLUDE_CONTENT: bool = True
+
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
     SMTP_PORT: int = 587
