@@ -78,6 +78,18 @@ services:
       - "8025:8025"
       - "1025:1025"
 
+  # Local trace viewer for the study agent's OpenTelemetry spans (dev only).
+  # UI and OTLP/HTTP collector on :6006, OTLP/gRPC on :4317.
+  phoenix:
+    image: arizephoenix/phoenix:version-20.27.0
+    ports:
+      - "6006:6006"
+      - "4317:4317"
+    environment:
+      PHOENIX_WORKING_DIR: /mnt/data
+    volumes:
+      - phoenix-data:/mnt/data
+
   playwright:
     build:
       context: .
@@ -102,3 +114,6 @@ services:
       - ./frontend/test-results:/app/frontend/test-results
     ports:
       - 9323:9323
+
+volumes:
+  phoenix-data:
