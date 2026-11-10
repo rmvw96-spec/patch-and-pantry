@@ -21,6 +21,8 @@ Built on the [Full Stack FastAPI Template](https://github.com/fastapi/full-stack
   reports progress. Users can read only their own studies.
 - **Demo mode:** `SIM_MODEL=demo` replaces the LLM with a deterministic scripted model, so the
   whole platform runs, and is testable, without an API key.
+- **Tracing:** each study is one OpenTelemetry trace (agent run, model calls, tool calls, and the
+  reviewer sub-agent), viewable in a local [Phoenix](https://phoenix.arize.com/).
 
 ## Architecture
 
@@ -34,6 +36,7 @@ flowchart LR
     Agent -->|"run_simulation tool"| Flow["Prefect flow: simulate-case<br/>(task retries)"]
     Agent -->|"request_review tool"| Reviewer["Reviewer agent"]
     Agent -->|"result or failure"| PG
+    Agent -.->|"OTLP spans (optional)"| Phoenix["Phoenix"]
 ```
 
 Postgres is the source of truth for job state, and every exit path leaves a study in a final
@@ -65,6 +68,34 @@ Log in with the development defaults from `.env` (`FIRST_SUPERUSER` / `FIRST_SUP
 Rerun `scripts/prestart.sh` after the backend tests: they share the development database and
 delete all users when they finish.
 
+## Tracing
+
+Studies can send OpenTelemetry traces to a local Phoenix. Tracing is off unless
+`PHOENIX_COLLECTOR_ENDPOINT` is set, so tests and CI never need a collector.
+
+```bash
+docker compose up -d phoenix                # UI at http://localhost:6006
+
+cd backend
+SIM_MODEL=demo PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces uv run fastapi dev
+```
+
+Run a study, then open the `default` project in Phoenix. Each study is one trace:
+
+```
+study                                 study.id, study.status, study.error_reason
+└─ invoke_agent study_agent
+   ├─ chat <model>                    prompt, response, token counts
+   ├─ execute_tool run_simulation     arguments and result, or the retry message
+   ├─ execute_tool request_review
+   │  └─ invoke_agent reviewer_agent
+   └─ chat <model>
+```
+
+Pydantic AI produces the agent, model, and tool spans; an OpenInference span processor labels them
+for Phoenix (`app/core/tracing.py`), and `app/study_jobs.py` adds the `study` span. Prompts and
+responses are recorded by default; set `TRACE_INCLUDE_CONTENT=false` to leave them out.
+
 ## Testing
 
 | Layer | What it covers | Where | Runs |
@@ -72,10 +103,11 @@ delete all users when they finish.
 | Static checks | Ruff, strict mypy, `ty`, Biome, typos, and `zizmor` for workflow files | pre-commit hooks | Every commit and PR |
 | Unit | Simulator equations, including physics invariants (outlet never exceeds inlet; raising inlet never lowers outlet) | `backend/tests/agents/test_simulator.py` | Every PR |
 | Agent logic, no live LLM | Tool wiring, guards, retries, usage caps, error translation, delegation, using Pydantic AI's `TestModel` and `FunctionModel` | `backend/tests/agents/` | Every PR |
+| Tracing | Span tree, OpenInference kinds, sub-agent nesting, content setting, and study status and errors on the `study` span, using an in-memory exporter | `backend/tests/agents/test_tracing.py`, `backend/tests/test_study_job_tracing.py` | Every PR |
 | Integration | The async studies API against real Postgres, Redis, and Prefect: 202 then polling, idempotency, failure states, retries, access control | `backend/tests/api/routes/test_studies.py` | Every PR |
 | Browser E2E | The Studies page through the full stack in demo mode | `frontend/tests/studies.spec.ts` | Every PR, 4 parallel shards |
 
-The backend suite has 95 tests at 92% coverage. Live calls to model providers are blocked in tests
+The backend suite has 106 tests at 93% coverage. Live calls to model providers are blocked in tests
 (`ALLOW_MODEL_REQUESTS = False`), so no test needs an API key or can spend model budget.
 
 Run them:
@@ -96,6 +128,9 @@ ignoring the idempotency key, unscoped idempotency keys, a missing ownership che
 simulator retries, a job runner that could leave a study stuck in "running", a removed pressure
 guard, a removed usage cap, a lost sub-agent override, untranslated model errors, an inverted
 "Feasible" label, a wrong sidebar link, and a page that stops polling.
+
+The tracing tests were checked the same way against twelve more, listed in
+[TESTING.md](./TESTING.md#how-the-tests-were-validated).
 
 ## CI
 
@@ -122,10 +157,11 @@ The template's FastAPI Cloud deploy workflow is disabled (`if: false` in `deploy
   production version would use async sessions or a separate worker.
 - **Redis outages surface as `500`** for requests with an idempotency key; `503` with
   `Retry-After` would be better.
+- **Tracing covers study jobs only.** HTTP requests, Prefect, Postgres, and Redis are not traced,
+  and the simulator shows up only as the `run_simulation` tool span.
 
 ## Roadmap
 
-- Agent tracing with Phoenix (OpenTelemetry)
 - An eval harness: golden cases scored with Pydantic Evals, including a trace-based check
 - A nightly reference run through the real API, compared against a committed "last good run"
 

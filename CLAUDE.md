@@ -25,6 +25,8 @@ Supporting services first: `docker compose up -d db mailpit redis`.
 # backend (from backend/)
 uv run bash scripts/prestart.sh             # migrations and superuser
 SIM_MODEL=demo uv run fastapi dev           # API on :8000, no LLM key needed
+# with traces: docker compose up -d phoenix, then add
+#   PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces   (UI on :6006)
 uv run bash scripts/tests-start.sh          # full suite with coverage (CI requires >= 90%)
 uv run bash scripts/agent-test.sh           # agent tests only (root conftest still needs Postgres)
 uv run pytest tests/api/routes/test_studies.py -k idempotency   # single test
@@ -56,7 +58,11 @@ uv run prek run --all-files
 - `SIM_MODEL` is read from `os.environ` at import time in `study_agent.py`, not from `Settings`,
   so it must be set before the process starts. `demo` gives deterministic scripted responses.
 - Every exit path in `study_jobs.execute_study` must leave a study in `succeeded` or `failed`;
-  a study stuck in `running` makes the UI poll forever.
+  a study stuck in `running` makes the UI poll forever. Each path also sets `study.status` on the
+  `study` span.
+- Tracing (`app/core/tracing.py`) is off unless `PHOENIX_COLLECTOR_ENDPOINT` is set. Agent
+  instrumentation is global (`Agent.instrument_all`), so tests that call `setup_tracing` must call
+  `shutdown_tracing` afterwards; use the `SnapshotExporter` in `tests/utils/tracing.py`.
 - Idempotency keys live in Redis, scoped per user (`idempotency:studies:{user_id}:{key}`), 24 h TTL.
   Users may read only their own studies.
 - `TestClient` runs background tasks before returning, so API tests are synchronous by design.

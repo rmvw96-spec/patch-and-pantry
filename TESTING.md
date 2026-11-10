@@ -1,16 +1,16 @@
 # Testing
 
 A living record of this repository's test layers, CI timings, and changes to them. Started
-2026-11-03; last updated 2026-11-03.
+2026-11-03; last updated 2026-11-09.
 
 ## Current snapshot
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 95 |
-| Backend statements measured | 570 | 811 |
-| Backend coverage | 92% | 92% |
-| Backend suite, local run | 16.4 s | 30.9 s |
+| Backend tests | 58 | 106 |
+| Backend statements measured | 570 | 866 |
+| Backend coverage | 92% | 93% |
+| Backend suite, local run | 16.4 s | 20.4 s |
 | Browser E2E specs | 6 files | 7 files (adds `studies.spec.ts`, 6 tests) |
 
 Local times are single runs on one development machine, not CI. Most of the backend increase is
@@ -55,6 +55,8 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Backend unit: simulator | `backend/tests/agents/test_simulator.py` | 9 | Known answers plus physics invariants |
 | Backend: agent logic, no live LLM | `backend/tests/agents/test_study_agent.py`, `test_demo_model.py` | 16 | `TestModel` / `FunctionModel`; live model calls blocked globally |
 | Backend integration: studies API | `backend/tests/api/routes/test_studies.py` | 12 | Real Postgres, Redis, and Prefect test harness |
+| Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | In-memory exporter that snapshots spans at export time; no Phoenix needed |
+| Backend: study job tracing | `backend/tests/test_study_job_tracing.py` | 4 | `execute_study` against real Postgres and the Prefect test harness |
 | Backend: template API and CRUD | `backend/tests/api/routes/`, `backend/tests/crud/` | 58 | Items, login, users, private routes, user CRUD |
 | Browser E2E: studies | `frontend/tests/studies.spec.ts` | 6 | Full stack in demo mode (`SIM_MODEL=demo`) |
 | Browser E2E: template | `frontend/tests/*.spec.ts` | 6 files | Admin, items, login, reset password, sign-up, user settings |
@@ -73,6 +75,9 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 - `tests/agents/conftest.py`: a fake simulator that records calls, and the anyio backend.
 - `test_studies.py`: a module-scoped Prefect test harness, and model injection through FastAPI
   dependency overrides.
+- Tracing tests: an `exporter` fixture installs tracing with a `SnapshotExporter`
+  (`tests/utils/tracing.py`) and shuts it down after the test, because agent instrumentation is
+  global and must not leak into other tests.
 - Playwright: a `setup` project logs in once as the superuser and saves the browser state; other
   specs reuse it, or create their own users through the development-only private API.
 
@@ -106,7 +111,8 @@ and studies.
 | Async studies API: Redis idempotency, Prefect flow, submit → poll → finish | Integration | Done (PR #3) |
 | Deterministic demo model (`SIM_MODEL=demo`) | Supports all layers | Done (PR #3) |
 | Studies page E2E against the demo-mode stack | Browser E2E | Done (PR #4) |
-| Phoenix tracing, Pydantic Evals golden cases, nightly reference run | Evals and nightly | Next |
+| Phoenix tracing of study jobs (OpenTelemetry, OpenInference) | Tracing | Done (PR #7) |
+| Pydantic Evals golden cases, nightly reference run | Evals and nightly | Next |
 | Load and failure tests (Locust, Chaos Mesh) | Resilience | Not planned before the interview |
 
 ## How the tests were validated
@@ -128,6 +134,18 @@ for it.
 | "Feasible" label inverted | `Feasible study shows its result`, `Infeasible study is reported as not feasible` |
 | Sidebar link points to the wrong page | `Studies link in the sidebar opens the page` |
 | Page stops polling | `Feasible study shows its result` |
+| Agent instrumentation not turned on | `test_agent_run_produces_agent_llm_and_tool_spans` and three more |
+| OpenInference processor runs after the exporter | `test_agent_run_produces_agent_llm_and_tool_spans` |
+| `TRACE_INCLUDE_CONTENT` ignored | `test_content_can_be_left_out_of_spans` |
+| Shutdown leaves agents instrumented | `test_shutdown_stops_tracing_and_uninstruments_agents` |
+| Tracer used when tracing is off | `test_tracing_is_off_without_an_endpoint`, `test_endpoint_configures_a_batching_otlp_exporter` |
+| Agent run outside the `study` span | All four `test_study_job_tracing.py` tests |
+| `StudyFailed` not recorded on the span | `test_study_failure_is_recorded_on_the_span` |
+| Unexpected crash not recorded on the span | `test_unexpected_crash_is_recorded_on_the_span` |
+| Error status not set on failure | `test_study_failure_is_recorded_on_the_span`, `test_unexpected_crash_is_recorded_on_the_span` |
+| `study.status` missing on success | `test_study_span_is_the_root_of_the_agent_trace` |
+| `study.status` missing for a deleted study | `test_deleted_study_still_ends_its_span` |
+| `study.id` missing | `test_study_span_is_the_root_of_the_agent_trace` |
 
 ## Lessons learned
 
@@ -142,6 +160,10 @@ for it.
 - **A test harness can pass without testing anything.** While checking that the E2E tests catch
   bugs, a failed build left the previous build in place, and the tests ran against it. The fix
   was to stop on build failures, which is the same reason CI gates must fail loudly.
+- **An in-memory exporter can hide ordering bugs.** `InMemorySpanExporter` keeps references to
+  spans, so attributes a later processor adds still showed up in the test, and swapping the
+  OpenInference processor behind the exporter went unnoticed. A real exporter serializes at export
+  time. Fix: copy each span on export (`SnapshotExporter`).
 - **Tests share the development database.** The template's teardown deletes all users, so rerun
   `scripts/prestart.sh` before logging in after a test run.
 
@@ -153,3 +175,4 @@ for it.
 | 2026-11-03 | PR #2: agent logic tests; live model calls blocked in all tests | +8 backend | ___ |
 | 2026-11-03 | PR #3: async studies API, Prefect simulator, Redis idempotency, demo mode | +29 backend | ___ |
 | 2026-11-03 | PR #4: Studies page with browser E2E in demo mode; idempotency keys that work over plain HTTP | +6 E2E | ___ |
+| 2026-11-09 | PR #7: OpenTelemetry tracing of study jobs to a local Phoenix | +11 backend | ___ |
