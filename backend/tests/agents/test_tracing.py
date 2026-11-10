@@ -4,13 +4,11 @@ Spans go to an in-memory exporter instead of Phoenix, and models are scripted Fu
 these tests need neither a collector nor an LLM.
 """
 
-import copy
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator
 
 import pytest
 from opentelemetry import trace
-from opentelemetry.sdk.trace import ReadableSpan
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExportResult
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
@@ -21,6 +19,7 @@ from pydantic_ai.models.function import AgentInfo, FunctionModel
 from app.agents.study_agent import reviewer_agent, run_study, study_agent
 from app.core.tracing import get_tracer, setup_tracing, shutdown_tracing
 from tests.agents.conftest import FakeSimClient
+from tests.utils.tracing import SnapshotExporter, attribute_text, by_name, parent_of
 
 pytestmark = pytest.mark.anyio
 
@@ -63,34 +62,6 @@ async def run_traced_study() -> None:
         reviewer_agent.override(model=FunctionModel(approve)),
     ):
         await run_study(PROMPT, FakeSimClient())
-
-
-def by_name(spans: tuple[ReadableSpan, ...], name: str) -> ReadableSpan:
-    matches = [s for s in spans if s.name == name]
-    assert len(matches) == 1, (
-        f"expected one {name!r} span, got {[s.name for s in spans]}"
-    )
-    return matches[0]
-
-
-def parent_of(spans: tuple[ReadableSpan, ...], span: ReadableSpan) -> ReadableSpan:
-    assert span.parent is not None, f"{span.name!r} has no parent"
-    return next(s for s in spans if s.context.span_id == span.parent.span_id)
-
-
-def attribute_text(spans: tuple[ReadableSpan, ...]) -> str:
-    return " ".join(str(v) for s in spans for v in (s.attributes or {}).values())
-
-
-class SnapshotExporter(InMemorySpanExporter):
-    """Keeps each span as it was at export time, the way a real exporter serializes it.
-
-    The plain in-memory exporter keeps references, so attributes another processor adds after
-    export would still show up in the test even though a real collector would never get them.
-    """
-
-    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
-        return super().export([copy.copy(span) for span in spans])
 
 
 # ---------- fixtures ----------
