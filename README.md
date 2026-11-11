@@ -162,8 +162,11 @@ The template's FastAPI Cloud deploy workflow is disabled (`if: false` in `deploy
 
 ## Roadmap
 
-- An eval harness: golden cases scored with Pydantic Evals, including a trace-based check
-- A nightly reference run through the real API, compared against a committed "last good run"
+The pipeline simulator is being replaced by a local food planner: best buy for produce across
+stores, farm-share value checks, and grow-or-buy planning for one household in North Alabama.
+The plan, built one user setting at a time with a gate at the end of each phase, is in
+[docs/roadmap.md](./docs/roadmap.md); the design and its sources are in
+[docs/design.md](./docs/design.md). The eval harness and nightly run land in Phase 1.
 
 ## Built on the Full Stack FastAPI Template
 

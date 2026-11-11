@@ -5,6 +5,21 @@ study, a Pydantic AI agent runs a Prefect-wrapped simulator as a background job,
 polls for the result. The app is deliberately small; **the test layer around it is the point of the
 project**. See `README.md` for features and architecture, and `TESTING.md` for the test inventory.
 
+## Direction (read this first)
+
+The pipeline simulator and Studies feature are being replaced by a **local food planner**: best
+buy for produce across stores, farm-share and market value checks, and grow-or-buy planning, for
+one household in North Alabama, growing toward food independence. The Studies code stays working
+until Phase 1 replaces it; it is the reference for the platform's patterns.
+
+- `docs/design.md`: what to build and why. **Source of truth** for product decisions.
+- `docs/roadmap.md`: phases, tasks, and gates. Tick tasks in the PR that completes them.
+- `docs/specs/phase-N.md`: the spec for the current phase. Implement from the spec; if it is
+  missing or unclear, write or update it first and ask the owner to review.
+- `docs/specs/known-answers.md`: verified numbers for unit tests and golden evals.
+- `backend/app/seed_data/`: reference data with provenance (`README.md` there).
+- `scripts/data/`: data build scripts and prototypes.
+
 ## Layout
 
 - uv workspace (root `pyproject.toml`, member `backend/`, package `app`) and bun workspace
@@ -68,6 +83,55 @@ uv run prek run --all-files
 - `TestClient` runs background tasks before returning, so API tests are synchronous by design.
 - When adding a test for a behavior, check it fails with the bug introduced (see "Checking that the
   tests catch bugs" in `README.md`), and record notable changes in `TESTING.md`.
+
+## Rules for the food planner
+
+These come from `docs/design.md`; follow them in every change.
+
+- **Numbers come only from deterministic tools.** The model extracts input, asks questions,
+  chooses tools, and explains; it never computes prices, quantities, yields, or dates. Every
+  number in an answer must match a tool output (a nightly trace check enforces this).
+- **Units:** store grams of the edible part; show cups (the federal produce definition). Do not use
+  the word "serving" in the UI. Money is integer cents (pending owner review of the Phase 0 spec).
+- **Not a dieting app:** no meal logging, portion tracking, or body measurements. "Actual" means
+  produce acquired (bought, farm share, harvested), never food eaten. Explanations avoid dieting
+  language.
+- **Minimal personal data:** household members are anonymous rows with only a calorie level. No
+  names, ages, sex, weight, or height. Location is a region or ZIP, never a street address. No
+  third-party analytics or ad trackers.
+- **Prices are private by default** and record owner, visibility, source type, region, and a sale
+  flag. AMS report prices are sale prices: never present them as shelf prices.
+- **Reference data is versioned:** never overwrite a data snapshot; every run and plan records the
+  snapshot versions it used. Every catalog fact has a source, including "stand-in" when it
+  borrows another item's.
+- **Derived North Alabama planting dates are unverified** (`verified=False`); never use them as
+  golden answers until checked against Extension's ANR-1165 table.
+- **Photos are never stored.** CI fixture photos must be the owner's own or made up, because the
+  repository is public.
+- **Claude on Microsoft Foundry:** build models through the factory (Phase 0); always pass
+  `profile=anthropic_model_profile(<canonical name>)` so Sonnet 5.5 keeps Pydantic AI's
+  forced-tool-use fallback whatever the deployment is called; never set `temperature`, `top_p`, or
+  `top_k`; construct clients lazily so importing `app` needs no Foundry settings.
+- **No live model calls in PR CI.** Live calls run nightly only. The budget is 200 USD a month;
+  default to the smaller model and measure tokens with Phoenix.
+
+## Keeping the docs current
+
+- `docs/` in this repository is the source of truth. The claude.ai copies of the design doc and
+  roadmap are frozen snapshots from 2026-11-11; do not update them.
+- When a decision changes, edit `docs/design.md` and add a row to its change log in the same PR.
+- When a task is done, tick it in `docs/roadmap.md` in the same PR; record plan changes in the
+  roadmap's change log.
+- New verified numbers go in `docs/specs/known-answers.md`; new reference data goes in
+  `backend/app/seed_data/` with a row in its `README.md`.
+
+## Working with the owner
+
+- Explain the reasoning behind a recommendation, and keep sourced facts separate from inference.
+  Cite a source (link) for any external data or claim.
+- Prefer showing a worked example or a diagram over a long description.
+- Ask before choosing among options that change the design; record the answer in
+  `docs/design.md`.
 
 ## CI
 
