@@ -89,5 +89,3 @@ For deployment to your own server, see the [Docker Compose deployment guide](./d
 ## GitHub Repository Automation
 
 Install the [PR Push](https://github.com/apps/pr-push) GitHub App to let the pre-commit workflow push automated fixes to pull request branches.
-
-To publish code coverage with [Smokeshow](https://github.com/samuelcolvin/smokeshow), add `SMOKESHOW_AUTH_KEY` as a repository secret.
