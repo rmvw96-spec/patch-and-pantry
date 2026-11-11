@@ -45,7 +45,7 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Not used | Smokeshow | Publishes coverage reports; needs a `SMOKESHOW_AUTH_KEY` secret this repository does not have |
 | Kept | Zizmor, Conflict detector | Security lint for workflow files; merge-conflict labels on PRs |
 | PR-only | pre-commit (prek), Guard Dependencies | Static checks and client regeneration; blocks dependency changes from non-owners |
-| Inactive here | Add to Project, Issue Manager, Bump pre-commit hooks, release workflows, Deploy with Docker Compose | Restricted to the `fastapi` organization, or manual only |
+| Manual only | Deploy with Docker Compose | Runs on a self-hosted runner when started from the Actions tab |
 
 ## Test inventory
 
@@ -176,3 +176,4 @@ for it.
 | 2026-11-03 | PR #3: async studies API, Prefect simulator, Redis idempotency, demo mode | +29 backend | ___ |
 | 2026-11-03 | PR #4: Studies page with browser E2E in demo mode; idempotency keys that work over plain HTTP | +6 E2E | ___ |
 | 2026-11-09 | PR #7: OpenTelemetry tracing of study jobs to a local Phoenix | +11 backend | ___ |
+| 2026-11-11 | PR #9: Patch & Pantry branding; removed the template's release and `fastapi`-organization workflows; tracing service name is now `patch-and-pantry` | No change (Playwright 68 passed) | Fewer skipped workflow runs |

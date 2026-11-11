@@ -82,6 +82,9 @@ week's produce, per cup, with a shopping list.
 - [ ] Tool `compare_best_buy`: cost per cup across stores, with spoilage from FoodKeeper minimums.
 - [ ] Pages: price capture, price book, best-buy comparison with its trade-off table, printable
       shopping list.
+- [ ] iPhone home-screen icon: replace the stopgap `apple-touch-icon.png` (the app icon with its
+      corners squared off, so iOS does not show them black) with a purpose-made 180 px full-bleed
+      icon, and check it on a phone.
 - [ ] Agent instructions and tone guide written and reviewed.
 - [ ] Golden evals: extraction field by field; conversions and rankings exact; clarification
       cases; a trace check that every number came from a tool.
@@ -174,4 +177,5 @@ match hand calculations.
 | Date | Change |
 | --- | --- |
 | 2026-11-11 | Migrated from the claude.ai roadmap. Tracing marked done (PR #7). Replacing the Studies feature moved from Phase 0 to the start of Phase 1, so the working end-to-end path stays tested until the first food tool exists. Added count units, agent instructions, and money representation. |
-| 2026-11-11 | App name settled: Patch & Pantry (patchandpantry.app). Repository rename stays open; the Compose project name is now pinned to `sim-agent` so a rename keeps existing volumes. |
+| 2026-11-11 | App name settled: Patch & Pantry (patchandpantry.app). Repository rename scheduled for right after PR #9 merges; the Compose project name is now pinned to `sim-agent` so the rename keeps existing volumes. |
+| 2026-11-11 | Added the iPhone home-screen icon task to Phase 1. Removed the template's release and maintenance automation (release notes, release workflows, workflows that run only in the `fastapi` organization). |

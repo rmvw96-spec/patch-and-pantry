@@ -4,8 +4,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  /* Brand typeface for the app name; loaded from Google Fonts in index.html. */
-  --font-brand: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  /* Brand typeface for the app name; bundled via @fontsource-variable (imported in main.tsx). */
+  --font-brand:
+    "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
 @theme inline {
