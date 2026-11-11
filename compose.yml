@@ -1,7 +1,6 @@
-# Pinned so renaming the repository or its folder keeps the existing volumes
-# (sim-agent_app-db-data, sim-agent_phoenix-data, ...). Without it, Compose names the project
-# after the folder.
-name: sim-agent
+# Pinned so the container, network, and volume names (patch-and-pantry_app-db-data, ...) do not
+# depend on the name of the folder the repository is checked out into.
+name: patch-and-pantry
 
 services:
 
