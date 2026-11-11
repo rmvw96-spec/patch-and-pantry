@@ -22,7 +22,7 @@ from opentelemetry.sdk.trace.export import (
 )
 from pydantic_ai import Agent, InstrumentationSettings
 
-SERVICE_NAME = "sim-agent"
+SERVICE_NAME = "patch-and-pantry"
 
 _provider: TracerProvider | None = None
 

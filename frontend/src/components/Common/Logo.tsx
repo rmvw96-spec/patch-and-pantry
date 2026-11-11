@@ -2,10 +2,10 @@ import { Link } from "@tanstack/react-router"
 
 import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
-import icon from "/assets/images/fastapi-icon.svg"
-import iconLight from "/assets/images/fastapi-icon-light.svg"
-import logo from "/assets/images/fastapi-logo.svg"
-import logoLight from "/assets/images/fastapi-logo-light.svg"
+import icon from "/assets/images/patch-and-pantry-icon.svg"
+import iconLight from "/assets/images/patch-and-pantry-icon-light.svg"
+
+const APP_NAME = "Patch & Pantry"
 
 interface LogoProps {
   variant?: "full" | "icon" | "responsive"
@@ -19,42 +19,52 @@ export function Logo({
   asLink = true,
 }: LogoProps) {
   const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === "dark"
+  const iconSrc = resolvedTheme === "dark" ? iconLight : icon
 
-  const fullLogo = isDark ? logoLight : logo
-  const iconLogo = isDark ? iconLight : icon
+  // The full logo is the icon plus the name; its height (h-*) and text size (text-*) come from
+  // className, so callers can scale both together.
+  const full = (extra?: string) => (
+    <span
+      className={cn(
+        "inline-flex h-6 items-center gap-2 text-lg",
+        extra,
+        className,
+      )}
+    >
+      <img src={iconSrc} alt="" className="h-full w-auto" />
+      <span className="font-brand font-semibold leading-none tracking-tight whitespace-nowrap">
+        {APP_NAME}
+      </span>
+    </span>
+  )
+
+  const iconOnly = (extra?: string) => (
+    <img
+      src={iconSrc}
+      alt={APP_NAME}
+      className={cn("size-5", extra, className)}
+    />
+  )
 
   const content =
     variant === "responsive" ? (
       <>
-        <img
-          src={fullLogo}
-          alt="FastAPI"
-          className={cn(
-            "h-6 w-auto group-data-[collapsible=icon]:hidden",
-            className,
-          )}
-        />
-        <img
-          src={iconLogo}
-          alt="FastAPI"
-          className={cn(
-            "size-5 hidden group-data-[collapsible=icon]:block",
-            className,
-          )}
-        />
+        {full("group-data-[collapsible=icon]:hidden")}
+        {iconOnly("hidden group-data-[collapsible=icon]:block")}
       </>
+    ) : variant === "full" ? (
+      full()
     ) : (
-      <img
-        src={variant === "full" ? fullLogo : iconLogo}
-        alt="FastAPI"
-        className={cn(variant === "full" ? "h-6 w-auto" : "size-5", className)}
-      />
+      iconOnly()
     )
 
   if (!asLink) {
     return content
   }
 
-  return <Link to="/">{content}</Link>
+  return (
+    <Link to="/" aria-label={APP_NAME}>
+      {content}
+    </Link>
+  )
 }

@@ -1,4 +1,4 @@
-# FastAPI Project - Development
+# Patch & Pantry - Development
 
 ## Local Development
 

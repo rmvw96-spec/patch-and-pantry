@@ -167,7 +167,7 @@ match hand calculations.
 | Model for each task | Haiku for capture; Sonnet for orchestration and judging, until the first comparison | First eval comparison in Phase 1 |
 | Hours per week for building | Needed before phases get dates | Start of Phase 0 |
 | App name | **Decided 2026-11-11:** Patch & Pantry; domain [patchandpantry.app](https://patchandpantry.app) | Settled |
-| Repository name | Keep `sim-agent` for now. The Compose project name is pinned to `sim-agent` in `compose.yml`, so a rename no longer orphans volumes | Any time |
+| Repository name | Rename `sim-agent` to `patch-and-pantry` on GitHub; the Compose project name is pinned to `sim-agent` in `compose.yml`, so the rename keeps existing volumes | Right after PR #9 merges |
 
 ## Change log
 

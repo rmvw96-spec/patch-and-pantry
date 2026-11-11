@@ -1,4 +1,4 @@
-# FastAPI Project - Backend
+# Patch & Pantry - Backend
 
 ## Requirements
 

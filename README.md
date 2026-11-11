@@ -1,4 +1,4 @@
-# sim-agent
+# Patch & Pantry
 
 A small agentic simulation platform, built to practice testing one end to end. A user describes a
 pipeline problem in plain language, an AI agent runs a simulator through an asynchronous job, and

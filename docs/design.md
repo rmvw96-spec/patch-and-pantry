@@ -47,6 +47,7 @@ Principles that constrain every design choice:
 | Model | Claude Sonnet 5.5 on Microsoft Foundry; Claude Haiku 5.5 to be evaluated for extraction | See [Model, budget, and integration](#model-budget-and-integration) |
 | Region | North Alabama, the Shoals area first; NOAA station Muscle Shoals 2 N | The owner's location; see [Region: North Alabama](#region-north-alabama) |
 | Name | Patch & Pantry; domain [patchandpantry.app](https://patchandpantry.app) (decided 2026-11-11) | The owner's choice; the domain is registered. Trademark clearance pending (see [Scaling notes](#scaling-notes)) |
+| Brand | Concept A: a soil-filled jar with a sprout. Colors: moss `#3F5230`, red clay `#B5653F`, paper `#F6F1E8`. Typeface: Bricolage Grotesque for the name, system sans-serif fallback. Assets in `frontend/public/assets/images/` (`patch-and-pantry-icon.svg`, a `-light` variant for dark mode, and `patch-and-pantry-app-icon.svg` for the favicon) | The owner's choice (decided 2026-11-11) |
 
 ## User settings and required inputs
 
@@ -441,3 +442,4 @@ Specification gaps to close in phase specs:
 | --- | --- |
 | 2026-11-11 | Migrated to the repository from the planning conversation and the claude.ai design doc; research findings folded into their topics. Added the explicit-profile requirement for the Foundry model factory and the 2025-2030 guideline cups seed file. |
 | 2026-11-11 | Named the app Patch & Pantry (domain patchandpantry.app). Trademark clearance added to the pre-launch legal review; a Keller, Texas, farmstand uses the same name. |
+| 2026-11-11 | Added the Brand decision (concept A jar-and-sprout icon, moss, red clay, and paper colors, Bricolage Grotesque) and replaced the template's FastAPI branding in the app. |

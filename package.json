@@ -1,5 +1,5 @@
 {
-  "name": "fastapi-full-stack-template",
+  "name": "patch-and-pantry",
   "private": true,
   "workspaces": [
     "frontend",
