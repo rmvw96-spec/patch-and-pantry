@@ -11,6 +11,8 @@ import ReactDOM from "react-dom/client"
 import { client } from "./client/client.gen"
 import { ThemeProvider } from "./components/theme-provider"
 import { Toaster } from "./components/ui/sonner"
+// Bundled brand font (opsz axis included), so the app makes no request to Google Fonts.
+import "@fontsource-variable/bricolage-grotesque/opsz.css"
 import "./index.css"
 import { routeTree } from "./routeTree.gen"
 

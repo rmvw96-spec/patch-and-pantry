@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="t"><title id="t">Patch &amp; Pantry</title>
+  <path d="M32 66 C42 62 50 68 60 64 C70 60 78 66 88 64 V96 C88 102 83 107 77 107 H43 C37 107 32 102 32 96 Z" fill="#D9956E"/>
+  <path d="M42 78 h0.01 M70 74 h0.01 M54 88 h0.01 M78 92 h0.01 M40 98 h0.01 M64 100 h0.01" stroke="#2B1A10" stroke-opacity="0.35" stroke-width="4" stroke-linecap="round"/>
+  <path d="M60 64 V20" stroke="#F6F1E8" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M58 30 C49 30 41 24 39 13 C49 13 57 19 58 30 Z" fill="#F6F1E8"/>
+  <path d="M62 25 C64 14 72 8 83 8 C81 19 73 25 62 25 Z" fill="#F6F1E8"/>
+  <rect x="36" y="40" width="48" height="10" rx="3" stroke="#F6F1E8" stroke-width="6" fill="none"/>
+  <path d="M40 50 C31 56 28 64 28 72 V96 C28 104 34 110 42 110 H78 C86 110 92 104 92 96 V72 C92 64 89 56 80 50" stroke="#F6F1E8" stroke-width="6" stroke-linejoin="round" fill="none"/>
+</svg>

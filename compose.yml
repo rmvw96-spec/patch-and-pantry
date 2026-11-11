@@ -1,3 +1,7 @@
+# Pinned so the container, network, and volume names (patch-and-pantry_app-db-data, ...) do not
+# depend on the name of the folder the repository is checked out into.
+name: patch-and-pantry
+
 services:
 
   proxy:

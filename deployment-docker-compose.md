@@ -1,11 +1,11 @@
-# FastAPI Project - Docker Compose Deployment
+# Patch & Pantry - Docker Compose Deployment
 
 You can deploy the project to your own remote server with Docker Compose. The deployment configuration includes Traefik to handle HTTPS and route incoming traffic to the application.
 
 ## Preparation
 
 * Have a remote server ready and available.
-* Configure DNS records pointing to the server for the application domain and any supporting service subdomains you want to expose, such as `fastapi-project.example.com` and `adminer.fastapi-project.example.com`.
+* Configure DNS records pointing to the server for the application domain and any supporting service subdomains you want to expose, such as `patchandpantry.app` and `adminer.patchandpantry.app`.
 * Install and configure [Docker](https://docs.docker.com/engine/install/) on the remote server (Docker Engine, not Docker Desktop).
 
 ## Copy the Code
@@ -23,8 +23,8 @@ The `--filter=":- .gitignore"` option tells `rsync` to use the same ignore rules
 Set the application domain, project name, and first superuser email:
 
 ```bash
-export DOMAIN=fastapi-project.example.com
-export PROJECT_NAME="Full Stack FastAPI Project"
+export DOMAIN=patchandpantry.app
+export PROJECT_NAME="Patch & Pantry"
 export FIRST_SUPERUSER=admin@example.com
 ```
 
@@ -120,10 +120,10 @@ When the runner is online, open the repository's **Actions** tab, select **Deplo
 
 ## URLs
 
-Replace `fastapi-project.example.com` with your domain.
+With `DOMAIN=patchandpantry.app`:
 
-Application (frontend and API): `https://fastapi-project.example.com`
+Application (frontend and API): `https://patchandpantry.app`
 
-Interactive API docs: `https://fastapi-project.example.com/docs`
+Interactive API docs: `https://patchandpantry.app/docs`
 
-Adminer: `https://adminer.fastapi-project.example.com`
+Adminer: `https://adminer.patchandpantry.app`

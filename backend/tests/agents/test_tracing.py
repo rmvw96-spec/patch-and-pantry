@@ -92,7 +92,7 @@ def test_endpoint_configures_a_batching_otlp_exporter() -> None:
         assert provider is not None
         processors = provider._active_span_processor._span_processors
         assert any(isinstance(p, BatchSpanProcessor) for p in processors)
-        assert provider.resource.attributes["service.name"] == "sim-agent"
+        assert provider.resource.attributes["service.name"] == "patch-and-pantry"
         assert not isinstance(get_tracer(), trace.NoOpTracer)
     finally:
         shutdown_tracing()

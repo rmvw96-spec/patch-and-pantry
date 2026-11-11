@@ -1,4 +1,4 @@
-# Roadmap: local food planner (working title)
+# Roadmap: Patch & Pantry
 
 Five core phases build the app one user setting at a time; each ends with a gate it must pass
 before the next begins. Design: [`design.md`](design.md). Current phase spec: [`specs/`](specs/).
@@ -82,6 +82,9 @@ week's produce, per cup, with a shopping list.
 - [ ] Tool `compare_best_buy`: cost per cup across stores, with spoilage from FoodKeeper minimums.
 - [ ] Pages: price capture, price book, best-buy comparison with its trade-off table, printable
       shopping list.
+- [ ] iPhone home-screen icon: replace the stopgap `apple-touch-icon.png` (the app icon with its
+      corners squared off, so iOS does not show them black) with a purpose-made 180 px full-bleed
+      icon, and check it on a phone.
 - [ ] Agent instructions and tone guide written and reviewed.
 - [ ] Golden evals: extraction field by field; conversions and rankings exact; clarification
       cases; a trace check that every number came from a tool.
@@ -166,11 +169,13 @@ match hand calculations.
 | Eval pass threshold | Exact answers: every case passes 3 of 3 runs; extraction: at least 95% of fields correct | End of Phase 0 |
 | Model for each task | Haiku for capture; Sonnet for orchestration and judging, until the first comparison | First eval comparison in Phase 1 |
 | Hours per week for building | Needed before phases get dates | Start of Phase 0 |
-| App name | Working title | Before Phase 1 ships |
-| Repository name | Keep `sim-agent` until the app has a name | With the app name |
+| App name | **Decided 2026-11-11:** Patch & Pantry; domain [patchandpantry.app](https://patchandpantry.app) | Settled |
+| Repository name | Rename `sim-agent` to `patch-and-pantry` on GitHub. Every file already uses the new name; the Compose project name is pinned to `patch-and-pantry` in `compose.yml`, so it does not depend on the folder name | Right after PR #9 merges |
 
 ## Change log
 
 | Date | Change |
 | --- | --- |
 | 2026-11-11 | Migrated from the claude.ai roadmap. Tracing marked done (PR #7). Replacing the Studies feature moved from Phase 0 to the start of Phase 1, so the working end-to-end path stays tested until the first food tool exists. Added count units, agent instructions, and money representation. |
+| 2026-11-11 | App name settled: Patch & Pantry (patchandpantry.app). Repository rename scheduled for right after PR #9 merges. The Compose project name is pinned to `patch-and-pantry`; existing local `sim-agent_*` volumes need a one-time copy (see `development.md`). |
+| 2026-11-11 | Added the iPhone home-screen icon task to Phase 1. Removed the template's release and maintenance automation (release notes, release workflows, workflows that run only in the `fastapi` organization). |

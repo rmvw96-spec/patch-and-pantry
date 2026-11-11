@@ -1,4 +1,4 @@
-# FastAPI Project - Development
+# Patch & Pantry - Development
 
 ## Local Development
 
@@ -96,6 +96,27 @@ After changing variables, make sure you restart the stack:
 ```bash
 docker compose watch
 ```
+
+### Project name and volumes
+
+`compose.yml` pins the Compose project name to `patch-and-pantry`, so containers, networks, and
+volumes are named `patch-and-pantry-*` and `patch-and-pantry_*` whatever the checkout folder is
+called.
+
+Checkouts from before the rename used the project name `sim-agent`. To keep that data, copy the
+old volumes into the new ones once (the old volumes are left in place):
+
+```bash
+docker compose -p sim-agent down            # stop the old stack; keeps its volumes
+docker compose create db phoenix            # create the new, empty volumes
+for v in app-db-data phoenix-data; do
+  docker run --rm -v "sim-agent_$v:/from:ro" -v "patch-and-pantry_$v:/to" alpine \
+    sh -c 'cp -a /from/. /to/'
+done
+```
+
+When the new stack works, remove the old volumes with
+`docker volume rm sim-agent_app-db-data sim-agent_phoenix-data`.
 
 ## The `.env` File
 
