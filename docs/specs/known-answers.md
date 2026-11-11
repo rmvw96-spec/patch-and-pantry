@@ -1,0 +1,79 @@
+# Known answers
+
+Cases with verified expected results, for unit tests of deterministic tools and as seeds for
+golden evals. Numeric answers were computed and checked on 2026-11-11 (see
+`scripts/data/bed_costs.py` and `scripts/data/build_planting_calendar.py`). Behavioral cases
+describe the expected behavior and **need the owner's confirmation** before they become golden
+answers. Add new cases here as they are verified.
+
+## Unit conversion and price per cup (ERS)
+
+Formula: `price_per_cup = price_per_lb / preparation_yield_factor * cup_equivalent_lb`. It matches
+ERS's published `AveragePricePerCupEquivalent` within **0.001 USD**, not exactly, because the CSV
+rounds its yield and cup-size columns. Tests must use that tolerance.
+
+| ERS item (form) | Price per lb | Prep yield | Cup (lb) | Published price per cup |
+| --- | --- | --- | --- | --- |
+| Potatoes (Fresh) | 0.921544199 | 0.8113 | 0.2646 | 0.300503543 |
+| Black beans (Dried) | 1.658510355 | 2.4692 | 0.3858 | 0.259142243 |
+| Collard greens (Fresh) | 2.483338628 | 1.16 | 0.2866 | 0.613558 |
+| Tomatoes, large round (Fresh) | 2.142409751 | 0.91 | 0.3748 | 0.882356978 |
+| Okra (Fresh) | 5.680314126 | 0.7695 | 0.3527 | 2.603951096 |
+| Sweet potatoes (Fresh) | 1.164626523 | 0.8818 | 0.4409 | 0.582313262 |
+
+A yield factor above 1 is expected for dried beans (they absorb water when cooked).
+
+## Garden supplies: unit price and quantities
+
+| Case | Expected |
+| --- | --- |
+| Topsoil per cubic foot: 2.90 per 1 cu ft; 2.99, 3.28, and 3.99 per 0.75 cu ft | 2.90; 3.99 (3.9867); 4.37 (4.3733); 5.32 |
+| Cheapest topsoil per cubic foot among those four | The 1 cu ft bag at 2.90, even though the 0.75 cu ft bag at 2.99 has a similar shelf price |
+| Volume of a 4 x 8 ft bed, 12 in deep | 32 cu ft = 1.185 cubic yards (a vendor FAQ claims about 0.4; the tool must not repeat that) |
+| Volume at 7.5 in (one row of 1x8 cedar, actual width 7.5 in) | 20.0 cu ft |
+| Volume at 15 in (two rows) | 40.0 cu ft |
+| Volume at 7.25 in (one row of 2x8, actual width 7.25 in) | 19.33 cu ft |
+| One 4x8 bed, one row of 1x8 cedar at 25.65 per board, 3 boards, 20 bags at 2.90 | Frame 76.95 + soil 58.00 = 134.95 |
+| Same, two rows (6 boards, 40 bags) | 153.90 + 116.00 = 269.90 |
+| One row of 2x8 cedar at 40.94-52.80 per board, 20 bags | 180.82 to 216.40 |
+| Two rows of 2x8 (6 boards, 39 bags) | 358.74 to 429.90 |
+| Bulk topsoil 62.00 per yard, 3-yard minimum, versus bags at 2.90 per cu ft | 81 cu ft costs 186.00 plus delivery versus 234.90 in bags; bulk wins only if delivery is under 48.90 |
+| Seed kits per packet: 8.99 / 20; 14.99 / 40; 29.99 / 55; 39.99 / 15 | 0.4495; 0.3748; 0.5453; 2.666 |
+
+## Planting windows (North Alabama rule)
+
+Rule: spring windows shift 10 days later, fall windows 10 days earlier; a month with no day spans
+the whole month; non-leap reference year. These test the **date logic only**; the derived dates
+are unverified as agronomy and must not be golden answers for recommendations.
+
+| Crop, season | As published | Central window | Derived North Alabama window |
+| --- | --- | --- | --- |
+| Bush snap beans, fall | `Aug. 5-20` | Aug 5 to Aug 20 | Jul 26 to Aug 10 |
+| Bush snap beans, spring | `April` | Apr 1 to Apr 30 | Apr 11 to May 10 |
+| Green onions, fall | `October - February` | Oct 1 to Feb 28 (crosses the year) | Sep 21 to Feb 18 |
+| Lettuces, spring | `Jan. 15 - Feb.***` | Jan 15 to Feb 28 | Jan 25 to Mar 10 |
+| Kohlrabi, fall | `Aug. 15 - Sept.` | Aug 15 to Sep 30 | Aug 5 to Sep 20 |
+| Watermelons, fall | `June 15- 30` | Jun 15 to Jun 30 | Jun 5 to Jun 20 |
+
+## Targets and rates
+
+| Case | Expected |
+| --- | --- |
+| Produce target at 2,000 calories | 3 vegetable cups + 2 fruit cups per day = 35 cups per person per week |
+| Two members at 2,000 calories | 70 cups per week |
+| Member at 1,600 calories | 2.5 vegetable + 1.5 fruit cups per day |
+| Labor rate from the Minnesota study (48 hours, 365 sq ft) | 13.15 hours per 100 sq ft per season |
+| Cost per run, Sonnet 5.5, 7,500 input and 600 output tokens, no caching | 0.015 + 0.006 = 0.021 USD |
+| Same on Haiku 5.5 | 0.00075 + 0.0003 = 0.00105 USD |
+
+## Behavioral cases (need owner confirmation)
+
+| Input | Expected behavior |
+| --- | --- |
+| Typed line `onions 3 lb bag 2.99` | One price observation: item onion, quantity 3, unit `lb`, price_cents 299, captured_via `typed`, raw_text kept |
+| Typed line `kale bunch 2.50` | Asks for the bunch weight, or uses a catalog default and labels it an assumption; never silently guesses |
+| Typed line `tomatoes 3 for $5` | Quantity 3, count unit, price_cents 500 for the lot; needs grams per tomato before cost per cup |
+| A question citing the vendor's "0.4 yards for a 4x8 bed, 12 in deep" | The answer uses the tool's 1.19 yards and does not repeat the vendor's figure as fact |
+| An AMS report price shown to the user | Labeled as a typical sale price, never as the shelf price |
+| "How many calories should I eat to lose weight?" | Explains that the app tracks produce acquired toward food independence, not diets, and gives no weight-loss advice |
+| Any recommendation | Every number in the explanation matches a tool output in the trace |
