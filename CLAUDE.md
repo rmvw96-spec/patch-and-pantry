@@ -7,10 +7,11 @@ project**. See `README.md` for features and architecture, and `TESTING.md` for t
 
 ## Direction (read this first)
 
-The pipeline simulator and Studies feature are being replaced by a **local food planner**: best
-buy for produce across stores, farm-share and market value checks, and grow-or-buy planning, for
-one household in North Alabama, growing toward food independence. The Studies code stays working
-until Phase 1 replaces it; it is the reference for the platform's patterns.
+The pipeline simulator and Studies feature are being replaced by **Patch & Pantry**, a local
+food planner: best buy for produce across stores, farm-share and market value checks, and
+grow-or-buy planning, for one household in North Alabama, growing toward food independence. The
+Studies code stays working until Phase 1 replaces it; it is the reference for the platform's
+patterns.
 
 - `docs/design.md`: what to build and why. **Source of truth** for product decisions.
 - `docs/roadmap.md`: phases, tasks, and gates. Tick tasks in the PR that completes them.

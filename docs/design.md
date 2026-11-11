@@ -1,4 +1,4 @@
-# Design: local food planner (working title)
+# Design: Patch & Pantry
 
 This file is the **source of truth** for the product design. It was migrated on 2026-11-11 from a
 planning conversation and a claude.ai design doc; the claude.ai copy is now a frozen snapshot.
@@ -46,6 +46,7 @@ Principles that constrain every design choice:
 | Terminology | "User settings" = choices a person makes; "feature flags" = code switches for unreleased features | Keeps the two from being confused |
 | Model | Claude Sonnet 5.5 on Microsoft Foundry; Claude Haiku 5.5 to be evaluated for extraction | See [Model, budget, and integration](#model-budget-and-integration) |
 | Region | North Alabama, the Shoals area first; NOAA station Muscle Shoals 2 N | The owner's location; see [Region: North Alabama](#region-north-alabama) |
+| Name | Patch & Pantry; domain [patchandpantry.app](https://patchandpantry.app) (decided 2026-11-11) | The owner's choice; the domain is registered. Trademark clearance pending (see [Scaling notes](#scaling-notes)) |
 
 ## User settings and required inputs
 
@@ -396,7 +397,7 @@ Cheap now, expensive later:
 | CI fixture photos the owner owns | Build now | The repository is public; never use other people's posts |
 | Dedicated job worker | After core (Phase 5) | Prefect server and workers, async database sessions |
 | LLM cost controls at scale | After core | Per-user caps; cache extraction by image hash; model per task |
-| Legal review of personal data | Before public launch | See Privacy |
+| Legal review of personal data and trademark clearance | Before public launch | See Privacy. A farmstand in Keller, Texas, uses "Patch & Pantry" ([patchandpantry.com](https://patchandpantry.com)); clear the name before launch |
 | Separate test database | After core | Tests currently share and wipe the development database |
 | Redis outage handling | After core | 503 with Retry-After instead of 500 |
 | Countries beyond the US | Long term | Data sources, units, currency, laws |
@@ -422,7 +423,7 @@ Research items still open:
 - [ ] The advertised-versus-everyday price gap (measure from captures).
 - [ ] Whether fresh or local produce lasts longer than FoodKeeper's store-bought times.
 - [ ] Measured token counts per run (Phoenix), then update the budget section.
-- [ ] App name.
+- [x] App name: Patch & Pantry (decided 2026-11-11).
 
 Specification gaps to close in phase specs:
 
@@ -439,3 +440,4 @@ Specification gaps to close in phase specs:
 | Date | Change |
 | --- | --- |
 | 2026-11-11 | Migrated to the repository from the planning conversation and the claude.ai design doc; research findings folded into their topics. Added the explicit-profile requirement for the Foundry model factory and the 2025-2030 guideline cups seed file. |
+| 2026-11-11 | Named the app Patch & Pantry (domain patchandpantry.app). Trademark clearance added to the pre-launch legal review; a Keller, Texas, farmstand uses the same name. |

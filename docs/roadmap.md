@@ -1,4 +1,4 @@
-# Roadmap: local food planner (working title)
+# Roadmap: Patch & Pantry
 
 Five core phases build the app one user setting at a time; each ends with a gate it must pass
 before the next begins. Design: [`design.md`](design.md). Current phase spec: [`specs/`](specs/).
@@ -166,11 +166,12 @@ match hand calculations.
 | Eval pass threshold | Exact answers: every case passes 3 of 3 runs; extraction: at least 95% of fields correct | End of Phase 0 |
 | Model for each task | Haiku for capture; Sonnet for orchestration and judging, until the first comparison | First eval comparison in Phase 1 |
 | Hours per week for building | Needed before phases get dates | Start of Phase 0 |
-| App name | Working title | Before Phase 1 ships |
-| Repository name | Keep `sim-agent` until the app has a name | With the app name |
+| App name | **Decided 2026-11-11:** Patch & Pantry; domain [patchandpantry.app](https://patchandpantry.app) | Settled |
+| Repository name | Keep `sim-agent` for now; rename later, after checking the Docker Compose project name so local volumes are not orphaned | Open; after checking the Compose project name |
 
 ## Change log
 
 | Date | Change |
 | --- | --- |
 | 2026-11-11 | Migrated from the claude.ai roadmap. Tracing marked done (PR #7). Replacing the Studies feature moved from Phase 0 to the start of Phase 1, so the working end-to-end path stays tested until the first food tool exists. Added count units, agent instructions, and money representation. |
+| 2026-11-11 | App name settled: Patch & Pantry (patchandpantry.app). Repository rename stays open until the Docker Compose project name is checked. |
