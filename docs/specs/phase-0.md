@@ -19,8 +19,9 @@ in CI.
 - [x] Microsoft Foundry deployment of DeepSeek-V3.2 (the model sold by Azure), named
       `DeepSeek-V3.2`. Claude could not be deployed: it needs an Enterprise Agreement or MCA-E
       subscription (see `design.md`, Model, budget, and integration).
-- [ ] Local `.env` values (never committed): `FOUNDRY_ENDPOINT` (the deployment's v1 endpoint,
-      ending in `/openai/v1/`, copied from the portal) and `FOUNDRY_API_KEY`.
+- [ ] Local `.env.local` values (gitignored; `.env` is committed, so secrets never go there):
+      `FOUNDRY_ENDPOINT` (the deployment's v1 endpoint, ending in `/openai/v1/`, copied from the
+      portal) and `FOUNDRY_API_KEY`.
 
 ## P0-1: Model factory
 
@@ -29,7 +30,9 @@ in CI.
 
 - No new dependency: `OpenAIChatModel` and `AzureProvider` come with the `openai` extra already
   installed.
-- Add settings (read from `.env` by `Settings`): `FOUNDRY_ENDPOINT: str | None`,
+- `Settings` reads `.env.local` after `.env` (later files override earlier ones); add
+  `.env.local` to `.gitignore`.
+- Add settings: `FOUNDRY_ENDPOINT: str | None`,
   `FOUNDRY_API_KEY: SecretStr | None`, and move `SIM_MODEL` into `Settings` (default `"demo"`; it
   is currently read from `os.environ` at import time, which `CLAUDE.md` documents as a gotcha).
   Do not name them `AZURE_OPENAI_*`: `AzureProvider` reads those from the environment on its own,
@@ -40,36 +43,45 @@ in CI.
   | --- | --- |
   | `demo` | The existing deterministic scripted model |
   | `test` | `"test"` (Pydantic AI `TestModel`) |
-  | `foundry:<canonical>` | `OpenAIChatModel(<default deployment>, provider=AzureProvider(azure_endpoint=..., api_key=...), profile=AzureProvider.model_profile(<canonical>))` |
+  | `foundry:<canonical>` | `OpenAIChatModel(<default deployment>, provider=AzureProvider(azure_endpoint=..., api_key=...), profile=<pinned>)` |
   | `foundry:<canonical>@<deployment>` | Same, but the request uses `<deployment>` as the model name |
   | anything else | `ValueError` naming the allowed forms |
 
   `<canonical>` must be `deepseek-v3.2`; its default deployment name is `DeepSeek-V3.2`. Keep the
   allowed models in one mapping (canonical name to default deployment) so a second model, such as
   one for photo capture, is a one-line addition.
-- **Always pass `profile=AzureProvider.model_profile(<canonical>)`.** Pydantic AI looks profiles
-  up by deployment name; under a custom name, DeepSeek-V3.2 gets a generic OpenAI profile that
-  claims JSON-schema output, which the model does not support (verified 2026-11-11 with Pydantic
-  AI 2.65).
+- **Pin the profile of the default deployment name.** Pydantic AI looks profiles up by
+  deployment name; under a custom name, DeepSeek-V3.2 gets a generic OpenAI profile that claims
+  JSON-schema output, which the model does not support. Passing
+  `AzureProvider.model_profile(<canonical>)` does **not** fix this: that partial profile omits the
+  JSON-output flags, and a partial profile is merged on top, so the generic values survive. Resolve
+  the full profile of a model built under the default deployment name and pass it in the callable
+  form, `profile=lambda _resolved: profile.copy()`, which replaces rather than merges (verified
+  2026-11-11 with Pydantic AI 2.65; the first version of this spec prescribed the partial form).
+- **Require a v1 endpoint** (an `https` URL whose path ends in `/openai/v1`). Only then does
+  `AzureProvider` use a plain OpenAI client that ignores `OPENAI_API_VERSION`.
 - Never set `temperature`, `top_p`, or `top_k` in model settings.
 - **Build lazily.** Importing any `app` module must not require Foundry settings or construct a
   network client. Resolve the model when a run starts (`run_study` already accepts `model=`).
   A `foundry:` spec with missing settings raises a clear error naming both variables.
+- The smoke logic lives in `app/agents/smoke.py` (testable offline with scripted models);
+  `backend/scripts/smoke_foundry.py` is a thin command-line wrapper.
 
 **Acceptance criteria:**
 
-- [ ] Unit tests (no network): `foundry:deepseek-v3.2` yields an `OpenAIChatModel` named
+- [x] Unit tests (no network): `foundry:deepseek-v3.2` yields an `OpenAIChatModel` named
       `DeepSeek-V3.2` whose profile has `supports_json_schema_output == False`; the same profile
       holds for `foundry:deepseek-v3.2@my-custom-name`, whose requests use `my-custom-name`;
       `demo` and `test` behave as today; unknown specs raise `ValueError`.
-- [ ] A test asserts no model settings set `temperature`, `top_p`, or `top_k`.
-- [ ] A test asserts `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY` in the environment are
+- [x] A test asserts no model settings set `temperature`, `top_p`, or `top_k`.
+- [x] A test asserts `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY` in the environment are
       ignored: the provider uses the values from `Settings`.
-- [ ] The full suite passes with no Foundry variables set.
-- [ ] `scripts/smoke_foundry.py` (manual, never in CI) runs one tiny study through DeepSeek-V3.2
-      with tracing on and prints the trace ID and token usage. It first checks that the model
-      returns a real tool call, not tool-call text in a message (a reported Foundry issue), and
-      fails clearly if not.
+- [x] The full suite passes with no Foundry variables set.
+- [ ] `backend/scripts/smoke_foundry.py` (manual, never in CI) runs one tiny study through
+      DeepSeek-V3.2 with tracing on and prints the trace ID and token usage. It first checks that
+      the model returns a real tool call, not tool-call text in a message (a reported Foundry
+      issue), and fails clearly if not. *Written and tested offline with scripted models; the
+      first live run is the owner's, in P0-2.*
 
 ## P0-2: Measure tokens
 

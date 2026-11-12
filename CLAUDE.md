@@ -47,6 +47,7 @@ uv run bash scripts/tests-start.sh          # full suite with coverage (CI requi
 uv run bash scripts/agent-test.sh           # agent tests only (root conftest still needs Postgres)
 uv run pytest tests/api/routes/test_studies.py -k idempotency   # single test
 uv run bash scripts/lint.sh                 # mypy (strict), ty, ruff check, ruff format --check
+uv run python scripts/smoke_foundry.py      # LIVE DeepSeek call (costs money; needs .env.local)
 uv run bash scripts/format.sh
 
 # frontend (from repo root unless noted)
@@ -71,8 +72,8 @@ uv run prek run --all-files
   or `study_agent.override(...)` / `reviewer_agent.override(...)` inside the test body (agent
   tests; override both when delegation is involved). Use `FakeSimClient` from
   `tests/agents/conftest.py` instead of the real simulator.
-- `SIM_MODEL` is read from `os.environ` at import time in `study_agent.py`, not from `Settings`,
-  so it must be set before the process starts. `demo` gives deterministic scripted responses.
+- `SIM_MODEL` is a `Settings` field (default `demo`, deterministic scripted responses); the model
+  is built when a run starts, not at import. Other values: `test`, `foundry:deepseek-v3.2`.
 - Every exit path in `study_jobs.execute_study` must leave a study in `succeeded` or `failed`;
   a study stuck in `running` makes the UI poll forever. Each path also sets `study.status` on the
   `study` span.
@@ -111,9 +112,11 @@ These come from `docs/design.md`; follow them in every change.
   repository is public.
 - **DeepSeek-V3.2 on Microsoft Foundry** is the only live model for now (Claude on Foundry needs
   an enterprise Azure subscription). Build models through the factory (Phase 0) with
-  `OpenAIChatModel` and `AzureProvider`; always pass `profile=AzureProvider.model_profile(<canonical
-  name>)`, because a custom deployment name otherwise gets a generic OpenAI profile; pass the
-  endpoint and key from `Settings`, never through `AZURE_OPENAI_*` variables; never set
+  `OpenAIChatModel` and `AzureProvider` (`app/agents/models.py`). The factory pins the default
+  deployment name's full profile (a partial `profile=` is merged and does not override a custom
+  name's generic one); it passes the endpoint and key from `Settings`, never through
+  `AZURE_OPENAI_*` variables, and accepts only a v1 endpoint. Secrets such as `FOUNDRY_API_KEY` go
+  in the gitignored `.env.local`, never in the committed `.env`; never set
   `temperature`, `top_p`, or `top_k`; construct clients lazily so importing `app` needs no Foundry
   settings. DeepSeek-V3.2 reads text only, and no LLM-as-judge checks run until a second model
   exists.

@@ -7,3 +7,6 @@ backend/app/frontend/
 /blob-report/
 /playwright/.cache/
 test-cov/
+
+# Local secrets (FOUNDRY_API_KEY and friends); .env is committed, this file is not.
+.env.local

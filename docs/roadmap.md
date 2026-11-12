@@ -53,7 +53,7 @@ Lay the food domain's foundations without disturbing the working Studies feature
 - [x] Azure budget alert at 50% and 90% of 200 USD (owner, in the Azure portal).
 - [x] Foundry deployment of DeepSeek-V3.2, the model sold by Azure, named `DeepSeek-V3.2` (owner).
       Claude could not be deployed on a pay-as-you-go subscription.
-- [ ] Model factory: DeepSeek-V3.2 through `AzureProvider` with an explicit profile, alongside
+- [x] Model factory: DeepSeek-V3.2 through `AzureProvider` with an explicit profile, alongside
       the existing demo and scripted models; temperature never set.
 - [x] Phoenix tracing with OpenTelemetry (PR #7).
 - [ ] Measure tokens per run with tracing on; update `design.md`'s budget section.
@@ -182,3 +182,4 @@ match hand calculations.
 | 2026-11-11 | App name settled: Patch & Pantry (patchandpantry.app). Repository rename scheduled for right after PR #9 merges. The Compose project name is pinned to `patch-and-pantry`; existing local `sim-agent_*` volumes need a one-time copy (see `development.md`). |
 | 2026-11-11 | Added the iPhone home-screen icon task to Phase 1. Removed the template's release and maintenance automation (release notes, release workflows, workflows that run only in the `fastapi` organization). |
 | 2026-11-11 | Model changed to DeepSeek-V3.2 on Foundry (Claude needs an enterprise Azure subscription). Phase 0 budget and deployment ticked. Model comparison deferred; photo capture and the Phase 4 judge check need a second model. |
+| 2026-11-11 | Model factory done (P0-1); live smoke run and token measurement (P0-2) next. |
