@@ -7,7 +7,7 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 499 |
+| Backend tests | 58 | 500 |
 | Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
 | Backend suite, local run | 16.4 s | 21.4 s |
@@ -243,3 +243,4 @@ for it.
 | 2026-11-12 | PR #21: grocery analysis runs replace Studies (P1-1). Studies, the simulator, and their tests deleted; run, vendor, and job-tracing tests carry over idempotency, terminal states, ownership, and tracing. Prices page E2E with seeded reference data and a 1 s demo delay. Fourteen put-back bugs each caught (table above) | -2 backend (484), E2E spec replaced (6 tests) | Playwright: one more step (load reference data) |
 | 2026-11-12 | PR #22: pages and shopping list (P1-7): confirming drafts, price book, best buy with a printable shopping list, household settings; price, catalog, alias, and item-setting APIs. Six put-back bugs each caught (table above). One local Playwright failure on a cold dev server was not reproduced in four more runs | +26 backend, +12 E2E | ___ |
 | 2026-11-12 | Removed the template's Items page, API, `item` table, and their tests (dogfooding: unused by Patch & Pantry) | -11 backend, -1 E2E file | ___ |
+| 2026-11-12 | Dogfooding fixes, best buy: notes said once per item under the table, "National average (2023)" with its source, bold explanation text rendered. Checked that putting the storage note back on every row fails `test_item_notes_are_said_once_per_item` | +1 backend, E2E checks added to 2 tests | ___ |

@@ -71,6 +71,11 @@ export type BestBuyResult = {
      */
     rows: Array<BestBuyRow>;
     /**
+     * Items
+     */
+    items?: Array<ItemNote>;
+    national_average?: NationalAverage | null;
+    /**
      * Shopping List
      */
     shopping_list?: Array<ShoppingGroup>;
@@ -499,6 +504,26 @@ export type HouseholdUpdate = {
 };
 
 /**
+ * ItemNote
+ *
+ * What applies to every row of one item, said once under the table.
+ */
+export type ItemNote = {
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Storage
+     */
+    storage?: string | null;
+    /**
+     * Notes
+     */
+    notes?: Array<string>;
+};
+
+/**
  * ItemSettingPublic
  */
 export type ItemSettingPublic = {
@@ -530,6 +555,26 @@ export type Message = {
      * Message
      */
     message: string;
+};
+
+/**
+ * NationalAverage
+ *
+ * Where the national-average rows come from, for the note under the table.
+ */
+export type NationalAverage = {
+    /**
+     * Version
+     */
+    version: string;
+    /**
+     * Url
+     */
+    url: string;
+    /**
+     * Note
+     */
+    note: string;
 };
 
 /**

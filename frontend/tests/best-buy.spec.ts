@@ -38,11 +38,20 @@ test.describe("Comparing prices", () => {
     await expect(marked).toHaveCount(1)
     await expect(marked.getByTestId("best-buy-cost")).toHaveText("$0.39")
     await expect(page.getByTestId("best-buy-table")).toContainText(
-      "national average (ERS 2023), not a store price",
+      "National average (2023)",
     )
-    await expect(page.getByTestId("best-buy-explanation")).toContainText(
+    // Storage and the national average's source are said once, under the table.
+    await expect(page.getByTestId("best-buy-item-note")).toHaveCount(1)
+    await expect(page.getByTestId("best-buy-item-note")).toContainText("Onion:")
+    await expect(page.getByTestId("best-buy-national-average")).toContainText(
+      "USDA ERS average retail prices for 2023",
+    )
+    // The demo answer bolds the cost the way the live model does; it renders as bold text.
+    const explanation = page.getByTestId("best-buy-explanation")
+    await expect(explanation.locator("strong")).toHaveText(
       "$0.39 per usable cup",
     )
+    await expect(explanation).not.toContainText("**")
     const list = page.getByTestId("shopping-list")
     await expect(list).toContainText("Onion")
     await expect(list.getByRole("button", { name: "Print" })).toBeVisible()
@@ -61,7 +70,10 @@ test.describe("Comparing prices", () => {
     })
 
     await expect(page.getByTestId("best-buy-marked")).toContainText(
-      "national average",
+      "National average",
+    )
+    await expect(page.getByTestId("best-buy-item-note")).toContainText(
+      "no store price yet",
     )
     await expect(
       page

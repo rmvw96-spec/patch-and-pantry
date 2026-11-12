@@ -206,8 +206,9 @@ back to SR28's own figure (2 peppers: 2 x 164 g = 328 g; a romaine head: 626 g).
   cups bought, usable cups, spoilage %, cost per usable cup, and the source of each factor; the
   lowest cost per usable cup per item is marked (the Lowest cost preset).
 - Prices (D5): the household's own prices from the last 30 days come first. An item with none
-  falls back to the ERS average, which becomes its priced row, labeled "national average (ERS
-  2023), not a store price"; the shopping list then shows it under "no store price yet" rather
+  falls back to the ERS average, which becomes its priced row, labeled "National average
+  (2023)" (dogfooding: what a national average is, and its source, is a note under the table, said
+  once); the shopping list then shows it under "no store price yet" rather
   than a vendor. The ERS average also appears on every item as a labeled reference row, for
   comparison with the household's prices. An item with neither (for example mustard greens) has
   a "no price" row.

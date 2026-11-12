@@ -62,11 +62,19 @@ def _only_table_numbers(ctx: RunContext[Deps], text: str) -> str:
 def format_table(table: BestBuyTable) -> str:
     """The table as the model sees it. The numbers use the same formats the validator accepts."""
     lines = [f"Prices compared on {table.on.isoformat()}."]
+    item_notes = {note.item_name: note for note in table.items}
     current = None
     for row in table.rows:
         if row.item_name != current:
             current = row.item_name
             lines.append(f"\n{row.item_name} (needs {row.cups_per_week:g} cups a week)")
+            note = item_notes.get(row.item_name)
+            if note is not None:
+                said = [t for t in (note.storage, *note.notes) if t]
+                if said:
+                    lines.append(
+                        f"Notes for every {row.item_name.lower()} row: {' '.join(said)}"
+                    )
         mark = "MARKED BEST" if row.marked else row.kind.replace("_", " ")
         if row.kind == "no_price":
             lines.append(f"- {mark}: no price yet")
@@ -81,6 +89,8 @@ def format_table(table: BestBuyTable) -> str:
         )
         notes = f" Notes: {' '.join(row.notes)}" if row.notes else ""
         lines.append(f"- {mark}: {row.label}, {price}: {detail}.{notes}")
+    if table.national_average is not None:
+        lines.append(f"\n{table.national_average.note}")
     return "\n".join(lines)
 
 

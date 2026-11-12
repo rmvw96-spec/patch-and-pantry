@@ -37,6 +37,7 @@ from app.tools.best_buy import (
     Storage,
     build_rows,
     compare_best_buy,
+    item_note,
     midpoint,
     shopping_list,
     spoilage,
@@ -174,13 +175,38 @@ def test_a_reference_row_is_never_marked() -> None:
     reference = next(r for r in rows if r.kind == "ers_reference")
     assert not reference.marked
     assert reference.cost_per_usable_cup_cents < rows[0].cost_per_usable_cup_cents  # type: ignore[operator]
-    assert "not a price at any store" in " ".join(reference.notes)
+    # What a national average is, is said once under the table, not on every row.
+    assert reference.notes == []
 
 
 def test_with_no_store_price_the_national_average_is_marked() -> None:
-    (row,) = _rows([_price(106, 1, kind="ers_fallback", label="national average")])
-    assert row.marked
-    assert "no store price yet" in " ".join(row.notes)
+    rows = _rows([_price(106, 1, kind="ers_fallback", label="national average")])
+    assert rows[0].marked and rows[0].notes == []
+    note = item_note("Onion", ONION, _storage(30), rows)
+    assert "no store price yet" in " ".join(note.notes)
+
+
+def test_item_notes_are_said_once_per_item() -> None:
+    """Storage and stand-ins apply to every row of an item, so they leave the rows (dogfooding)."""
+    squash = CatalogFacts("Yellow squash", 0.95, 0.2756, "ERS: Zucchini", "Zucchini")
+    storage = _storage(
+        4, "Keeps 3-5 days in the refrigerator (FoodKeeper), counted as 4 days."
+    )
+    rows = build_rows(
+        "Yellow squash",
+        Need(uuid.uuid4(), 2),
+        squash,
+        storage,
+        [_price(199, 1), _price(149, 1)],
+    )
+    assert all(row.notes == [] for row in rows)
+
+    note = item_note("Yellow squash", squash, storage, rows)
+
+    assert note.storage == storage.note
+    assert note.notes == [
+        "Conversions borrowed from Zucchini."
+    ]  # no fallback: store prices exist
 
 
 def test_ties_go_to_the_newest_price_then_the_name() -> None:
@@ -323,7 +349,11 @@ def test_the_household_prices_come_first_with_ers_as_reference(
     onion = [r for r in table.rows if r.item_name == "Onion"]
     assert [r.kind for r in onion] == ["household", "ers_reference"]
     assert onion[0].marked and onion[0].label == "Corner store"
-    assert onion[1].label == "national average (ERS 2023), not a store price"
+    assert onion[1].label == "National average (2023)"
+    assert table.national_average is not None
+    assert table.national_average.version == "2023"
+    assert "not a price at any store" in table.national_average.note
+    assert [n.item_name for n in table.items] == ["Onion", "Kale"]
     kale = [r for r in table.rows if r.item_name == "Kale"]
     assert [r.kind for r in kale] == ["ers_fallback"] and kale[0].marked
     # The ERS row uses the full-precision price from its raw text, not the rounded cents.
@@ -381,7 +411,7 @@ def test_the_latest_ers_snapshot_is_used(
     table = _table(db_session, household, (catalog["onion"], 2))
 
     (row,) = table.rows
-    assert row.label == "national average (ERS 2023), not a store price"
+    assert row.label == "National average (2023)"
     assert new.id in table.data_snapshot_ids and old.id not in table.data_snapshot_ids
 
 
@@ -431,7 +461,11 @@ def test_cook_and_freeze_extras(
     assert plain.storage_days == 2.5 and round(plain.spoiled_share * 100) == 74  # type: ignore[operator]
     assert frozen.storage_days == 45.0 and frozen.spoiled_share == 0
     assert frozen.cost_per_usable_cup_cents / 100 == pytest.approx(0.61, abs=0.005)  # type: ignore[operator]
-    assert "assumes you freeze what you won't eat in 3-4 days" in " ".join(frozen.notes)
+    (note,) = table.items
+    assert note.storage == (
+        "Cook and freeze extras: cooked leftovers keep 30-60 days frozen (FoodKeeper), "
+        "counted as 45 days. Assumes you freeze what you won't eat in 3-4 days."
+    )
     assert (
         frozen.sources["storage"] == "FoodKeeper cooked leftovers, freezer: 30-60 days"
     )
@@ -468,9 +502,10 @@ def test_an_item_without_storage_time_counts_no_spoilage(
     db_session: Session, catalog: Catalog, household: Household, vendor: Vendor
 ) -> None:
     _own_price(db_session, household, vendor, catalog["tomato"], 249, 1)
-    (row,) = _table(db_session, household, (catalog["tomato"], 2)).rows
+    table = _table(db_session, household, (catalog["tomato"], 2))
+    (row,) = table.rows
     assert row.spoiled_share == 0 and row.storage_days is None
-    assert "spoilage is not counted" in " ".join(row.notes)
+    assert "spoilage is not counted" in (table.items[0].storage or "")
 
 
 def test_prices_by_count_use_the_size_or_the_weight_given(
@@ -519,8 +554,8 @@ def test_stand_ins_are_noted(
     db_session: Session, catalog: Catalog, household: Household, vendor: Vendor
 ) -> None:
     _own_price(db_session, household, vendor, catalog["yellow-squash"], 199, 1)
-    (row,) = _table(db_session, household, (catalog["yellow-squash"], 2)).rows
-    assert "Conversions borrowed from Zucchini." in row.notes
+    (note,) = _table(db_session, household, (catalog["yellow-squash"], 2)).items
+    assert "Conversions borrowed from Zucchini." in note.notes
 
 
 @pytest.mark.parametrize("cups", [0, -1])
@@ -626,7 +661,9 @@ def test_demo_mode_explains_the_real_table(
     text = explanation.text
     assert explanation.usage.requests == 1
 
-    assert "For onion, Corner store is the best buy at $0.39 per usable cup." in text
+    assert (
+        "For onion, Corner store is the best buy at **$0.39 per usable cup**." in text
+    )
     assert (
         "For kale there is no store price yet" in text and "not a store price" in text
     )
