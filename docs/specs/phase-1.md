@@ -166,11 +166,36 @@ back to SR28's own figure (2 peppers: 2 x 164 g = 328 g; a romaine head: 626 g).
 - Questions are required when a unit has no portion ("kale bunch 2.50"), an item has no clear match, or
   the price or quantity is unreadable. Never a silent guess (`known-answers.md`, behavioral cases).
 
+**As built** (`capture_typed_list(session, household, text, vendor_id, observed_on)`):
+
+- The code splits the list into lines and numbers them; the model returns one reading per line
+  number (item words, quantity, unit, size, price text, and whether the price is per unit), so
+  `raw_text` always comes from the code, never from the model. A line the model skips, or a line
+  number it repeats or invents, becomes an "unreadable" question rather than borrowed data.
+- Everything after the reading is code: dollars to cents (`price_cents`: "2.99", "$5", "99c"),
+  unit spellings, matching, piece weights, and `normalize_price`. A per-unit price ("2.49/lb") or
+  a unit with no number ("romaine head 2.49") is one unit.
+- Question kinds: `unreadable`, `no_match`, `which_item`, `missing_price`, `missing_unit`,
+  `unknown_unit`, `needs_weight`, `needs_size`. A question about a known item carries the draft
+  read so far, so the answer completes it. An item with no cup conversion is a draft without a
+  per-cup figure, with a note.
+- Matching (`app/tools/catalog.py`): text is folded (lower case, singular, filler words such as
+  "organic" and "baby" dropped). Starting values: `CUTOFF` 0.80, `MARGIN` 0.10, suggestions only
+  at 0.60 or more, at most 5. An alias listed for several items in `catalog_aliases.csv`
+  ("greens", "squash", "peppers", "beans", "peas", "melon") is a question by design.
+  `remember_alias` saves a confirmed match to `household_alias` (used by P1-7's confirm step).
+- `SIM_MODEL=demo` reads lists with a deterministic parser (`demo_model.read_list_line`), so the
+  whole capture runs without a model key.
+- Limits: 100 lines, 200 characters a line, 4 model requests; the vendor must be the
+  household's own.
+
 **Acceptance criteria:**
 
-- [ ] Scripted-model tests: each behavioral case in `known-answers.md` produces the expected
+- [x] Scripted-model tests: each behavioral case in `known-answers.md` produces the expected
       drafts or questions.
-- [ ] A draft keeps `raw_text` exactly as typed; nothing is saved before confirmation.
+- [x] A draft keeps `raw_text` exactly as typed; nothing is saved before confirmation.
+- [ ] Owner review of `catalog_aliases.csv`.
+- [ ] Tune `CUTOFF` and `MARGIN` against the owner's real lists (when they arrive).
 
 ## P1-6: Tool `compare_best_buy`
 
