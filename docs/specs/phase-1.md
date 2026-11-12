@@ -44,14 +44,30 @@ vision model), growing (Phase 3), independence progress (Phase 4), presets other
 
 ## P1-3: Count units
 
-**Where:** new table `catalog_portion`; `app/seed/loaders.py`.
+**Where:** new table `catalog_portion`; `app/seed/loaders.py` (`load_sr28_portions`);
+`app/seed_data/catalog_portions.csv`.
 
 - `catalog_portion`: `id`, `catalog_item_id` (cascade), `unit` (Literal: `each`, `bunch`,
   `head`, `ear`, `pint`), `size` (nullable: `small`, `medium`, `large`), `grams` (of the whole
-  purchased unit), `source` (text), `snapshot_id` (nullable).
-- Loaded from FoodData Central SR Legacy household measures (`food_portion.csv`) for the first
-  crop set, through a crosswalk column naming the portion rows to use. Example: tomato, 1 medium
-  whole (2-3/5" dia) = 123 g; okra, 8 pods (3" long) = 95 g.
+  purchased unit), `edible_grams` and `refuse_pct` (for loaded rows), `description` (the
+  source's wording), `source` (text), `snapshot_id` (nullable), `measured_on` (nullable). Every
+  portion has a snapshot or a measured date (CHECK).
+- **Household measures are edible weight.** SR28's documentation: "Weights are given for edible
+  material without refuse." So `grams = edible_grams / (1 - refuse_pct / 100)`, with refuse from
+  SR28's food descriptions, and `normalize_price` then applies the preparation yield to `grams`
+  as it does to any purchased weight. Without this step the refuse would be removed twice.
+  Checks against SR28's own hints: large green pepper 164 / 0.82 = 200 g ("2-1/4 per lb" =
+  202 g); peeled eggplant 458 / 0.81 = 565 g ("yield from 1-1/4 lb" = 567 g).
+- Loaded from the **SR28 ASCII release** (`WEIGHT.txt` and `FOOD_DES.txt`): FDC's SR Legacy CSV
+  has the same weights (all 43 mapped rows match) but not the refuse. A separate owner-reviewed
+  file, `catalog_portions.csv`, names the SR28 weight for each item, unit, and size (it outgrew a
+  crosswalk column). Weights that do not fit SR28's refuse definition are left out and say why
+  in the notes: spinach's 10 oz package (no refuse to remove) and the unpeeled eggplant.
+- Price observations gain `unit_grams` and `weight_source` (`weighed` or `estimated`), set
+  together or not at all (CHECK).
+- Not covered on purpose: carrots, radishes, and okra (sold by weight or bunch), and pints (no
+  SR28 weight fits). Butternut squash is sold by count but SR28 has no whole-squash weight; the
+  coverage report lists it.
 - FDC has **no bunch weights** (greens are given as chopped cups). A bunch is asked about at
   capture (D3): the question suggests weighing the bunch if the user can, and otherwise giving an
   estimate. The answer goes on that price observation, with `weight_source` (`weighed` or
@@ -61,9 +77,11 @@ vision model), growing (Phase 3), independence progress (Phase 4), presets other
 
 **Acceptance criteria:**
 
-- [ ] Every first-crop-set item sold by count has an `each` portion, or appears in the coverage
-      report as missing one.
-- [ ] Owner-measured portions record their source and date.
+- [x] Every first-crop-set item sold by count has a portion (`each`, `head`, `ear`, or `bunch`),
+      or appears in the coverage report as missing one (butternut squash).
+- [x] Owner-measured portions record their source and date (`ck_catalog_portion_provenance`).
+- [x] Owner review of `catalog_portions.csv` (2026-11-11): approved, with potato refuse set to
+      10% instead of SR28's 25% (`refuse_pct_override`; the source text records both).
 
 ## P1-4: Tool `normalize_price`
 
@@ -75,7 +93,9 @@ def normalize_price(
 ) -> Normalized  # grams_purchased, grams_edible, cups, cost_per_cup_cents (float)
 ```
 
-- Units: `lb`, `oz`, `kg`, `g` by weight; `each`, `bunch`, `head`, `ear`, `pint` through a portion.
+- Units: `lb`, `oz`, `kg`, `g` by weight; `each`, `bunch`, `head`, `ear`, `pint` through a portion
+  (`grams_purchased = quantity x portion.grams`, purchased weight; P1-3) or a capture weight
+  (`unit_grams`).
   Anything else raises `UnknownUnit`; a count unit without a portion raises `NeedsPortion` (the
   agent turns it into a question).
 - `grams_edible = grams_purchased x preparation_yield_factor`; `cups = grams_edible /

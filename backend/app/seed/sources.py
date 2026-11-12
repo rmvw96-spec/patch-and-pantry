@@ -57,3 +57,11 @@ GARDEN_YIELDS = SourceInfo(
     notes="University of Minnesota Extension, Home Garden Productivity Project; one short "
     "Minnesota season.",
 )
+
+SR28 = SourceInfo(
+    url="https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    version="SR28 (2015)",
+    retrieved_at=RETRIEVED,
+    notes="Household-measure weights (edible portion, WEIGHT.txt) and refuse percentages "
+    "(FOOD_DES.txt). FoodData Central's SR Legacy CSV has the weights but not the refuse.",
+)

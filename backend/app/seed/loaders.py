@@ -1,4 +1,4 @@
-"""The five seed loaders. Each one registers its file as a snapshot, then writes rows from it.
+"""The seed loaders. Each one registers its file as a snapshot, then writes rows from it.
 
 All loaders share the same contract: ``load_x(session, path) -> LoadResult``. They create any
 missing national catalog items from the crosswalk first, match source rows only by the names the
@@ -20,6 +20,7 @@ from sqlmodel import Session, select
 
 from app.models import (
     CatalogNutrient,
+    CatalogPortion,
     CropProfile,
     PlantingWindow,
     PriceObservation,
@@ -30,9 +31,11 @@ from app.models import (
 from app.seed import sources
 from app.seed.crosswalk import (
     CrosswalkRow,
+    PortionMapRow,
     crosswalk_fingerprint,
     ensure_catalog,
     read_crosswalk,
+    read_portion_map,
 )
 from app.seed.snapshots import LoadResult, SourceInfo, register_snapshot
 
@@ -404,3 +407,118 @@ def load_fdc_subset(
         )
     session.flush()
     return LoadResult(snapshot, True, len(rows))
+
+
+# ---------- USDA SR28: household-measure weights and refuse ----------
+
+
+def _sr28_rows(archive: zipfile.ZipFile, name: str) -> Iterator[list[str]]:
+    """Rows of an SR28 ASCII file: fields split on ^, text fields wrapped in ~, Latin-1."""
+    if name not in archive.namelist():
+        raise ValueError(f"{name} is missing from the download")
+    with archive.open(name) as raw:
+        for line in io.TextIOWrapper(raw, encoding="latin-1", newline=""):
+            line = line.rstrip("\r\n")
+            if line:
+                yield [field.strip("~") for field in line.split("^")]
+
+
+def is_sr28(archive: zipfile.ZipFile) -> bool:
+    names = set(archive.namelist())
+    return {"FOOD_DES.txt", "WEIGHT.txt"} <= names
+
+
+def purchased_grams(edible_grams: float, refuse_pct: int) -> float:
+    """Weight as purchased from edible weight: SR28 refuse is a percent of the weight as bought."""
+    return edible_grams / (1 - refuse_pct / 100)
+
+
+def load_sr28_portions(
+    session: Session,
+    path: Path,
+    *,
+    info: SourceInfo = sources.SR28,
+    crosswalk: list[CrosswalkRow] | None = None,
+    portions: list[PortionMapRow] | None = None,
+) -> LoadResult:
+    """Weight of one purchased unit for each portion-map row (the SR28 ASCII zip as downloaded).
+
+    SR28 gives household measures as edible weight; the weight as purchased divides out the food's
+    refuse percentage (SR28's, or the portion map's override). The source text records the
+    measure and the arithmetic.
+    """
+    crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
+    portions = (
+        portions if portions is not None else read_portion_map(crosswalk=crosswalk)
+    )
+    mapped = [row for row in portions if row.has_source]
+    with zipfile.ZipFile(path) as archive:
+        if not is_sr28(archive):
+            raise ValueError("not an SR28 ASCII download (FOOD_DES.txt and WEIGHT.txt)")
+        refuse: dict[str, str] = {}
+        for fields in _sr28_rows(archive, "FOOD_DES.txt"):
+            refuse[fields[0]] = fields[8]
+        wanted = {(row.sr28_ndb, row.sr28_seq) for row in mapped}
+        weights = {
+            (fields[0], fields[1]): fields
+            for fields in _sr28_rows(archive, "WEIGHT.txt")
+            if (fields[0], fields[1]) in wanted
+        }
+    missing = sorted(wanted - set(weights))
+    if missing:
+        raise ValueError(
+            f"SR28 weights named in the portion map are not in {path.name}: {missing}"
+        )
+    no_refuse = sorted({ndb for ndb, _ in wanted if refuse.get(ndb, "") == ""})
+    if no_refuse:
+        raise ValueError(f"SR28 foods without a refuse value: {no_refuse}")
+    snapshot, created = register_snapshot(
+        session,
+        source="usda_sr28",
+        path=path,
+        info=info,
+        row_count=len(refuse),
+        crosswalk_sha256=crosswalk_fingerprint(crosswalk, portions),
+    )
+    if not created:
+        return LoadResult(snapshot, False, 0)
+    catalog = ensure_catalog(session, crosswalk)
+    for row in mapped:
+        _, _, amount, description, gram_weight, *_ = weights[
+            (row.sr28_ndb, row.sr28_seq)
+        ]
+        edible = float(gram_weight) / float(amount)
+        sr28_refuse = int(refuse[row.sr28_ndb])
+        refuse_pct = (
+            row.refuse_override if row.refuse_override is not None else sr28_refuse
+        )
+        refuse_text = (
+            f"{refuse_pct}% refuse"
+            if refuse_pct == sr28_refuse
+            else f"{refuse_pct}% refuse (owner override; SR28 gives {sr28_refuse}%)"
+        )
+        session.add(
+            CatalogPortion(
+                catalog_item_id=catalog[row.slug].id,
+                unit=row.count_unit,
+                size=row.portion_size,
+                grams=purchased_grams(edible, refuse_pct),
+                edible_grams=edible,
+                refuse_pct=refuse_pct,
+                description=description,
+                source=(
+                    f"USDA SR28 NDB {row.sr28_ndb}, weight {row.sr28_seq}: {amount} "
+                    f"{description} = {gram_weight} g edible; {refuse_text}"
+                ),
+                snapshot_id=snapshot.id,
+            )
+        )
+    session.flush()
+    return LoadResult(snapshot, True, len(mapped))
+
+
+def load_usda_zip(session: Session, path: Path) -> LoadResult:
+    """Load a USDA zip by what it contains: SR28 household measures, or a FoodData Central CSV."""
+    with zipfile.ZipFile(path) as archive:
+        sr28 = is_sr28(archive)
+    return load_sr28_portions(session, path) if sr28 else load_fdc_subset(session, path)

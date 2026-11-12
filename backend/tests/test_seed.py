@@ -22,6 +22,7 @@ from app.core.db import engine
 from app.models import (
     CatalogItem,
     CatalogNutrient,
+    CatalogPortion,
     CropProfile,
     DataSnapshot,
     PlantingWindow,
@@ -31,9 +32,11 @@ from app.seed import sources
 from app.seed.crosswalk import (
     CROSSWALK_PATH,
     CrosswalkRow,
+    PortionMapRow,
     crosswalk_fingerprint,
     ensure_catalog,
     read_crosswalk,
+    read_portion_map,
 )
 from app.seed.loaders import (
     ErsRow,
@@ -43,7 +46,10 @@ from app.seed.loaders import (
     load_foodkeeper,
     load_garden_yields,
     load_planting_calendar,
+    load_sr28_portions,
+    load_usda_zip,
     month_day,
+    purchased_grams,
     read_ers_csv,
     storage_days_min,
 )
@@ -136,6 +142,58 @@ def _fdc_zip(
     return path
 
 
+# SR28 rows for the miniature download: (NDB, refuse %) and (NDB, seq, amount, measure, grams).
+SR28_FOODS = [("11529", "9"), ("11477", "5"), ("11278", "14")]
+SR28_WEIGHTS = [
+    ("11529", "6", "1", 'medium whole (2-3/5" dia)', "123"),
+    ("11529", "1", "1", "cup, chopped or sliced", "180"),
+    ("11477", "4", "1", "medium", "196"),
+    ("11278", "2", "8", 'pods (3" long)', "95"),
+]
+
+
+def _sr28_zip(
+    tmp_path: Path,
+    foods: list[tuple[str, str]] = SR28_FOODS,
+    weights: list[tuple[str, str, str, str, str]] = SR28_WEIGHTS,
+) -> Path:
+    """A miniature SR28 ASCII download: caret-separated, text in tildes, CRLF, Latin-1."""
+
+    def line(fields: list[str], text: set[int]) -> str:
+        return "^".join(f"~{f}~" if i in text else f for i, f in enumerate(fields))
+
+    food_des = [
+        line([ndb, "1100", f"Food {ndb}", "", "", "", "", "Refuse", refuse, "", "6.25"], {0, 1, 2, 3, 4, 5, 6, 7, 9})
+        for ndb, refuse in foods
+    ]  # fmt: skip
+    weight = [line([*w, "", ""], {0, 3}) for w in weights]
+    path = tmp_path / "sr28asc.zip"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr(
+            "FOOD_DES.txt", ("\r\n".join(food_des) + "\r\n").encode("latin-1")
+        )
+        archive.writestr("WEIGHT.txt", ("\r\n".join(weight) + "\r\n").encode("latin-1"))
+    return path
+
+
+def _portion(
+    slug: str, unit: str, size: str, ndb: str, seq: str, refuse: str = ""
+) -> PortionMapRow:
+    return PortionMapRow(slug, unit, size, ndb, seq, refuse, "")
+
+
+@pytest.fixture
+def portions() -> list[PortionMapRow]:
+    return [
+        _portion("tomato", "each", "medium", "11529", "6"),
+        _portion("zucchini", "each", "medium", "11477", "4", refuse="10"),
+        _portion(
+            "beet", "each", "", "11278", "2"
+        ),  # borrows okra's 8-pod row: amount > 1
+        _portion("butternut-squash", "each", "", "", ""),  # sold by count, no weight
+    ]
+
+
 def _count(session: Session, model: Any, snapshot: DataSnapshot) -> int:
     statement = select(func.count()).select_from(model)
     return session.exec(statement.where(model.snapshot_id == snapshot.id)).one()
@@ -213,12 +271,19 @@ LOADED_MODELS: dict[str, type] = {
     "planting": PlantingWindow,
     "yields": CropProfile,
     "fdc": CatalogNutrient,
+    "sr28": CatalogPortion,
 }
 
 
-@pytest.mark.parametrize("loader", ["ers", "planting", "yields", "foodkeeper", "fdc"])
+@pytest.mark.parametrize(
+    "loader", ["ers", "planting", "yields", "foodkeeper", "fdc", "sr28"]
+)
 def test_loading_the_same_file_twice_changes_nothing(
-    session: Session, crosswalk: list[CrosswalkRow], tmp_path: Path, loader: str
+    session: Session,
+    crosswalk: list[CrosswalkRow],
+    portions: list[PortionMapRow],
+    tmp_path: Path,
+    loader: str,
 ) -> None:
     def load() -> LoadResult:
         if loader == "ers":
@@ -237,9 +302,14 @@ def test_loading_the_same_file_twice_changes_nothing(
             return load_foodkeeper(
                 session, FIXTURES / "foodkeeper.json", crosswalk=crosswalk
             )
+        if loader == "sr28":
+            return load_sr28_portions(
+                session, sr28, crosswalk=crosswalk, portions=portions
+            )
         return load_fdc_subset(session, fdc, crosswalk=crosswalk)
 
     fdc = _fdc_zip(tmp_path, "foundation", FDC_FOUNDATION)
+    sr28 = _sr28_zip(tmp_path)
     first = load()
     catalog_size = session.exec(select(func.count()).select_from(CatalogItem)).one()
     rows = (
@@ -550,11 +620,16 @@ def test_fdc_reports_missing_member_files(session: Session, tmp_path: Path) -> N
 
 
 def test_report_lists_the_expected_gaps(
-    session: Session, crosswalk: list[CrosswalkRow], tmp_path: Path
+    session: Session,
+    crosswalk: list[CrosswalkRow],
+    portions: list[PortionMapRow],
+    tmp_path: Path,
 ) -> None:
     # Start from an empty national catalog (rolled back with the test).
     session.exec(delete(CatalogItem).where(col(CatalogItem.scope) == "national"))
-    assert [g.missing for g in coverage_gaps(session, crosswalk)][0] == ["not loaded"]
+    assert [g.missing for g in coverage_gaps(session, crosswalk, portions)][0] == [
+        "not loaded"
+    ]
 
     load_ers_prices(session, FIXTURES / "ers_vegetables.csv", crosswalk=crosswalk)
     load_foodkeeper(session, FIXTURES / "foodkeeper.json", crosswalk=crosswalk)
@@ -564,15 +639,24 @@ def test_report_lists_the_expected_gaps(
     load_fdc_subset(
         session, _fdc_zip(tmp_path, "sr_legacy", FDC_SR_LEGACY), crosswalk=crosswalk
     )
+    load_sr28_portions(
+        session, _sr28_zip(tmp_path), crosswalk=crosswalk, portions=portions
+    )
 
-    gaps = {gap.slug: gap.missing for gap in coverage_gaps(session, crosswalk)}
+    gaps = {
+        gap.slug: gap.missing for gap in coverage_gaps(session, crosswalk, portions)
+    }
     assert gaps["yellow-squash"] == [
         "price"
     ]  # a stand-in: conversions come from zucchini
     assert gaps["beet"] == ["price", "conversion"]  # canned-only in ERS
     assert "storage" in gaps["tomato"]  # FoodKeeper has no number for tomatoes
     assert "zucchini" not in gaps and "black-bean" not in gaps
-    assert "beet" in format_report(coverage_gaps(session, crosswalk))
+    # Sold by count with no published weight; acorn squash is not in this portion map at all.
+    assert "portion" in gaps["butternut-squash"]
+    assert "portion" not in gaps.get("acorn-squash", [])
+    assert "portion" not in gaps.get("tomato", [])  # loaded from the SR28 fixture
+    assert "beet" in format_report(coverage_gaps(session, crosswalk, portions))
 
 
 def test_report_with_no_gaps() -> None:
@@ -610,7 +694,7 @@ def test_seed_flow_runs_in_prefect(
     ("argv", "expected"),
     [
         (["ers_prices", "a.csv", "b.csv"], [("ers_prices", Path("a.csv")), ("ers_prices", Path("b.csv"))]),
-        (["all", "x.zip"], [*seed_cli.COMMITTED, ("fdc", Path("x.zip"))]),
+        (["all", "x.zip"], [*seed_cli.COMMITTED, ("usda_zip", Path("x.zip"))]),
     ],
 )  # fmt: skip
 def test_cli_builds_jobs(
@@ -650,3 +734,167 @@ def test_snapshots_are_keyed_by_content_not_file_name(
     first = load_garden_yields(session, FIXTURES / "garden_yields.csv")
     second = load_garden_yields(session, copy)
     assert not second.created and second.snapshot.id == first.snapshot.id
+
+
+# ---------- SR28 household measures (Phase 1, P1-3) ----------
+
+
+@pytest.mark.parametrize(
+    ("edible", "refuse", "expected"),
+    [
+        (164, 18, 200.0),  # large green pepper; SR28 says "2-1/4 per lb", 201.6 g
+        (458, 19, 565.4321),  # peeled eggplant, "yield from 1-1/4 lb" (567 g)
+        (
+            102,
+            64,
+            283.3333,
+        ),  # medium ear of corn: kernels only, 64% husk, silk, and cob
+        (301, 0, 301.0),
+    ],
+)
+def test_purchased_grams_divides_out_refuse(
+    edible: float, refuse: int, expected: float
+) -> None:
+    assert purchased_grams(edible, refuse) == pytest.approx(expected, abs=1e-4)
+
+
+def test_sr28_portions_store_purchased_weight_with_their_arithmetic(
+    session: Session,
+    crosswalk: list[CrosswalkRow],
+    portions: list[PortionMapRow],
+    tmp_path: Path,
+) -> None:
+    result = load_sr28_portions(
+        session, _sr28_zip(tmp_path), crosswalk=crosswalk, portions=portions
+    )
+
+    assert result.rows_written == 3  # the butternut row has no source
+    loaded = {
+        slug: portion
+        for portion, slug in session.exec(
+            select(CatalogPortion, CatalogItem.slug)
+            .join(CatalogItem)
+            .where(CatalogPortion.snapshot_id == result.snapshot.id)
+        )
+    }
+    tomato = loaded["tomato"]
+    assert (tomato.unit, tomato.size) == ("each", "medium")
+    assert tomato.edible_grams == 123 and tomato.refuse_pct == 9
+    assert tomato.grams == pytest.approx(123 / 0.91)
+    assert tomato.description == 'medium whole (2-3/5" dia)'
+    assert "NDB 11529, weight 6" in tomato.source and "9% refuse" in tomato.source
+    # A measure for several pieces ("8 pods = 95 g") is divided down to one piece.
+    assert loaded["beet"].edible_grams == pytest.approx(95 / 8)
+    assert loaded["beet"].grams == pytest.approx(95 / 8 / 0.86)
+    # The owner's refuse replaces SR28's (5% in the fixture), and the source says so.
+    zucchini = loaded["zucchini"]
+    assert zucchini.refuse_pct == 10
+    assert zucchini.grams == pytest.approx(196 / 0.9)
+    assert "10% refuse (owner override; SR28 gives 5%)" in zucchini.source
+    assert "butternut-squash" not in loaded
+    assert result.snapshot.source == "usda_sr28"
+
+
+def test_a_changed_portion_map_is_a_new_snapshot(
+    session: Session,
+    crosswalk: list[CrosswalkRow],
+    portions: list[PortionMapRow],
+    tmp_path: Path,
+) -> None:
+    path = _sr28_zip(tmp_path)
+    first = load_sr28_portions(session, path, crosswalk=crosswalk, portions=portions)
+    changed = [
+        dataclasses.replace(row, size="large") if row.slug == "tomato" else row
+        for row in portions
+    ]
+    second = load_sr28_portions(session, path, crosswalk=crosswalk, portions=changed)
+
+    assert second.created and second.snapshot.id != first.snapshot.id
+    sizes = session.exec(
+        select(CatalogPortion.size).where(
+            CatalogPortion.snapshot_id == second.snapshot.id,
+            CatalogPortion.unit == "each",
+        )
+    ).all()
+    assert "large" in sizes
+
+
+@pytest.mark.parametrize(
+    ("foods", "weights", "message"),
+    [
+        (SR28_FOODS, SR28_WEIGHTS[1:], "not in sr28asc.zip"),  # tomato's weight is gone
+        ([("11529", ""), *SR28_FOODS[1:]], SR28_WEIGHTS, "without a refuse value"),
+    ],
+)
+def test_sr28_rows_named_in_the_map_must_exist(
+    session: Session,
+    crosswalk: list[CrosswalkRow],
+    portions: list[PortionMapRow],
+    tmp_path: Path,
+    foods: list[tuple[str, str]],
+    weights: list[tuple[str, str, str, str, str]],
+    message: str,
+) -> None:
+    path = _sr28_zip(tmp_path, foods, weights)
+    with pytest.raises(ValueError, match=message):
+        load_sr28_portions(session, path, crosswalk=crosswalk, portions=portions)
+
+
+def test_sr28_rejects_other_zips(session: Session, tmp_path: Path) -> None:
+    path = tmp_path / "other.zip"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("FOOD_DES.txt", "")
+    with pytest.raises(ValueError, match="not an SR28"):
+        load_sr28_portions(session, path)
+
+
+def test_usda_zips_are_loaded_by_what_they_contain(
+    session_factory: SessionFactory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "app.seed.loaders.load_sr28_portions",
+        lambda _s, _p: calls.append("sr28") or LoadResult(None, False, 0),  # type: ignore[arg-type]
+    )
+    monkeypatch.setattr(
+        "app.seed.loaders.load_fdc_subset",
+        lambda _s, _p: calls.append("fdc") or LoadResult(None, False, 0),  # type: ignore[arg-type]
+    )
+    with session_factory() as session:
+        load_usda_zip(session, _sr28_zip(tmp_path))
+        load_usda_zip(session, _fdc_zip(tmp_path, "foundation", FDC_FOUNDATION))
+    assert calls == ["sr28", "fdc"]
+
+
+def test_the_committed_portion_map_is_valid() -> None:
+    """Every row names a crosswalk slug, a known unit and size, and both SR28 keys or neither."""
+    rows = read_portion_map()
+    assert {row.unit for row in rows} <= {"each", "bunch", "head", "ear", "pint"}
+    assert [row.slug for row in rows if not row.has_source] == ["butternut-squash"]
+    # Owner decision (2026-11-11): potatoes use 10% refuse, not SR28's 25%.
+    assert {row.refuse_override for row in rows if row.slug == "potato"} == {10}
+    assert {row.slug for row in rows if row.refuse_override is not None} == {"potato"}
+
+
+@pytest.mark.parametrize(
+    ("line", "message"),
+    [
+        ("kumquat,each,,11529,6,,", "not in the crosswalk"),
+        ("tomato,dozen,,11529,6,,", "unknown unit 'dozen'"),
+        ("tomato,each,huge,11529,6,,", "unknown size 'huge'"),
+        ("tomato,each,,11529,,,", "give both sr28_ndb and sr28_seq"),
+        ("tomato,each,medium,11529,9,,", "listed twice"),
+        ("tomato,each,large,11529,5,100,", "must be 0 to 99"),
+        ("tomato,each,large,11529,5,ten,", "must be 0 to 99"),
+        ("tomato,each,large,,,10,", "needs an SR28 weight"),
+    ],
+)
+def test_portion_map_rejects_bad_rows(tmp_path: Path, line: str, message: str) -> None:
+    path = tmp_path / "catalog_portions.csv"
+    path.write_text(
+        "slug,unit,size,sr28_ndb,sr28_seq,refuse_pct_override,notes\n"
+        "tomato,each,medium,11529,6,,\n" + line + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match=message):
+        read_portion_map(path)
