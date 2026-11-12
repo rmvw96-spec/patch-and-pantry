@@ -27,6 +27,15 @@ jobs:
           version: "latest-known"
       - run: docker compose down -v --remove-orphans
       - run: docker compose up -d --wait db mailpit redis
+      # Every migration must downgrade cleanly, and the models must match the migrations. Runs on
+      # the empty database before prestart, so nothing is lost.
+      - name: Migrations round trip
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+          uv run alembic check
+        working-directory: backend
       - name: Migrate DB
         run: uv run bash scripts/prestart.sh
         working-directory: backend
