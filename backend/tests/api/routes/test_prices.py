@@ -183,7 +183,6 @@ def test_an_item_without_a_conversion_is_saved_by_price_only(
     ("fields", "detail"),
     [
         ({"unit": "sack"}, "Unknown unit 'sack'"),
-        ({"unit": "each", "quantity": 3}, "Which size"),  # several sizes and none given
         (
             {"unit": "bunch", "quantity": 1},
             "How much does one bunch",

@@ -359,7 +359,12 @@ def _piece(
         choice = portion_grams(session, item, unit, observation.size)
     except NormalizeError as exc:
         return None, None, str(exc), None
-    return choice.grams, choice.source, None, choice.snapshot_id
+    source = (
+        f"{choice.source} (no size given: medium assumed)"
+        if choice.assumed
+        else choice.source
+    )
+    return choice.grams, source, None, choice.snapshot_id
 
 
 def _price_input(

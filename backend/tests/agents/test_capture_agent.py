@@ -106,19 +106,42 @@ def test_kale_bunch_asks_for_the_weight(capture_run: Any, catalog: Catalog) -> N
     assert (question.draft.unit, question.draft.price_cents) == ("bunch", 250)
 
 
-def test_tomatoes_3_for_5_is_one_price_for_the_lot_and_asks_the_size(
+def test_tomatoes_3_for_5_is_one_price_for_the_lot_and_assumes_medium(
     capture_run: Any,
 ) -> None:
     result = capture_run(
         "tomatoes 3 for $5",
         {"item_text": "tomatoes", "quantity": 3, "unit": "each", "price_text": "$5"},
     )
-    (question,) = result.questions
-    assert question.kind == "needs_size"
-    assert question.message == "Which size tomato: small, medium, or large?"
-    assert question.options == ["small", "medium", "large"]
-    assert question.draft is not None
-    assert (question.draft.quantity, question.draft.price_cents) == (3, 500)
+    assert result.questions == []
+    (draft,) = result.drafts
+    assert (draft.quantity, draft.price_cents) == (3, 500)
+    assert (draft.size, draft.size_assumed, draft.piece_grams) == (
+        "medium",
+        True,
+        135.2,
+    )
+
+
+def test_a_size_that_does_not_apply_is_ignored(capture_run: Any) -> None:
+    """A size on a weight price or on an item with one weight changes nothing."""
+    result = capture_run(
+        "large tomatoes 2.49/lb\nlarge lettuce 1 head 3.00",
+        {"line": 1, "item_text": "tomatoes", "quantity": 1, "unit": "lb", "size": "large", "price_text": "2.49", "price_is_per_unit": True},
+        {"line": 2, "item_text": "lettuce", "quantity": 1, "unit": "head", "size": "large", "price_text": "3.00"},
+    )  # fmt: skip
+    assert result.questions == []
+    tomatoes, lettuce = result.drafts
+    assert (tomatoes.size, tomatoes.size_assumed, tomatoes.piece_grams) == (
+        None,
+        False,
+        None,
+    )
+    assert (lettuce.size, lettuce.size_assumed, lettuce.piece_grams) == (
+        None,
+        False,
+        666.0,
+    )
 
 
 def test_a_size_on_the_line_needs_no_question(capture_run: Any) -> None:
@@ -128,6 +151,7 @@ def test_a_size_on_the_line_needs_no_question(capture_run: Any) -> None:
     )  # fmt: skip
     (draft,) = result.drafts
     assert draft.piece_grams == 200.0
+    assert (draft.size, draft.size_assumed) == ("large", False)
     assert draft.grams_purchased == pytest.approx(600.0)
     assert draft.piece_source is not None and "tomato large each" in draft.piece_source
 

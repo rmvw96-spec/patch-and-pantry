@@ -315,6 +315,10 @@ export type DraftPrice = {
      */
     price_note?: string | null;
     /**
+     * Size Assumed
+     */
+    size_assumed?: boolean;
+    /**
      * Piece Grams
      */
     piece_grams?: number | null;
