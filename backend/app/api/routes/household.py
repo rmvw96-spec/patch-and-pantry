@@ -3,19 +3,25 @@
 Each user has one household, created with defaults the first time it is read or updated.
 """
 
-from fastapi import APIRouter
+import uuid
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel import Session, col, delete, select
 
 from app.api.deps import CurrentUser, SessionDep
 from app.households import get_or_create_household
 from app.models import (
     Household,
+    HouseholdItemSetting,
     HouseholdMember,
     HouseholdMemberPublic,
     HouseholdPublic,
     HouseholdUpdate,
     Region,
 )
+from app.prices import PriceError, visible_item
+from app.tools.catalog import remember_alias
 
 router = APIRouter(prefix="/household", tags=["household"])
 
@@ -73,3 +79,94 @@ def update_household(
     session.commit()
     session.refresh(household)
     return _public(session, household)
+
+
+# ---------- your names for items, and per-item settings (P1-7) ----------
+
+
+class AliasCreate(BaseModel):
+    """Your name for a catalog item, saved when you choose the item a line meant (D7)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1, max_length=200)
+    catalog_item_id: uuid.UUID
+
+
+class AliasPublic(BaseModel):
+    text: str  # folded: lower case, singular
+    catalog_item_id: uuid.UUID
+
+
+@router.post("/aliases", response_model=AliasPublic, status_code=201)
+def create_alias(
+    session: SessionDep, current_user: CurrentUser, alias_in: AliasCreate
+) -> AliasPublic:
+    """Remember that a typed name means an item, so the same text matches exactly next time."""
+    household = get_or_create_household(session, current_user.id)
+    try:
+        item = visible_item(session, household, alias_in.catalog_item_id)
+        alias = remember_alias(session, household, alias_in.text, item)
+    except (PriceError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    session.commit()
+    return AliasPublic(text=alias.text, catalog_item_id=alias.catalog_item_id)
+
+
+class ItemSettingUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    freeze_extras: bool
+
+
+class ItemSettingPublic(BaseModel):
+    catalog_item_id: uuid.UUID
+    freeze_extras: bool
+
+
+@router.get("/item-settings", response_model=list[ItemSettingPublic])
+def read_item_settings(
+    session: SessionDep, current_user: CurrentUser
+) -> list[ItemSettingPublic]:
+    """Your per-item choices, such as cooking and freezing extras (D4)."""
+    household = get_or_create_household(session, current_user.id)
+    settings = session.exec(
+        select(HouseholdItemSetting).where(
+            HouseholdItemSetting.household_id == household.id
+        )
+    ).all()
+    return [
+        ItemSettingPublic(
+            catalog_item_id=s.catalog_item_id, freeze_extras=s.freeze_extras
+        )
+        for s in settings
+    ]
+
+
+@router.put("/item-settings/{catalog_item_id}", response_model=ItemSettingPublic)
+def update_item_setting(
+    session: SessionDep,
+    current_user: CurrentUser,
+    catalog_item_id: uuid.UUID,
+    setting_in: ItemSettingUpdate,
+) -> ItemSettingPublic:
+    """Set whether you cook this item on purchase and freeze what you won't eat in a few days."""
+    household = get_or_create_household(session, current_user.id)
+    try:
+        item = visible_item(session, household, catalog_item_id)
+    except PriceError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    setting = session.exec(
+        select(HouseholdItemSetting).where(
+            HouseholdItemSetting.household_id == household.id,
+            HouseholdItemSetting.catalog_item_id == item.id,
+        )
+    ).first() or HouseholdItemSetting(
+        household_id=household.id, catalog_item_id=item.id
+    )
+    setting.freeze_extras = setting_in.freeze_extras
+    session.add(setting)
+    session.commit()
+    return ItemSettingPublic(
+        catalog_item_id=item.id, freeze_extras=setting.freeze_extras
+    )

@@ -37,7 +37,13 @@ from app.core.db import engine
 from app.core.tracing import get_tracer
 from app.households import get_or_create_household
 from app.models import GroceryAnalysisRun, RunKind, RunStatus, get_datetime_utc
-from app.tools.best_buy import BestBuyRow, Need, compare_best_buy
+from app.tools.best_buy import (
+    BestBuyRow,
+    Need,
+    ShoppingGroup,
+    compare_best_buy,
+    shopping_list,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +102,7 @@ class BestBuyResult(BaseModel):
     kind: Literal["best_buy"] = "best_buy"
     on: date
     rows: list[BestBuyRow]
+    shopping_list: list[ShoppingGroup] = Field(default_factory=list)
     # The table stands without an explanation if the model could not write one.
     explanation: str | None = None
     explanation_error: str | None = None
@@ -206,7 +213,9 @@ async def _best_buy(
         table = compare_best_buy(session, household, needs, on)
     except ValueError as exc:
         raise RunFailed("invalid_input", str(exc)) from exc
-    result = BestBuyResult(on=table.on, rows=table.rows)
+    result = BestBuyResult(
+        on=table.on, rows=table.rows, shopping_list=shopping_list(table)
+    )
     usage = ModelUsage()
     try:
         explanation = await explain_best_buy(table, model)

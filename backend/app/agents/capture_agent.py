@@ -120,6 +120,10 @@ class DraftPrice:
     price_cents: int  # for the whole quantity
     vendor_id: uuid.UUID
     observed_on: date
+    # The item words read from the line, and how they matched (exact, alias, fuzzy...). A fuzzy
+    # match the user confirms is saved as a household alias.
+    item_text: str = ""
+    match_kind: str = "exact"
     piece_grams: float | None = None  # one piece as purchased, for count units
     piece_source: str | None = None
     grams_purchased: float | None = None
@@ -283,6 +287,8 @@ def _process_line(
         catalog_item_id=item.id,
         item_name=item.name,
         match_note=match.note,
+        item_text=line.item_text,
+        match_kind=match.kind,
         quantity=quantity,
         unit=unit,
         size=line.size,

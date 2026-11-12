@@ -38,6 +38,7 @@ from app.tools.best_buy import (
     build_rows,
     compare_best_buy,
     midpoint,
+    shopping_list,
     spoilage,
     unsupported_numbers,
 )
@@ -630,3 +631,57 @@ def test_demo_mode_explains_the_real_table(
         "For kale there is no store price yet" in text and "not a store price" in text
     )
     assert unsupported_numbers(text, table) == []
+
+
+# ---------- the shopping list ----------
+
+
+def _list_table() -> BestBuyTable:
+    table = BestBuyTable(on=ON)
+    table.rows = [
+        *_rows([_price(299, 3, label="Kroger", raw_text="onions 3 lb bag 2.99"), _price(149, 1, label="Aldi")]),
+        *build_rows("Collards", Need(uuid.uuid4(), 3), COLLARDS, _storage(2.5), [_price(248, 1, label="Aldi", raw_text="collards 2.48/lb")]),
+        *build_rows("Kale", Need(uuid.uuid4(), 3), KALE, _storage(4), [_price(357.11, 1, kind="ers_fallback", label="national average")]),
+        *build_rows("Eggplant", Need(uuid.uuid4(), 1), EGGPLANT, _storage(None), [_price(199, 1, label="Kroger")]),
+        *build_rows("Mustard greens", Need(uuid.uuid4(), 2), COLLARDS, _storage(2.5), []),
+    ]  # fmt: skip
+    return table
+
+
+def test_the_shopping_list_groups_marked_rows_by_store() -> None:
+    groups = shopping_list(_list_table())
+
+    assert [g.label for g in groups] == [
+        "Aldi",
+        "Kroger",
+        "No store price yet",
+        "Not compared yet",
+    ]
+    aldi, kroger, fallback, not_compared = groups
+    assert [(line.item_name, line.purchase) for line in aldi.lines] == [
+        ("Collards", "collards 2.48/lb")
+    ]
+    assert [(line.item_name, line.purchase) for line in kroger.lines] == [
+        ("Onion", "onions 3 lb bag 2.99")
+    ]
+    # Only marked rows: Aldi's onions lost to Kroger's bag, so they are not on the list.
+    assert all(line.item_name != "Onion" for line in aldi.lines)
+    assert [(line.item_name, line.purchase) for line in fallback.lines] == [
+        ("Kale", "1 lb")
+    ]
+    assert {(line.item_name, line.note) for line in not_compared.lines} == {
+        ("Eggplant", "no cost per cup"),
+        ("Mustard greens", "no price yet"),
+    }
+
+
+def test_a_shopping_line_carries_the_need_and_usable_cups() -> None:
+    kroger = next(g for g in shopping_list(_list_table()) if g.label == "Kroger")
+    (onion,) = kroger.lines
+    assert onion.cups_per_week == 2
+    assert onion.usable_cups == pytest.approx(7.66, abs=0.01)
+    assert onion.price_cents == 299
+
+
+def test_an_empty_table_has_an_empty_list() -> None:
+    assert shopping_list(BestBuyTable(on=ON)) == []
