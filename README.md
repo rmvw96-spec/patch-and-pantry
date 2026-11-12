@@ -14,8 +14,11 @@ Built on the [Full Stack FastAPI Template](https://github.com/fastapi/full-stack
 - **Prices page:** log in, open **Prices**, pick a store and date, and type a list such as
   "onions 3 lb bag 2.99". The status updates live (queued, running, then succeeded or failed) and
   shows a draft price per line with its cost per cup, plus a question for anything unclear ("How
-  much does one bunch of kale weigh?"). Nothing is saved until confirmed (confirming comes with
-  the price book, P1-7).
+  much does one bunch of kale weigh?"). Answer the questions, then save; nothing is saved before.
+- **Price book:** your saved prices, newest first, with cost per cup; edit or delete any of them.
+- **Best buy:** choose items and cups per week; see the trade-off table (spoilage included, the
+  cheapest per usable cup starred), a short explanation, and a printable shopping list by store.
+- **Household:** the weekly produce budget and the people you buy for, each only a calorie level.
 - **The model only reads.** The capture agent copies each line's item, quantity, unit, and price
   as written; matching, piece weights, and every number come from deterministic tools
   (`backend/app/tools/`). Best-buy explanations may quote only numbers from the table.

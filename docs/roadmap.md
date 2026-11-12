@@ -86,7 +86,7 @@ week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/
 - [x] Generalize the study job into a `grocery_analysis_run` (question, kind, tools used, result,
       data versions, model) and retire the pipeline simulator, its tests, and the Studies page.
       Done after the best-buy tool (P1-1, moved 2026-11-11).
-- [ ] Pages: household settings, price capture, price book, best-buy comparison with its trade-off table, printable
+- [x] Pages: household settings, price capture, price book, best-buy comparison with its trade-off table, printable
       shopping list.
 - [ ] iPhone home-screen icon: replace the stopgap `apple-touch-icon.png` (the app icon with its
       corners squared off, so iOS does not show them black) with a purpose-made 180 px full-bleed
@@ -201,3 +201,4 @@ match hand calculations.
 | 2026-11-11 | Typed-list capture done (P1-5): the model reads lines; matching, piece weights, and per-cup math are code. The alias list awaits owner review; the match cutoff waits for real lists. |
 | 2026-11-11 | `compare_best_buy` and its explanation done (P1-6). Next: P1-1 (replace Studies). Reloading reference data (`python -m app.seed all`) picks up FoodKeeper's range maximum and cooked leftovers. |
 | 2026-11-12 | Studies replaced by grocery analysis runs (P1-1): run and vendor APIs, the Prices page, and Playwright with seeded reference data. Next: pages and shopping list (P1-7). |
+| 2026-11-12 | Pages and shopping list done (P1-7): confirm drafts, price book, best buy with a printable shopping list, household settings. |

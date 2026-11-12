@@ -1,38 +1,13 @@
-import { expect, type Page, test } from "@playwright/test"
+import { expect, test } from "@playwright/test"
+
+import { addStore, readList, savePrices } from "./utils/prices"
 
 // These tests drive the full stack: browser -> API -> background job -> agent -> database.
 // They need the backend in demo mode (SIM_MODEL=demo), which reads lists with a deterministic
 // parser instead of an LLM, and the committed reference data loaded (python -m app.seed all),
 // so "onions" matches the catalog. CI does both in .github/workflows/playwright.yml.
-const DEMO_HINT =
-  "The run did not succeed. Is the backend in demo mode (SIM_MODEL=demo) with reference data loaded?"
-
-const RUN_TIMEOUT_MS = 30_000
 
 const LIST = "Kroger\nonions 3 lb bag 2.99\nkale bunch 2.50"
-
-async function addStore(page: Page): Promise<string> {
-  const name = `Test store ${Math.random().toString(36).slice(2, 8)}`
-  await page.getByLabel("Add a store").fill(name)
-  await page.getByRole("button", { name: "Add store" }).click()
-  // The new store is selected once it is created.
-  await expect(page.getByLabel("Store", { exact: true })).toHaveValue(/.+/)
-  return name
-}
-
-async function readList(page: Page, text: string) {
-  await page.goto("/prices")
-  await addStore(page)
-  await page.getByLabel("Typed list").fill(text)
-  await page.getByRole("button", { name: "Read list" }).click()
-  await expect(page).toHaveURL(/\/prices\?id=/)
-  // Wait for a final state first, so a failed run fails fast with a clear message.
-  const status = page.getByTestId("run-status")
-  await expect(status).toHaveText(/succeeded|failed/, {
-    timeout: RUN_TIMEOUT_MS,
-  })
-  return status
-}
 
 test("Prices page is accessible and shows correct title", async ({ page }) => {
   await page.goto("/prices")
@@ -42,7 +17,7 @@ test("Prices page is accessible and shows correct title", async ({ page }) => {
 
 test("Prices link in the sidebar opens the page", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("link", { name: "Prices" }).click()
+  await page.getByRole("link", { name: "Prices", exact: true }).click()
   await expect(page).toHaveURL(/\/prices/)
   await expect(page.getByRole("heading", { name: "Prices" })).toBeVisible()
 })
@@ -59,19 +34,15 @@ test("An empty list and no store show validation errors", async ({ page }) => {
 
 test("A new store can be added and chosen", async ({ page }) => {
   await page.goto("/prices")
-  const name = await addStore(page)
-  await expect(
-    page.getByLabel("Store", { exact: true }).locator("option:checked"),
-  ).toHaveText(name)
+  await addStore(page)
 })
 
 test.describe("Reading a typed list", () => {
   test.slow() // runs real background jobs, so allow extra time
 
   test("Drafts, questions, and set-aside lines are shown", async ({ page }) => {
-    const status = await readList(page, LIST)
+    await readList(page, LIST)
 
-    await expect(status, DEMO_HINT).toHaveText("succeeded")
     const draft = page.getByTestId("capture-draft")
     await expect(draft).toHaveCount(1)
     await expect(draft).toContainText("onions 3 lb bag 2.99")
@@ -87,8 +58,7 @@ test.describe("Reading a typed list", () => {
   })
 
   test("The result survives a page refresh", async ({ page }) => {
-    const status = await readList(page, LIST)
-    await expect(status, DEMO_HINT).toHaveText("succeeded")
+    await readList(page, LIST)
 
     await page.reload()
 
@@ -97,5 +67,62 @@ test.describe("Reading a typed list", () => {
     await expect(page.getByTestId("run-input")).toContainText(
       "onions 3 lb bag 2.99",
     )
+  })
+
+  test("Answering the weight question saves both lines", async ({ page }) => {
+    await readList(page, LIST)
+    const save = page.getByRole("button", { name: /^Save \d+ prices?$/ })
+    await expect(save).toHaveText("Save 1 price") // the kale line waits for its weight
+
+    await page.getByLabel("Weight of one piece for kale bunch 2.50").fill("0.5")
+    await expect(save).toHaveText("Save 2 prices")
+    await save.click()
+
+    await expect(page.getByTestId("capture-saved")).toContainText(
+      "Saved 2 prices",
+    )
+  })
+
+  test("A skipped draft is not saved", async ({ page }) => {
+    await readList(page, "onions 3 lb bag 2.99\ntomatoes 2.49/lb")
+    await page.getByLabel("Save tomatoes 2.49/lb").uncheck()
+    await page.getByRole("button", { name: "Save 1 price" }).click()
+    await expect(page.getByTestId("capture-saved")).toContainText(
+      "Saved 1 price ",
+    )
+  })
+
+  test("Choosing an item for an unknown name matches it on the next read", async ({
+    page,
+  }) => {
+    // A made-up name, so the alias it saves cannot collide with an earlier run of this test.
+    const name = `qq${Math.random().toString(36).slice(2, 7).replace(/[0-9]/g, "x")}`
+    const line = `${name} 1 lb 2.48`
+    await readList(page, line)
+    await expect(page.getByTestId("capture-question")).toContainText(
+      `Which item is '${name}'`,
+    )
+
+    await page
+      .getByLabel(`Item for ${line}`)
+      .selectOption({ label: "Collards" })
+    await page.getByRole("button", { name: "Use this item" }).click()
+    await page.getByRole("button", { name: "Read the list again" }).click()
+
+    await expect(page.getByTestId("run-status")).toHaveText("succeeded", {
+      timeout: 30_000,
+    })
+    await expect(page.getByTestId("capture-draft")).toContainText("Collards")
+    await expect(page.getByTestId("capture-draft")).toContainText(
+      "as you confirmed before",
+    )
+  })
+
+  test("Saved prices appear in the price book", async ({ page }) => {
+    const store = await savePrices(page, "onions 3 lb bag 2.99")
+    await page.getByRole("link", { name: "price book", exact: true }).click()
+    await expect(
+      page.getByTestId("price-row").filter({ hasText: store }),
+    ).toContainText("$0.39")
   })
 })

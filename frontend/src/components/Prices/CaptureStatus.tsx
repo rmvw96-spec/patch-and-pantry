@@ -206,7 +206,7 @@ function CaptureReview({
   if (saved !== null) {
     return (
       <p data-testid="capture-saved">
-        Saved {saved} prices to your{" "}
+        Saved {saved} {saved === 1 ? "price" : "prices"} to your{" "}
         <Link to="/price-book" className="underline">
           price book
         </Link>

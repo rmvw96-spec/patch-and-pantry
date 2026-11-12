@@ -32,8 +32,10 @@ keeps them.
   APIs in `api/routes/household.py` and `vendors.py`. Tests that need a known catalog use the
   fixtures in `tests/catalog_fixtures.py` (`catalog`, `household`, `vendor`; one rolled-back
   transaction).
-- `frontend/src/`: React 19, TanStack Router (file routes) and Query, Tailwind, shadcn/ui. The
-  Prices page is in `components/Prices/` and `routes/_layout/prices.tsx`.
+- `frontend/src/`: React 19, TanStack Router (file routes) and Query, Tailwind, shadcn/ui. Pages:
+  Prices (`components/Prices/`), Price book (`components/PriceBook/`), Best buy
+  (`components/BestBuy/`), Household (`components/Household/`); `hooks/useRun.ts` polls runs.
+  Price book and household APIs: `app/prices.py`, `api/routes/prices.py`, `catalog.py`.
 - There is one application image: `backend/Dockerfile` builds the SPA and FastAPI serves it from
   `backend/app/frontend` (generated, do not edit). No separate frontend container.
 
