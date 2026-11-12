@@ -18,7 +18,7 @@ from app.grocery_analysis_jobs import (
 from app.households import get_or_create_household
 from app.models import CatalogItem, GroceryAnalysisRun, Household, Vendor
 
-router = APIRouter(prefix="/grocery-analysis-runs", tags=["grocery-analysis-runs"])
+router = APIRouter(prefix="/grocery-analysis-runs", tags=["grocery_analysis_runs"])
 
 # How long an Idempotency-Key stays reserved. Retries after this window start a new run.
 IDEMPOTENCY_TTL_SECONDS = 24 * 60 * 60

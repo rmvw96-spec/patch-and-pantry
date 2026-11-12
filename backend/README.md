@@ -143,4 +143,4 @@ Once you are done, regenerate the templates used by the application:
 ```console
 $ bun run email:export
 ```
-Practice repo for a simulation agent test layer.
+Backend of Patch & Pantry, a local food planner (see the root README).

@@ -1,6 +1,6 @@
 """Grocery analysis runs API (P1-1) against real Postgres and Redis, with scripted models.
 
-These carry over what the Studies API tests covered: idempotency per user, a terminal state on
+These carry over what the retired Studies API tests covered: idempotency per user, a terminal state on
 every exit path, users reading only their own runs. The model is injected through FastAPI
 dependency overrides (get_run_model), so it reaches the background job whichever thread runs it.
 
@@ -406,7 +406,7 @@ def test_key_reserved_by_an_in_flight_request_returns_409(
     db: Session,
     vendor: str,
 ) -> None:
-    """Simulates a concurrent duplicate: the key is reserved, but its run row does not exist yet."""
+    """A concurrent duplicate: the key is reserved, but its run row does not exist yet."""
     key = str(uuid.uuid4())
     user = db.exec(select(User).where(User.email == settings.EMAIL_TEST_USER)).one()
     get_redis_client().set(_idempotency_redis_key(user.id, key), str(uuid.uuid4()))

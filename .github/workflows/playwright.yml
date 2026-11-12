@@ -46,8 +46,10 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     env:
-      # Studies run with the deterministic demo model: no LLM API key needed, same results every run.
+      # Runs use the deterministic demo model: no LLM API key needed, same results every run.
       SIM_MODEL: demo
+      # Each demo answer waits 1 s, so the page must poll to see a run finish.
+      DEMO_DELAY_SECONDS: 1
     strategy:
       matrix:
         shardIndex: [1, 2, 3, 4]
@@ -80,6 +82,12 @@ jobs:
     - run: docker compose build
     - run: docker compose down -v --remove-orphans
     - run: docker compose run --rm backend bash scripts/prestart.sh
+    # The committed reference data (ERS, FoodKeeper, planting calendar, yields), so typed items
+    # match the catalog. The image has no data/sources/, so this runs on the runner against the
+    # compose database. No USDA zips: piece weights and nutrients are not needed here.
+    - name: Load reference data
+      run: uv run python -m app.seed all
+      working-directory: backend
     - name: Run Playwright tests
       run: docker compose run --rm playwright bunx playwright test --fail-on-flaky-tests --trace=retain-on-failure --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
     - run: docker compose down -v --remove-orphans

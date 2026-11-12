@@ -6,6 +6,7 @@ background job, database, browser) in an E2E test or locally without an LLM API 
 always give the same answer for the same input.
 """
 
+import asyncio
 import re
 
 from pydantic_ai import (
@@ -16,6 +17,13 @@ from pydantic_ai import (
     UserPromptPart,
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
+
+from app.core.config import settings
+
+
+async def _pause() -> None:
+    if settings.DEMO_DELAY_SECONDS:
+        await asyncio.sleep(settings.DEMO_DELAY_SECONDS)
 
 
 def _user_prompt(messages: list[ModelMessage]) -> str:
@@ -80,7 +88,8 @@ def read_list_line(text: str) -> dict[str, object]:
     return entry
 
 
-def _demo_capture(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+async def _demo_capture(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+    await _pause()
     lines = []
     for raw in _user_prompt(messages).splitlines():
         numbered = _NUMBERED.match(raw)
@@ -105,7 +114,10 @@ _MARKED = re.compile(
 )
 
 
-def _demo_explain(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
+async def _demo_explain(
+    messages: list[ModelMessage], _info: AgentInfo
+) -> ModelResponse:
+    await _pause()
     """Names each item's marked row, quoting its cost exactly as the table shows it."""
     sentences = []
     item = None

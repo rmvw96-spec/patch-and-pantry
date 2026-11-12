@@ -195,7 +195,7 @@ def test_household_requires_sign_in(client: TestClient) -> None:
 def test_concurrent_first_access_returns_the_existing_household(db: Session) -> None:
     """If another request created the household first, creating again returns that one.
 
-    Simulates the race directly: the household already exists when _create_household inserts,
+    Recreates the race directly: the household already exists when _create_household inserts,
     so the unique owner_id rejects the insert and the existing row is returned.
     """
     user = create_random_user(db)

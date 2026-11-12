@@ -1,17 +1,16 @@
 # CLAUDE.md
 
-A small agentic simulation platform built on the Full Stack FastAPI Template. A user submits a
-study, a Pydantic AI agent runs a Prefect-wrapped simulator as a background job, and the React UI
-polls for the result. The app is deliberately small; **the test layer around it is the point of the
-project**. See `README.md` for features and architecture, and `TESTING.md` for the test inventory.
+**Patch & Pantry**, a local food planner built on the Full Stack FastAPI Template. A user submits
+a grocery analysis run (read a typed price list, or compare best buys); a background job runs the
+Pydantic AI agent and deterministic tools, and the React UI polls for the result. The app is
+deliberately small; **the test layer around it is much of the point of the project**. See `README.md` for features and architecture, and `TESTING.md` for the test inventory.
 
 ## Direction (read this first)
 
-The pipeline simulator and Studies feature are being replaced by **Patch & Pantry**, a local
-food planner: best buy for produce across stores, farm-share and market value checks, and
-grow-or-buy planning, for one household in North Alabama, growing toward food independence. The
-Studies code stays working until Phase 1 replaces it; it is the reference for the platform's
-patterns.
+Patch & Pantry plans produce for one household in North Alabama: best buy across stores, then
+farm-share and market value checks, and grow-or-buy planning, growing toward food independence.
+The original pipeline simulator and Studies feature were replaced in Phase 1 (P1-1); git history
+keeps them.
 
 - `docs/design.md`: what to build and why. **Source of truth** for product decisions.
 - `docs/roadmap.md`: phases, tasks, and gates. Tick tasks in the PR that completes them.
@@ -26,13 +25,15 @@ patterns.
 - uv workspace (root `pyproject.toml`, member `backend/`, package `app`) and bun workspace
   (root `package.json`, members `frontend/`, `packages/*`). Run Python tools with `uv run`, JS
   tools with `bun`/`bunx`. Do not use pip or npm to add dependencies.
-- `backend/app/`: FastAPI app. Studies feature: `api/routes/studies.py`, `study_jobs.py`,
-  `agents/` (`study_agent.py`, `simulator.py`, `demo_model.py`). Food planner: deterministic
-  tools in `tools/` (`normalize.py`, `catalog.py`, `best_buy.py`), agents in
-  `agents/capture_agent.py` and `agents/best_buy_agent.py`. Tests that need a known catalog use the fixtures in
-  `tests/catalog_fixtures.py` (`catalog`, `household`, `vendor`; one rolled-back transaction).
-- `frontend/src/`: React 19, TanStack Router (file routes) and Query, Tailwind, shadcn/ui.
-  Studies UI is in `components/Studies/`.
+- `backend/app/`: FastAPI app. Runs: `api/routes/grocery_analysis_runs.py` and
+  `grocery_analysis_jobs.py` (request and result schemas, the background job). Deterministic tools
+  in `tools/` (`normalize.py`, `catalog.py`, `best_buy.py`); agents in `agents/`
+  (`capture_agent.py`, `best_buy_agent.py`, `demo_model.py`, `models.py`). Household and vendor
+  APIs in `api/routes/household.py` and `vendors.py`. Tests that need a known catalog use the
+  fixtures in `tests/catalog_fixtures.py` (`catalog`, `household`, `vendor`; one rolled-back
+  transaction).
+- `frontend/src/`: React 19, TanStack Router (file routes) and Query, Tailwind, shadcn/ui. The
+  Prices page is in `components/Prices/` and `routes/_layout/prices.tsx`.
 - There is one application image: `backend/Dockerfile` builds the SPA and FastAPI serves it from
   `backend/app/frontend` (generated, do not edit). No separate frontend container.
 
@@ -48,7 +49,7 @@ SIM_MODEL=demo uv run fastapi dev           # API on :8000, no LLM key needed
 #   PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces   (UI on :6006)
 uv run bash scripts/tests-start.sh          # full suite with coverage (CI requires >= 90%)
 uv run bash scripts/agent-test.sh           # agent tests only (root conftest still needs Postgres)
-uv run pytest tests/api/routes/test_studies.py -k idempotency   # single test
+uv run pytest tests/api/routes/test_grocery_analysis_runs.py -k idempotency   # single test
 uv run bash scripts/lint.sh                 # mypy (strict), ty, ruff check, ruff format --check
 uv run python scripts/smoke_foundry.py      # LIVE DeepSeek call (costs money; needs .env.local)
 uv run python -m app.seed all <FDC zips> <sr28asc.zip>   # load reference data (see app/seed_data/README.md)
@@ -58,7 +59,7 @@ uv run bash scripts/format.sh
 # frontend (from repo root unless noted)
 bun install && bun run dev                  # Vite on :5173
 bun run lint                                # Biome (writes fixes)
-cd frontend && bunx playwright test tests/studies.spec.ts   # needs the demo backend running
+cd frontend && bunx playwright test tests/prices.spec.ts    # needs the demo backend and seeded data
 
 # all static checks, as CI runs them
 uv run prek run --all-files
@@ -75,20 +76,22 @@ uv run prek run --all-files
 - **Backend tests share the dev database and delete all users when they finish.** Rerun
   `scripts/prestart.sh` afterwards before using the app or running E2E tests.
 - **Tests must never call a real model.** `tests/conftest.py` sets `ALLOW_MODEL_REQUESTS = False`.
-  Inject `TestModel`/`FunctionModel` via `app.dependency_overrides[get_study_model]` (API tests)
-  or `study_agent.override(...)` / `reviewer_agent.override(...)` inside the test body (agent
-  tests; override both when delegation is involved). Use `FakeSimClient` from
-  `tests/agents/conftest.py` instead of the real simulator.
+  Inject `TestModel`/`FunctionModel` via `app.dependency_overrides[get_run_model]` (API tests)
+  or pass `model=` to `capture_typed_list`, `extract_lines`, or `explain_best_buy` (agent tests).
+  The national catalog differs between a seeded dev database and CI's empty one: use the
+  `catalog` fixture, or items the test household owns, never real catalog rows.
 - `SIM_MODEL` is a `Settings` field (default `demo`, deterministic scripted responses); the model
   is built when a run starts, not at import. Other values: `test`, `foundry:deepseek-v3.2`.
-- Every exit path in `study_jobs.execute_study` must leave a study in `succeeded` or `failed`;
-  a study stuck in `running` makes the UI poll forever. Each path also sets `study.status` on the
-  `study` span.
+  `DEMO_DELAY_SECONDS` makes demo answers wait (Playwright CI sets 1, so the page must poll).
+- Every exit path in `grocery_analysis_jobs.execute_run` must leave a run in `succeeded` or
+  `failed`; a run stuck in `running` makes the UI poll forever. Each path also sets
+  `grocery_analysis_run.status` on the `grocery_analysis_run` span.
 - Tracing (`app/core/tracing.py`) is off unless `PHOENIX_COLLECTOR_ENDPOINT` is set. Agent
   instrumentation is global (`Agent.instrument_all`), so tests that call `setup_tracing` must call
   `shutdown_tracing` afterwards; use the `SnapshotExporter` in `tests/utils/tracing.py`.
-- Idempotency keys live in Redis, scoped per user (`idempotency:studies:{user_id}:{key}`), 24 h TTL.
-  Users may read only their own studies.
+- Idempotency keys live in Redis, scoped per user
+  (`idempotency:grocery_analysis_runs:{user_id}:{key}`), 24 h TTL. Users may read only their own
+  runs; a run may name only the household's own vendors and the catalog items it can see.
 - `TestClient` runs background tasks before returning, so API tests are synchronous by design.
 - When adding a test for a behavior, check it fails with the bug introduced (see "Checking that the
   tests catch bugs" in `README.md`), and record notable changes in `TESTING.md`.

@@ -464,3 +464,24 @@ def test_demo_mode_runs_the_whole_capture(
 def test_demo_capture_model_is_built_for_the_capture_role() -> None:
     assert isinstance(build_model("demo", role="capture"), FunctionModel)
     assert isinstance(demo_capture_model(), FunctionModel)
+
+
+def test_demo_answers_can_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    """DEMO_DELAY_SECONDS makes E2E runs take long enough that the page must poll."""
+    import app.agents.demo_model as demo
+
+    waits: list[float] = []
+
+    async def fake_sleep(seconds: float) -> None:
+        waits.append(seconds)
+
+    monkeypatch.setattr(demo.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(settings, "DEMO_DELAY_SECONDS", 1.5)
+    lines, _usage = asyncio.run(
+        capture.extract_lines(["onions 1 lb 1.00"], demo_capture_model())
+    )
+    assert waits == [1.5]
+    assert lines[1].item_text == "onions"
+    monkeypatch.setattr(settings, "DEMO_DELAY_SECONDS", 0.0)
+    asyncio.run(capture.extract_lines(["onions 1 lb 1.00"], demo_capture_model()))
+    assert waits == [1.5]

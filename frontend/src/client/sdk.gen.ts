@@ -443,7 +443,7 @@ export class GroceryAnalysisRunsService {
      * Send an Idempotency-Key header to make retries safe: repeating a request with the same key
      * returns the original run instead of starting a duplicate job.
      */
-    public static analysisRunsCreateGroceryAnalysisRun<ThrowOnError extends boolean = true>(options: Options<groceryAnalysisRunsCreateGroceryAnalysisRunData, ThrowOnError>) {
+    public static createGroceryAnalysisRun<ThrowOnError extends boolean = true>(options: Options<groceryAnalysisRunsCreateGroceryAnalysisRunData, ThrowOnError>) {
         return (options.client ?? client).post<groceryAnalysisRunsCreateGroceryAnalysisRunResponses, groceryAnalysisRunsCreateGroceryAnalysisRunErrors, ThrowOnError>({
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
@@ -461,7 +461,7 @@ export class GroceryAnalysisRunsService {
      *
      * Get a run's status, and its result or error once it has finished.
      */
-    public static analysisRunsReadGroceryAnalysisRun<ThrowOnError extends boolean = true>(options: Options<groceryAnalysisRunsReadGroceryAnalysisRunData, ThrowOnError>) {
+    public static readGroceryAnalysisRun<ThrowOnError extends boolean = true>(options: Options<groceryAnalysisRunsReadGroceryAnalysisRunData, ThrowOnError>) {
         return (options.client ?? client).get<groceryAnalysisRunsReadGroceryAnalysisRunResponses, groceryAnalysisRunsReadGroceryAnalysisRunErrors, ThrowOnError>({
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],

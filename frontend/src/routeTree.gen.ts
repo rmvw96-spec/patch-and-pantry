@@ -17,8 +17,8 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
 import { Route as LayoutItemsRouteImport } from './routes/_layout/items'
+import { Route as LayoutPricesRouteImport } from './routes/_layout/prices'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
-import { Route as LayoutStudiesRouteImport } from './routes/_layout/studies'
 
 const LayoutRoute = LayoutRouteImport.update({
   id: '/_layout',
@@ -59,14 +59,14 @@ const LayoutItemsRoute = LayoutItemsRouteImport.update({
   path: '/items',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutPricesRoute = LayoutPricesRouteImport.update({
+  id: '/prices',
+  path: '/prices',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutStudiesRoute = LayoutStudiesRouteImport.update({
-  id: '/studies',
-  path: '/studies',
   getParentRoute: () => LayoutRoute,
 } as any)
 
@@ -78,8 +78,8 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
   '/items': typeof LayoutItemsRoute
+  '/prices': typeof LayoutPricesRoute
   '/settings': typeof LayoutSettingsRoute
-  '/studies': typeof LayoutStudiesRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -88,8 +88,8 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
   '/items': typeof LayoutItemsRoute
+  '/prices': typeof LayoutPricesRoute
   '/settings': typeof LayoutSettingsRoute
-  '/studies': typeof LayoutStudiesRoute
   '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesById {
@@ -101,8 +101,8 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_layout/admin': typeof LayoutAdminRoute
   '/_layout/items': typeof LayoutItemsRoute
+  '/_layout/prices': typeof LayoutPricesRoute
   '/_layout/settings': typeof LayoutSettingsRoute
-  '/_layout/studies': typeof LayoutStudiesRoute
   '/_layout/': typeof LayoutIndexRoute
 }
 export interface FileRouteTypes {
@@ -115,8 +115,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin'
     | '/items'
+    | '/prices'
     | '/settings'
-    | '/studies'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -125,8 +125,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin'
     | '/items'
+    | '/prices'
     | '/settings'
-    | '/studies'
     | '/'
   id:
     | '__root__'
@@ -137,8 +137,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_layout/admin'
     | '/_layout/items'
+    | '/_layout/prices'
     | '/_layout/settings'
-    | '/_layout/studies'
     | '/_layout/'
   fileRoutesById: FileRoutesById
 }
@@ -208,18 +208,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutItemsRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/prices': {
+      id: '/_layout/prices'
+      path: '/prices'
+      fullPath: '/prices'
+      preLoaderRoute: typeof LayoutPricesRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/settings': {
       id: '/_layout/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof LayoutSettingsRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/studies': {
-      id: '/_layout/studies'
-      path: '/studies'
-      fullPath: '/studies'
-      preLoaderRoute: typeof LayoutStudiesRouteImport
       parentRoute: typeof LayoutRoute
     }
   }
@@ -228,16 +228,16 @@ declare module '@tanstack/react-router' {
 interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRoute
   LayoutItemsRoute: typeof LayoutItemsRoute
+  LayoutPricesRoute: typeof LayoutPricesRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
-  LayoutStudiesRoute: typeof LayoutStudiesRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminRoute: LayoutAdminRoute,
   LayoutItemsRoute: LayoutItemsRoute,
+  LayoutPricesRoute: LayoutPricesRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
-  LayoutStudiesRoute: LayoutStudiesRoute,
   LayoutIndexRoute: LayoutIndexRoute,
 }
 
