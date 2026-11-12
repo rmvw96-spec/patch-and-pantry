@@ -159,6 +159,36 @@ test.describe("Reading a typed list", () => {
     )
   })
 
+  test("Reading the list again leaves out dropped and unchecked lines", async ({
+    page,
+  }) => {
+    // Made-up names, so the alias this saves cannot collide with an earlier run of this test.
+    const name = `qq${Math.random().toString(36).slice(2, 7).replace(/[0-9]/g, "x")}`
+    const chosen = `${name} 1 lb 2.48`
+    const dropped = "qqzzv 1 lb 1.00"
+    const unchecked = "tomatoes 2.49/lb"
+    await readList(page, `${chosen}\n${dropped}\n${unchecked}`)
+
+    await page.getByRole("button", { name: `Drop ${dropped}` }).click()
+    await page.getByLabel(`Save ${unchecked}`).uncheck()
+    await page
+      .getByLabel(`Item for ${chosen}`)
+      .selectOption({ label: "Collards" })
+    await page.getByRole("button", { name: "Use this item" }).click()
+    await expect(
+      page.getByText("leaves out the 2 lines you dropped or unchecked"),
+    ).toBeVisible()
+    await page.getByRole("button", { name: "Read the list again" }).click()
+
+    await expect(page.getByTestId("run-status")).toHaveText("succeeded", {
+      timeout: 30_000,
+    })
+    await expect(page.getByTestId("run-input")).toHaveText(chosen)
+    await expect(page.getByTestId("capture-question")).toHaveCount(0)
+    await expect(page.getByTestId("capture-draft")).toHaveCount(1)
+    await expect(page.getByTestId("capture-draft")).toContainText("Collards")
+  })
+
   test("Saved prices appear in the price book", async ({ page }) => {
     const store = await savePrices(page, "onions 3 lb bag 2.99")
     await page.getByRole("link", { name: "price book", exact: true }).click()
