@@ -1,6 +1,5 @@
 import {
   BookOpen,
-  Briefcase,
   Home,
   Scale,
   ShoppingBasket,
@@ -22,7 +21,6 @@ import { User } from "./User"
 
 const baseItems: Item[] = [
   { icon: Home, title: "Dashboard", path: "/" },
-  { icon: Briefcase, title: "Items", path: "/items" },
   { icon: ShoppingBasket, title: "Prices", path: "/prices" },
   { icon: BookOpen, title: "Price book", path: "/price-book" },
   { icon: Scale, title: "Best buy", path: "/best-buy" },

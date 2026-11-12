@@ -7,7 +7,7 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 510 |
+| Backend tests | 58 | 499 |
 | Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
 | Backend suite, local run | 16.4 s | 21.4 s |
@@ -76,10 +76,10 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Backend integration: grocery analysis runs and vendors | `backend/tests/api/routes/test_grocery_analysis_runs.py` | 28 | Real Postgres and Redis: 202 then polling, both run kinds, requests checked before they queue, idempotency per user, failure states, access control, the vendor API |
 | Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | Capture and best-buy agents with an in-memory exporter; an explanation sent back once; no Phoenix needed |
 | Backend: run job and its tracing | `backend/tests/test_grocery_analysis_job_tracing.py` | 10 | `execute_run` against real Postgres: the run span as the trace root, failures and crashes on the span, deleted runs, job-side failures, the recorded model name, cascade on user deletion |
-| Backend: template API and CRUD | `backend/tests/api/routes/`, `backend/tests/crud/` | 58 | Items, login, users, private routes, user CRUD |
+| Backend: template API and CRUD | `backend/tests/api/routes/`, `backend/tests/crud/` | 47 | Login, users, private routes, user CRUD |
 | Browser E2E: Prices page | `frontend/tests/prices.spec.ts` | 10 | Full stack in demo mode with reference data loaded and a 1 s demo delay: add a store, read a list, drafts with cost per cup, questions, set-aside lines, refresh, answering a weight question, skipping a draft, choosing an item then reading again, saved prices in the book |
 | Browser E2E: Price book, Best buy, Household | `frontend/tests/price-book.spec.ts`, `best-buy.spec.ts`, `household.spec.ts`; steps in `tests/utils/prices.ts` | 8 | Edit and delete a price (cost per cup recomputed); compare with a starred store price, the ERS reference, explanation, and shopping list; the national-average fallback; budget and people saved and refused |
-| Browser E2E: template | `frontend/tests/*.spec.ts` | 6 files | Admin, items, login, reset password, sign-up, user settings |
+| Browser E2E: template | `frontend/tests/*.spec.ts` | 5 files | Admin, login, reset password, sign-up, user settings |
 | Stack smoke check | `.github/workflows/test-docker-compose.yml` | 2 HTTP checks | Health endpoint and served frontend |
 
 ## Mapping notes
@@ -87,7 +87,7 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 
 **Fixtures and scope.**
 - `db` (session scope, autouse): opens a database session and creates the first superuser. When
-  the session ends it deletes all items and users, so every backend test shares one database,
+  the session ends it deletes all users, so every backend test shares one database,
   which is also the development database.
 - `client` (module scope): one FastAPI `TestClient` per test file.
 - `superuser_token_headers`, `normal_user_token_headers` (module scope): log in through the real
@@ -106,7 +106,7 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 
 **Coverage by layer.** The backend tests cover every API route, including authentication,
 permissions, and validation, through the real HTTP layer and a real database. Browser tests cover
-the main user journeys: login, sign-up, password reset (through Mailpit), user settings, admin, items,
+the main user journeys: login, sign-up, password reset (through Mailpit), user settings, admin,
 and reading a price list.
 
 **Gaps.**
@@ -242,3 +242,4 @@ for it.
 | 2026-11-11 | PR #20: `compare_best_buy` and its explanation (P1-6); FoodKeeper range maximum and cooked leftovers; item settings; price sizes. Ten put-back bugs each caught (table above) | +63 backend | ___ |
 | 2026-11-12 | PR #21: grocery analysis runs replace Studies (P1-1). Studies, the simulator, and their tests deleted; run, vendor, and job-tracing tests carry over idempotency, terminal states, ownership, and tracing. Prices page E2E with seeded reference data and a 1 s demo delay. Fourteen put-back bugs each caught (table above) | -2 backend (484), E2E spec replaced (6 tests) | Playwright: one more step (load reference data) |
 | 2026-11-12 | PR #22: pages and shopping list (P1-7): confirming drafts, price book, best buy with a printable shopping list, household settings; price, catalog, alias, and item-setting APIs. Six put-back bugs each caught (table above). One local Playwright failure on a cold dev server was not reproduced in four more runs | +26 backend, +12 E2E | ___ |
+| 2026-11-12 | Removed the template's Items page, API, `item` table, and their tests (dogfooding: unused by Patch & Pantry) | -11 backend, -1 E2E file | ___ |

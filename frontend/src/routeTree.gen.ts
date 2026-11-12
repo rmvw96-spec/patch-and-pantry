@@ -18,7 +18,6 @@ import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
 import { Route as LayoutBestBuyRouteImport } from './routes/_layout/best-buy'
 import { Route as LayoutHouseholdRouteImport } from './routes/_layout/household'
-import { Route as LayoutItemsRouteImport } from './routes/_layout/items'
 import { Route as LayoutPriceBookRouteImport } from './routes/_layout/price-book'
 import { Route as LayoutPricesRouteImport } from './routes/_layout/prices'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
@@ -67,11 +66,6 @@ const LayoutHouseholdRoute = LayoutHouseholdRouteImport.update({
   path: '/household',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutItemsRoute = LayoutItemsRouteImport.update({
-  id: '/items',
-  path: '/items',
-  getParentRoute: () => LayoutRoute,
-} as any)
 const LayoutPriceBookRoute = LayoutPriceBookRouteImport.update({
   id: '/price-book',
   path: '/price-book',
@@ -97,7 +91,6 @@ export interface FileRoutesByFullPath {
   '/admin': typeof LayoutAdminRoute
   '/best-buy': typeof LayoutBestBuyRoute
   '/household': typeof LayoutHouseholdRoute
-  '/items': typeof LayoutItemsRoute
   '/price-book': typeof LayoutPriceBookRoute
   '/prices': typeof LayoutPricesRoute
   '/settings': typeof LayoutSettingsRoute
@@ -110,7 +103,6 @@ export interface FileRoutesByTo {
   '/admin': typeof LayoutAdminRoute
   '/best-buy': typeof LayoutBestBuyRoute
   '/household': typeof LayoutHouseholdRoute
-  '/items': typeof LayoutItemsRoute
   '/price-book': typeof LayoutPriceBookRoute
   '/prices': typeof LayoutPricesRoute
   '/settings': typeof LayoutSettingsRoute
@@ -126,7 +118,6 @@ export interface FileRoutesById {
   '/_layout/admin': typeof LayoutAdminRoute
   '/_layout/best-buy': typeof LayoutBestBuyRoute
   '/_layout/household': typeof LayoutHouseholdRoute
-  '/_layout/items': typeof LayoutItemsRoute
   '/_layout/price-book': typeof LayoutPriceBookRoute
   '/_layout/prices': typeof LayoutPricesRoute
   '/_layout/settings': typeof LayoutSettingsRoute
@@ -143,7 +134,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/best-buy'
     | '/household'
-    | '/items'
     | '/price-book'
     | '/prices'
     | '/settings'
@@ -156,7 +146,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/best-buy'
     | '/household'
-    | '/items'
     | '/price-book'
     | '/prices'
     | '/settings'
@@ -171,7 +160,6 @@ export interface FileRouteTypes {
     | '/_layout/admin'
     | '/_layout/best-buy'
     | '/_layout/household'
-    | '/_layout/items'
     | '/_layout/price-book'
     | '/_layout/prices'
     | '/_layout/settings'
@@ -251,13 +239,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutHouseholdRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/items': {
-      id: '/_layout/items'
-      path: '/items'
-      fullPath: '/items'
-      preLoaderRoute: typeof LayoutItemsRouteImport
-      parentRoute: typeof LayoutRoute
-    }
     '/_layout/price-book': {
       id: '/_layout/price-book'
       path: '/price-book'
@@ -286,7 +267,6 @@ interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRoute
   LayoutBestBuyRoute: typeof LayoutBestBuyRoute
   LayoutHouseholdRoute: typeof LayoutHouseholdRoute
-  LayoutItemsRoute: typeof LayoutItemsRoute
   LayoutPriceBookRoute: typeof LayoutPriceBookRoute
   LayoutPricesRoute: typeof LayoutPricesRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
@@ -297,7 +277,6 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminRoute: LayoutAdminRoute,
   LayoutBestBuyRoute: LayoutBestBuyRoute,
   LayoutHouseholdRoute: LayoutHouseholdRoute,
-  LayoutItemsRoute: LayoutItemsRoute,
   LayoutPriceBookRoute: LayoutPriceBookRoute,
   LayoutPricesRoute: LayoutPricesRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
