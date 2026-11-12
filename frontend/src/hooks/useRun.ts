@@ -50,3 +50,14 @@ export function parseCents(text: string): number | null {
   const match = text.trim().match(/^\$?(\d+(?:\.\d{1,2})?|\.\d{1,2})$/)
   return match ? Math.round(Number(match[1]) * 100) : null
 }
+
+/** The price of one unit, from a total and the amount it bought: "$0.29 each", "$2.49/lb". */
+export function unitPrice(
+  totalCents: number,
+  quantity: number,
+  unit: string,
+): string | null {
+  if (!(quantity > 0)) return null
+  const per = money(totalCents / quantity)
+  return unit === "each" ? `${per} each` : `${per}/${unit}`
+}

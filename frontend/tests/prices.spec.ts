@@ -118,6 +118,47 @@ test.describe("Reading a typed list", () => {
     )
   })
 
+  test("A price for one with a count is saved as the total", async ({
+    page,
+  }) => {
+    // A weight unit, so no piece weight is needed: CI loads no SR28 portions.
+    await readList(page, "onions $0.99/lb (3)")
+    const draft = page.getByTestId("capture-draft")
+    await expect(draft).toContainText("3 lb")
+    // 0.99 x 3 = 2.97, multiplied by the capture code, not the model
+    await expect(draft.getByTestId("draft-price")).toContainText("$2.97")
+    await expect(draft.getByTestId("draft-price")).toContainText(
+      "$0.99 a lb x 3",
+    )
+  })
+
+  test("A question's line can be dropped, and unsaved lines are listed", async ({
+    page,
+  }) => {
+    await readList(
+      page,
+      "onions 3 lb bag 2.99\nqqzzv 1 lb 1.00\nkale bunch 2.50",
+    )
+    await page.getByRole("button", { name: "Drop qqzzv 1 lb 1.00" }).click()
+    await expect(page.getByLabel("Item for qqzzv 1 lb 1.00")).toHaveCount(0)
+
+    const unsaved = page.getByTestId("capture-unsaved")
+    await expect(unsaved).toContainText("Will not be saved")
+    await expect(unsaved).toContainText("qqzzv 1 lb 1.00 (you dropped it)")
+    await expect(unsaved).toContainText(
+      "kale bunch 2.50 (question not answered)",
+    )
+
+    await page.getByRole("button", { name: "Save 1 price" }).click()
+    await expect(page.getByTestId("capture-saved")).toContainText(
+      "Saved 1 price ",
+    )
+    await expect(page.getByTestId("capture-unsaved")).toContainText("Not saved")
+    await expect(page.getByTestId("capture-unsaved")).toContainText(
+      "qqzzv 1 lb 1.00 (you dropped it)",
+    )
+  })
+
   test("Saved prices appear in the price book", async ({ page }) => {
     const store = await savePrices(page, "onions 3 lb bag 2.99")
     await page.getByRole("link", { name: "price book", exact: true }).click()

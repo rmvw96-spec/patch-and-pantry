@@ -311,6 +311,10 @@ export type DraftPrice = {
      */
     match_kind?: string;
     /**
+     * Price Note
+     */
+    price_note?: string | null;
+    /**
      * Piece Grams
      */
     piece_grams?: number | null;

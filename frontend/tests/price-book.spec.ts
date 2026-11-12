@@ -17,15 +17,21 @@ test.describe("Editing prices", () => {
     await page.goto("/price-book")
     const row = page.getByTestId("price-row").filter({ hasText: store })
     await expect(row).toContainText("$2.99")
+    await expect(row.getByTestId("price-unit-price")).toHaveText("$1.00/lb")
     await expect(row.getByTestId("price-cost-per-cup")).toHaveText("$0.39")
 
     await row.getByRole("button", { name: "Edit onions 3 lb bag 2.99" }).click()
     const edit = page.getByTestId("price-edit-row")
-    await edit.getByLabel("Price").fill("3.49")
+    // The price is the total paid; the page shows what one unit costs as you type.
+    await edit.getByLabel("Total paid").fill("3.49")
+    await expect(edit.getByTestId("edit-unit-price")).toHaveText(
+      "Total paid. $1.16/lb",
+    )
     await edit.getByRole("button", { name: "Save" }).click()
 
     const edited = page.getByTestId("price-row").filter({ hasText: store })
     await expect(edited.getByTestId("price-amount")).toHaveText("$3.49")
+    await expect(edited.getByTestId("price-unit-price")).toHaveText("$1.16/lb")
     // 3.49 for 3 lb: the cost per cup is recomputed by the tool, not the page
     await expect(edited.getByTestId("price-cost-per-cup")).toHaveText("$0.46")
 

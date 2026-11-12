@@ -21,6 +21,7 @@ from app.agents.capture_agent import (
     CaptureResult,
     capture_typed_list,
     price_cents,
+    total_cents,
 )
 from app.agents.demo_model import demo_capture_model, read_list_line
 from app.agents.models import build_model
@@ -207,13 +208,42 @@ def test_price_text_to_cents(text: str | None, cents: int | None) -> None:
     assert price_cents(text) == cents
 
 
-def test_a_per_unit_price_is_the_price_of_one_unit(capture_run: Any) -> None:
+def test_a_per_unit_price_is_multiplied_out_to_the_total(capture_run: Any) -> None:
+    """Prices are stored as the total paid for the amount bought (dogfooding: "$0.29 each (3)")."""
     result = capture_run(
         "tomatoes 3 lb at 2.49/lb",
         {"item_text": "tomatoes", "quantity": 3, "unit": "lb", "price_text": "2.49", "price_is_per_unit": True},
     )  # fmt: skip
     (draft,) = result.drafts
-    assert (draft.quantity, draft.unit, draft.price_cents) == (1, "lb", 249)
+    assert (draft.quantity, draft.unit, draft.price_cents) == (3, "lb", 747)
+    assert draft.price_note == "$2.49 a lb x 3"
+
+
+def test_a_count_after_an_each_price_is_the_amount_bought(capture_run: Any) -> None:
+    result = capture_run(
+        "large tomatoes $0.29 each (3)",
+        {"item_text": "tomatoes", "quantity": 3, "unit": "each", "size": "large", "price_text": "$0.29", "price_is_per_unit": True},
+    )  # fmt: skip
+    (draft,) = result.drafts
+    assert (draft.quantity, draft.unit, draft.price_cents) == (3, "each", 87)
+    assert draft.price_note == "$0.29 each x 3"
+
+
+def test_a_per_unit_price_with_no_amount_is_one_unit(capture_run: Any) -> None:
+    result = capture_run(
+        "tomatoes 2.49/lb",
+        {"item_text": "tomatoes", "unit": "lb", "price_text": "2.49", "price_is_per_unit": True},
+    )  # fmt: skip
+    (draft,) = result.drafts
+    assert (draft.quantity, draft.price_cents, draft.price_note) == (1, 249, None)
+
+
+@pytest.mark.parametrize(
+    ("per_unit", "quantity", "total"),
+    [(29, 3, 87), (249, 1.5, 374), (249, 1.37, 341), (199, 0.25, 50), (1, 0.5, 1)],
+)  # fmt: skip
+def test_total_cents_rounds_half_up(per_unit: int, quantity: float, total: int) -> None:
+    assert total_cents(per_unit, quantity) == total
 
 
 def test_a_unit_without_a_number_is_one_unit(capture_run: Any) -> None:
@@ -434,6 +464,9 @@ def test_a_runaway_model_is_stopped(
         ("tomatoes 3 for $5", {"item_text": "tomatoes", "quantity": 3.0, "unit": "each", "price_text": "$5"}),
         ("tomatoes 2.49/lb", {"item_text": "tomatoes", "unit": "lb", "price_text": "2.49", "price_is_per_unit": True}),
         ("large green peppers 2 for 2.00", {"item_text": "green peppers", "size": "large", "quantity": 2.0}),
+        ("fresh banana $0.13 each (5)", {"item_text": "fresh banana", "quantity": 5.0, "unit": "each", "price_text": "$0.13", "price_is_per_unit": True}),
+        ("hass avocado $.73 ea - 2", {"item_text": "hass avocado", "quantity": 2.0, "price_is_per_unit": True}),
+        ("limes 1.29 ea x3", {"item_text": "limes", "quantity": 3.0, "price_is_per_unit": True}),
         ("okra 99c", {"item_text": "okra", "price_text": "99c"}),
         ("Kroger", {"is_price": False}),
     ],

@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import useCustomToast from "@/hooks/useCustomToast"
-import { money, parseCents } from "@/hooks/useRun"
+import { money, parseCents, unitPrice } from "@/hooks/useRun"
 import { handleError } from "@/utils"
 
 const selectClass =
@@ -122,14 +122,23 @@ function EditRow({
           />
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell colSpan={2}>
+        {/* The total paid for the amount; the price of one unit is worked out from it. */}
         <Input
           className="w-24"
           inputMode="decimal"
-          aria-label="Price"
+          aria-label="Total paid"
           value={draft.price}
           onChange={(e) => setDraft({ ...draft, price: e.target.value })}
         />
+        <p
+          className="text-muted-foreground mt-1 text-xs"
+          data-testid="edit-unit-price"
+        >
+          {cents !== null && quantity > 0
+            ? `Total paid. ${unitPrice(cents, quantity, draft.unit)}`
+            : "Total paid for the amount"}
+        </p>
       </TableCell>
       <TableCell colSpan={2}>
         <div className="flex gap-2">
@@ -195,7 +204,8 @@ const PriceBook = () => {
           <TableHead>Item</TableHead>
           <TableHead>As typed</TableHead>
           <TableHead>Amount</TableHead>
-          <TableHead>Price</TableHead>
+          <TableHead>Total paid</TableHead>
+          <TableHead>Unit price</TableHead>
           <TableHead>Per cup</TableHead>
           <TableHead>
             <span className="sr-only">Actions</span>
@@ -226,6 +236,10 @@ const PriceBook = () => {
               </TableCell>
               <TableCell data-testid="price-amount">
                 {money(price.price_cents)}
+              </TableCell>
+              <TableCell data-testid="price-unit-price">
+                {unitPrice(price.price_cents, price.quantity, price.unit) ??
+                  "-"}
               </TableCell>
               <TableCell data-testid="price-cost-per-cup">
                 {price.cost_per_cup_cents == null

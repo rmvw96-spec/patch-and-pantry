@@ -179,6 +179,11 @@ const CaptureForm = ({ onSubmitted }: CaptureFormProps) => {
                   {...field}
                 />
               </FormControl>
+              <p className="text-muted-foreground text-sm">
+                One item a line. Write the total you paid with the amount
+                ("onions 3 lb bag 2.99"), or the price of one and how many
+                ("tomatoes $0.29 each (3)").
+              </p>
               <FormMessage />
             </FormItem>
           )}

@@ -7,7 +7,7 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 500 |
+| Backend tests | 58 | 510 |
 | Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
 | Backend suite, local run | 16.4 s | 21.4 s |
@@ -244,3 +244,4 @@ for it.
 | 2026-11-12 | PR #22: pages and shopping list (P1-7): confirming drafts, price book, best buy with a printable shopping list, household settings; price, catalog, alias, and item-setting APIs. Six put-back bugs each caught (table above). One local Playwright failure on a cold dev server was not reproduced in four more runs | +26 backend, +12 E2E | ___ |
 | 2026-11-12 | Removed the template's Items page, API, `item` table, and their tests (dogfooding: unused by Patch & Pantry) | -11 backend, -1 E2E file | ___ |
 | 2026-11-12 | Dogfooding fixes, best buy: notes said once per item under the table, "National average (2023)" with its source, bold explanation text rendered. Checked that putting the storage note back on every row fails `test_item_notes_are_said_once_per_item` | +1 backend, E2E checks added to 2 tests | ___ |
+| 2026-11-12 | Dogfooding fixes, prices: per-unit prices with a count are multiplied out to the total; questions can be dropped; unsaved lines listed; unit prices in the price book. Checked that skipping the multiplication fails two capture tests | +10 backend, +2 E2E | ___ |
