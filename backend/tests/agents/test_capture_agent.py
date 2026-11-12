@@ -257,6 +257,52 @@ def test_a_unit_without_a_number_is_one_unit(capture_run: Any) -> None:
     assert draft.cups is not None
 
 
+# ---------- juices are measured by volume ----------
+
+
+@pytest.mark.parametrize(
+    ("line", "entry", "cups"),
+    [
+        ("orange juice 52 oz 3.99", {"quantity": 52, "unit": "oz"}, 6.5),  # fluid ounces on a juice
+        ("orange juice half gallon 3.99", {"unit": "half gallon"}, 8.0),
+        ("orange juice pint 3.99", {"unit": "pint"}, 2.0),  # a volume, not a container to weigh
+    ],
+)  # fmt: skip
+def test_a_juice_needs_no_piece_weight(
+    capture_run: Any, line: str, entry: dict[str, Any], cups: float
+) -> None:
+    result = capture_run(
+        line, {"item_text": "orange juice", "price_text": "3.99", **entry}
+    )
+    assert result.questions == []
+    (draft,) = result.drafts
+    assert draft.cups == pytest.approx(cups)
+    assert draft.cost_per_cup_cents == pytest.approx(399 / cups)
+    assert draft.piece_grams is None and draft.grams_edible is None
+
+
+def test_a_juice_by_count_is_a_question(capture_run: Any) -> None:
+    result = capture_run(
+        "orange juice 1 each 3.99",
+        {"item_text": "orange juice", "quantity": 1, "unit": "each", "price_text": "3.99"},
+    )  # fmt: skip
+    (question,) = result.questions
+    assert question.kind == "unknown_unit" and "measured by volume" in question.message
+    assert question.draft is not None and result.drafts == []
+
+
+def test_produce_by_volume_is_a_question(capture_run: Any) -> None:
+    result = capture_run(
+        "onions 1 quart 2.99",
+        {"item_text": "onions", "quantity": 1, "unit": "quart", "price_text": "2.99"},
+    )  # fmt: skip
+    (question,) = result.questions
+    assert (
+        question.kind == "unknown_unit"
+        and "sold by weight or count" in question.message
+    )
+
+
 # ---------- every unclear line is a question ----------
 
 

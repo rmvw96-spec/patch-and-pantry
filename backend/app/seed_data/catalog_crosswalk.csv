@@ -37,6 +37,130 @@ garden-pea,Garden pea,produce,vegetable,,,170419,sr_legacy,273,refrigerator,Peas
 peanut,Peanut,produce,legume,,,2515376,foundation,441,pantry,,,,No ERS form: captured prices
 watermelon,Watermelon,produce,fruit,Watermelon,Fresh,2747675,foundation,495,refrigerator,,Watermelons,,
 cantaloupe,Cantaloupe,produce,fruit,Cantaloupe,Fresh,746770,foundation,496,refrigerator,,Muskmelons,,
+apple,Apple,produce,fruit,Apples,Fresh,171688,sr_legacy,248,refrigerator,,,,"FDC: SR Legacy all varieties; Foundation has single varieties (fuji, gala, honeycrisp)"
+apricot,Apricot,produce,fruit,Apricots,Fresh,2710815,foundation,249,refrigerator,,,,
+banana,Banana,produce,fruit,Bananas,Fresh,173944,sr_legacy,251,refrigerator,,,,FDC: SR Legacy; Foundation splits by ripeness. FoodKeeper gives bananas a refrigerator time only (3 days)
+blackberry,Blackberry,produce,fruit,Blackberries,Fresh,2727581,foundation,253,refrigerator,,,,
+blueberry,Blueberry,produce,fruit,Blueberries,Fresh,2346411,foundation,254,refrigerator,,,,
+cherry,Cherry,produce,fruit,Cherries,Fresh,2346399,foundation,483,refrigerator,,,,FDC: sweet dark red cherries
+clementine,Clementine,produce,fruit,Clementines,Fresh,168195,sr_legacy,256,refrigerator,,,,FoodKeeper: citrus fruit
+grapefruit,Grapefruit,produce,fruit,Grapefruit,Fresh,2758977,foundation,256,refrigerator,,,,FoodKeeper: citrus fruit
+grape,Grape,produce,fruit,Grapes,Fresh,174683,sr_legacy,261,refrigerator,,,,FDC: SR Legacy red or green (European type); Foundation splits by color
+honeydew,Honeydew,produce,fruit,Honeydew,Fresh,2710816,foundation,497,refrigerator,,,,
+kiwi,Kiwi,produce,fruit,Kiwi,Fresh,2710831,foundation,263,refrigerator,,,,
+mango,Mango,produce,fruit,Mangoes,Fresh,2710833,foundation,265,refrigerator,,,,"FDC: Tommy Atkins, the most common US variety"
+nectarine,Nectarine,produce,fruit,Nectarines,Fresh,327357,foundation,266,refrigerator,,,,
+orange,Orange,produce,fruit,Oranges,Fresh,746771,foundation,256,refrigerator,,,,FDC: navel oranges. FoodKeeper: citrus fruit
+papaya,Papaya,produce,fruit,Papaya,Fresh,169926,sr_legacy,265,refrigerator,,,,
+peach,Peach,produce,fruit,Peaches,Fresh,325430,foundation,266,refrigerator,,,,FDC: yellow peaches
+pear,Pear,produce,fruit,Pears,Fresh,746773,foundation,266,refrigerator,,,,FDC: Bartlett
+pineapple,Pineapple,produce,fruit,Pineapple,Fresh,2346398,foundation,267,refrigerator,,,,
+plum,Plum,produce,fruit,Plum,Fresh,169949,sr_legacy,266,refrigerator,,,,
+pomegranate,Pomegranate,produce,fruit,Pomegranate,Fresh,169134,sr_legacy,269,refrigerator,,,,
+raspberry,Raspberry,produce,fruit,Raspberries,Fresh,2346410,foundation,482,refrigerator,,,,
+strawberry,Strawberry,produce,fruit,Strawberries,Fresh,2346409,foundation,481,refrigerator,,,,
+applesauce,Applesauce,produce,fruit,"Apples, applesauce",Canned,171695,sr_legacy,370,pantry,,,,FDC: unsweetened
+canned-apricots-juice,Canned apricots in juice,produce,fruit,"Apricots, in juice",Canned,173937,sr_legacy,373,pantry,,,,"FoodKeeper: high-acid canned goods, unopened"
+canned-apricots-syrup,Canned apricots in syrup or water,produce,fruit,"Apricots, in syrup or water",Canned,173939,sr_legacy,373,pantry,,,,"FDC: light syrup. FoodKeeper: high-acid canned goods, unopened"
+dried-apricots,Dried apricots,produce,fruit,Apricots,Dried,173941,sr_legacy,379,pantry,,,,
+frozen-mixed-berries,Frozen mixed berries,produce,fruit,"Berries, mixed",Frozen,,,315,freezer,,,,FDC has no mixed-berry food: no nutrients
+frozen-blackberries,Frozen blackberries,produce,fruit,Blackberries,Frozen,171710,sr_legacy,315,freezer,,,,FDC: unsweetened
+frozen-blueberries,Frozen blueberries,produce,fruit,Blueberries,Frozen,173950,sr_legacy,315,freezer,,,,FDC: unsweetened
+canned-cherries,Canned cherries,produce,fruit,"Cherries, in syrup or water",Canned,173959,sr_legacy,373,pantry,,,,"FDC: sweet cherries, light syrup. FoodKeeper: high-acid canned goods, unopened"
+dried-cranberries,Dried cranberries,produce,fruit,Cranberries,Dried,2758976,foundation,379,pantry,,,,
+dates,Dates,produce,fruit,Dates,Dried,171726,sr_legacy,260,pantry,,,,"FDC: deglet noor, the most common US date"
+dried-figs,Dried figs,produce,fruit,Figs,Dried,746768,foundation,379,pantry,,,,
+fruit-cocktail-juice,Canned fruit cocktail in juice,produce,fruit,"Fruit cocktail, in juice",Canned,174668,sr_legacy,373,pantry,,,,FoodKeeper: high-acid canned goods (its fruit cocktail row has no times)
+fruit-cocktail-syrup,Canned fruit cocktail in syrup or water,produce,fruit,"Fruit cocktail, in syrup or water",Canned,173027,sr_legacy,373,pantry,,,,FDC: light syrup. FoodKeeper: high-acid canned goods
+raisins,Raisins,produce,fruit,Grapes (raisins),Dried,2758980,foundation,379,pantry,,,,FDC: dark seedless
+dried-mango,Dried mango,produce,fruit,Mangoes,Dried,169091,sr_legacy,379,pantry,,,,FDC: sweetened
+dried-papaya,Dried papaya,produce,fruit,Papaya,Dried,,,379,pantry,,,,FDC has no dried papaya: no nutrients
+canned-peaches-juice,Canned peaches in juice,produce,fruit,"Peaches, in juice",Canned,169930,sr_legacy,373,pantry,,,,"FoodKeeper: high-acid canned goods, unopened"
+canned-peaches-syrup,Canned peaches in syrup or water,produce,fruit,"Peaches, in syrup or water",Canned,169111,sr_legacy,373,pantry,,,,"FDC: light syrup. FoodKeeper: high-acid canned goods, unopened"
+frozen-peaches,Frozen peaches,produce,fruit,Peaches,Frozen,169116,sr_legacy,315,freezer,,,,"FDC: sliced, sweetened (the only frozen peach)"
+canned-pears-juice,Canned pears in juice,produce,fruit,"Pears, in juice",Canned,169936,sr_legacy,373,pantry,,,,"FoodKeeper: high-acid canned goods, unopened"
+canned-pears-syrup,Canned pears in syrup or water,produce,fruit,"Pears, in syrup or water",Canned,169938,sr_legacy,373,pantry,,,,"FDC: light syrup. FoodKeeper: high-acid canned goods, unopened"
+canned-pineapple-juice,Canned pineapple in juice,produce,fruit,"Pineapple, in juice",Canned,169126,sr_legacy,373,pantry,,,,"FoodKeeper: high-acid canned goods, unopened"
+canned-pineapple-syrup,Canned pineapple in syrup or water,produce,fruit,"Pineapple, in syrup or water",Canned,169127,sr_legacy,373,pantry,,,,"FDC: light syrup. FoodKeeper: high-acid canned goods, unopened"
+dried-pineapple,Dried pineapple,produce,fruit,Pineapple,Dried,,,379,pantry,,,,FDC has no dried pineapple: no nutrients
+prunes,Prunes,produce,fruit,Plum (prunes),Dried,2758978,foundation,379,pantry,,,,
+frozen-raspberries,Frozen raspberries,produce,fruit,Raspberries,Frozen,168209,sr_legacy,315,freezer,,,,FDC: unsweetened
+frozen-strawberries,Frozen strawberries,produce,fruit,Strawberries,Frozen,168173,sr_legacy,315,freezer,,,,FDC: unsweetened
+apple-juice,Apple juice,produce,fruit,"Apples, ready to drink",Juice,2003590,foundation,404,pantry,,,,By volume. FoodKeeper: fruit juice in cartons
+apple-juice-concentrate,Apple juice concentrate,produce,fruit,"Apples, frozen concentrate",Juice,167775,sr_legacy,319,freezer,,,,"By volume; one pint makes four (ERS yield 4). FDC: diluted with 3 volumes of water, as drunk"
+grapefruit-juice,Grapefruit juice,produce,fruit,"Grapefruit, ready to drink",Juice,325287,foundation,404,pantry,,,,By volume. FoodKeeper: fruit juice in cartons
+grape-juice,Grape juice,produce,fruit,"Grapes, ready to drink",Juice,2003592,foundation,404,pantry,,,,By volume. FDC: purple. FoodKeeper: fruit juice in cartons
+grape-juice-concentrate,Grape juice concentrate,produce,fruit,"Grapes, frozen concentrate",Juice,2003592,foundation,319,freezer,,,,"By volume; one pint makes four. FDC has no grape concentrate: uses grape juice from concentrate, as drunk"
+orange-juice,Orange juice,produce,fruit,"Oranges, ready to drink",Juice,2003591,foundation,404,pantry,,,,"By volume. FDC: from concentrate, refrigerated. FoodKeeper: fruit juice in cartons (its orange juice rows give freezer times only)"
+orange-juice-concentrate,Orange juice concentrate,produce,fruit,"Oranges, frozen concentrate",Juice,169102,sr_legacy,319,freezer,,,,"By volume; one pint makes four. FDC: diluted with 3 volumes of water, as drunk"
+pineapple-juice,Pineapple juice,produce,fruit,"Pineapple, ready to drink",Juice,169947,sr_legacy,404,pantry,,,,By volume. FoodKeeper: fruit juice in cartons
+pineapple-juice-concentrate,Pineapple juice concentrate,produce,fruit,"Pineapple, frozen concentrate",Juice,169128,sr_legacy,319,freezer,,,,"By volume; one pint makes four. FDC: diluted with 3 volumes of water, as drunk"
+prune-juice,Prune juice,produce,fruit,"Plum (prune), ready to drink",Juice,167753,sr_legacy,404,pantry,,,,By volume. FoodKeeper: fruit juice in cartons
+pomegranate-juice,Pomegranate juice,produce,fruit,"Pomegranate, ready to drink",Juice,2727588,foundation,404,pantry,,,,By volume. FoodKeeper: fruit juice in cartons
+artichoke,Artichoke,produce,vegetable,Artichoke,Fresh,169205,sr_legacy,270,refrigerator,,,,ERS's published price per cup is swapped with canned artichoke; its inputs are right (known-answers.md)
+asparagus,Asparagus,produce,vegetable,Asparagus,Fresh,2710823,foundation,271,refrigerator,,,,
+avocado,Avocado,produce,vegetable,Avocados,Fresh,2710824,foundation,250,refrigerator,,,,ERS lists avocados as a vegetable. FDC: Hass
+broccoli-florets,Broccoli florets,produce,vegetable,Broccoli florets,Fresh,747447,foundation,276,refrigerator,,,,Sold cut; broccoli (heads) is its own item
+brussels-sprouts,Brussels sprouts,produce,vegetable,Brussels sprouts,Fresh,2685575,foundation,277,refrigerator,,,,
+red-cabbage,Red cabbage,produce,vegetable,"Cabbage, red",Fresh,2346408,foundation,278,refrigerator,,,,
+baby-carrots,Baby carrots,produce,vegetable,"Carrots, baby",Fresh,2258587,foundation,491,refrigerator,,,,
+cauliflower-florets,Cauliflower florets,produce,vegetable,Cauliflower florets,Fresh,2685573,foundation,280,refrigerator,,,,Sold cut; cauliflower (heads) is its own item
+celery,Celery,produce,vegetable,"Celery, trimmed bunches",Fresh,2346405,foundation,281,refrigerator,,,,
+celery-sticks,Celery sticks,produce,vegetable,Celery sticks,Fresh,2346405,foundation,281,refrigerator,,,,
+iceberg-lettuce,Iceberg lettuce,produce,vegetable,"Lettuce, iceberg",Fresh,2346388,foundation,290,refrigerator,,,,
+romaine-hearts,Romaine hearts,produce,vegetable,"Lettuce, romaine, hearts",Fresh,327923,foundation,290,refrigerator,,,,Romaine heads are the lettuce item
+mushroom,Mushroom,produce,vegetable,"Mushrooms, whole",Fresh,1999629,foundation,292,refrigerator,,,,FDC: white button
+sliced-mushrooms,Sliced mushrooms,produce,vegetable,"Mushrooms, sliced",Fresh,1999629,foundation,292,refrigerator,,,,FDC: white button
+red-bell-pepper,Red bell pepper,produce,vegetable,Red peppers,Fresh,2258590,foundation,296,refrigerator,,,,
+grape-tomato,Grape tomato,produce,vegetable,"Tomatoes, grape and cherry",Fresh,321360,foundation,600,pantry,,,,Also cherry tomatoes. FoodKeeper: cherry tomatoes
+roma-tomato,Roma tomato,produce,vegetable,"Tomatoes, Roma and plum",Fresh,1999634,foundation,306,pantry,,,,"FoodKeeper gives tomatoes no time (""when ripe"")"
+canned-artichokes,Canned artichokes,produce,vegetable,Artichoke,Canned,,,372,pantry,,,,FDC has no canned artichoke: no nutrients. ERS's published price per cup is swapped with fresh; its inputs are right
+canned-asparagus,Canned asparagus,produce,vegetable,Asparagus,Canned,169207,sr_legacy,372,pantry,,,,"FoodKeeper: low-acid canned goods, unopened"
+frozen-asparagus,Frozen asparagus,produce,vegetable,Asparagus,Frozen,169208,sr_legacy,331,freezer,,,,
+canned-beets,Canned beets,produce,vegetable,Beets,Canned,169966,sr_legacy,372,pantry,,,,"FoodKeeper: low-acid canned goods, unopened"
+canned-black-beans,Canned black beans,produce,legume,Black beans,Canned,2644285,foundation,372,pantry,,,,"FoodKeeper: low-acid canned goods, unopened"
+canned-black-eyed-peas,Canned black-eyed peas,produce,legume,Blackeye peas,Canned,2644293,foundation,372,pantry,,,,"FoodKeeper: low-acid canned goods, unopened"
+frozen-broccoli,Frozen broccoli,produce,vegetable,Broccoli,Frozen,169968,sr_legacy,331,freezer,,,,FDC: chopped
+frozen-brussels-sprouts,Frozen Brussels sprouts,produce,vegetable,Brussels sprouts,Frozen,169972,sr_legacy,331,freezer,,,,
+sauerkraut,Sauerkraut,produce,vegetable,"Cabbage, sauerkraut",Canned,169279,sr_legacy,373,pantry,,,,"FoodKeeper: high-acid canned goods (sauerkraut), unopened"
+canned-carrots,Canned carrots,produce,vegetable,Carrots,Canned,170396,sr_legacy,372,pantry,,,,"FoodKeeper: low-acid canned goods, unopened"
+frozen-carrots,Frozen carrots,produce,vegetable,Carrots,Frozen,746764,foundation,331,freezer,,,,
+frozen-cauliflower,Frozen cauliflower,produce,vegetable,Cauliflower,Frozen,170398,sr_legacy,331,freezer,,,,
+canned-collards,Canned collards,produce,vegetable,Collard greens,Canned,,,372,pantry,,,,FDC has no canned collards: no nutrients
+frozen-collards,Frozen collards,produce,vegetable,Collard greens,Frozen,170408,sr_legacy,331,freezer,,,,
+canned-corn,Canned corn,produce,vegetable,Corn,Canned,169214,sr_legacy,372,pantry,,,,"FDC: yellow whole kernel, drained"
+frozen-corn,Frozen corn,produce,vegetable,Corn,Frozen,168398,sr_legacy,331,freezer,,,,FDC: yellow kernels
+canned-great-northern-beans,Canned great northern beans,produce,legume,Great northern beans,Canned,2644294,foundation,372,pantry,,,,"FoodKeeper: low-acid canned goods, unopened"
+great-northern-bean,Great northern bean,produce,legume,Great northern beans,Dried,747446,foundation,333,pantry,,,,
+canned-green-beans,Canned green beans,produce,vegetable,Green beans,Canned,321611,foundation,372,pantry,,,,"FoodKeeper: low-acid canned goods, unopened"
+frozen-green-beans,Frozen green beans,produce,vegetable,Green beans,Frozen,169962,sr_legacy,331,freezer,,,,
+canned-peas,Canned peas,produce,vegetable,Green peas,Canned,2644291,foundation,372,pantry,,,,"FoodKeeper: low-acid canned goods, unopened"
+frozen-peas,Frozen peas,produce,vegetable,Green peas,Frozen,170016,sr_legacy,331,freezer,,,,
+frozen-kale,Frozen kale,produce,vegetable,Kale,Frozen,169239,sr_legacy,331,freezer,,,,
+canned-kidney-beans,Canned kidney beans,produce,legume,Kidney beans,Canned,173741,sr_legacy,372,pantry,,,,"FoodKeeper: low-acid canned goods, unopened"
+kidney-bean,Kidney bean,produce,legume,Kidney beans,Dried,175193,sr_legacy,333,pantry,,,,FDC: all types; Foundation splits dark and light red
+lentils,Lentils,produce,legume,Lentils,Dried,2644283,foundation,334,pantry,,,,
+canned-lima-beans,Canned lima beans,produce,legume,Lima beans,Canned,169136,sr_legacy,372,pantry,,,,"FDC: immature (green) limas, as most canned limas are"
+frozen-lima-beans,Frozen lima beans,produce,legume,Lima beans,Frozen,169955,sr_legacy,331,freezer,,,,FDC: baby limas. ERS's published price per cup is swapped with dried limas; its inputs are right
+canned-peas-and-carrots,Canned peas and carrots,produce,vegetable,"Mixed vegetables, peas and carrots",Canned,170424,sr_legacy,372,pantry,,,,
+frozen-peas-and-carrots,Frozen peas and carrots,produce,vegetable,"Mixed vegetables, peas and carrots",Frozen,170425,sr_legacy,331,freezer,,,,
+frozen-mixed-vegetables,Frozen mixed vegetables,produce,vegetable,"Mixed vegetables, carrots, peas, corn, and green beans",Frozen,170471,sr_legacy,331,freezer,,,,
+frozen-broccoli-cauliflower-carrots,"Frozen broccoli, cauliflower, and carrots",produce,vegetable,"Mixed vegetables, broccoli, cauliflower, and carrots",Frozen,,,331,freezer,,,,FDC has no such blend: no nutrients
+canned-mustard-greens,Canned mustard greens,produce,vegetable,Mustard greens,Canned,,,372,pantry,,,,FDC has no canned mustard greens: no nutrients
+frozen-mustard-greens,Frozen mustard greens,produce,vegetable,Mustard greens,Frozen,169258,sr_legacy,331,freezer,,,,
+canned-navy-beans,Canned navy beans,produce,legume,Navy beans,Canned,2644286,foundation,372,pantry,,,,
+navy-bean,Navy bean,produce,legume,Navy beans,Dried,747441,foundation,333,pantry,,,,
+frozen-okra,Frozen okra,produce,vegetable,Okra,Frozen,169262,sr_legacy,331,freezer,,,,
+olives,Olives,produce,vegetable,Olives,Canned,169094,sr_legacy,352,pantry,,,,FDC: ripe (black)
+canned-pinto-beans,Canned pinto beans,produce,legume,Pinto beans,Canned,2644292,foundation,372,pantry,,,,
+frozen-french-fries,Frozen french fries,produce,vegetable,"Potatoes, french fries",Frozen,168442,sr_legacy,313,freezer,,,,
+canned-potatoes,Canned potatoes,produce,vegetable,Potatoes,Canned,170444,sr_legacy,372,pantry,,,,
+canned-pumpkin,Canned pumpkin,produce,vegetable,Pumpkin,Canned,168450,sr_legacy,372,pantry,,,,"FDC: plain pumpkin, not pie mix"
+canned-spinach,Canned spinach,produce,vegetable,Spinach,Canned,169286,sr_legacy,372,pantry,,,,
+frozen-spinach,Frozen spinach,produce,vegetable,Spinach,Frozen,169287,sr_legacy,331,freezer,,,,
+canned-tomatoes,Canned tomatoes,produce,vegetable,Tomatoes,Canned,2685578,foundation,373,pantry,,,,"FDC: whole. FoodKeeper: high-acid canned goods, unopened"
+canned-turnip-greens,Canned turnip greens,produce,vegetable,Turnip greens,Canned,170467,sr_legacy,372,pantry,,,,
+frozen-turnip-greens,Frozen turnip greens,produce,vegetable,Turnip greens,Frozen,170468,sr_legacy,331,freezer,,,,
 topsoil-bag,"Topsoil, bagged",supply,soil,,,,,,,,,,
 topsoil-bulk,"Topsoil, bulk",supply,soil,,,,,,,,,,
 compost,Compost,supply,soil,,,,,,,,,,

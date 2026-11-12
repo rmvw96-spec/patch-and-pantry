@@ -244,6 +244,18 @@ two pairs of rows (artichoke, lima beans); the app computes price per cup from e
 (see `specs/known-answers.md`). USDA's Food Patterns Equivalents Database is a
 candidate source (unverified) for cup sizes ERS lacks.
 
+**The catalog covers every ERS row** (dogfooding, 2026-11-12), not only crops grown in North
+Alabama, so best buy works for whatever a household buys: 168 crosswalk rows, 162 produce items
+(fresh, canned, frozen, dried, and juice; each form is its own item because its yield and cup size
+differ). Three ERS rows are left out on purpose because they price the same purchase prepared
+another way: "Spinach, boiled", "Carrots, cooked whole", and "Cucumbers without peel" (one
+catalog item per thing bought, so typing "spinach" is never a question). Juices are measured by
+volume: ERS prices them per pint with a cup size in pints, so a juice item has
+`cup_equivalent_pints` instead of `cup_equivalent_lb`, and `normalize_price` converts fl oz,
+pints, quarts, gallons, and liters (on a juice, "oz" means fluid ounces). Seven new items have no
+FoodData Central food and so no nutrients (mixed berries, dried papaya and pineapple, canned
+artichokes, collards, and mustard greens, and the broccoli, cauliflower, and carrot blend).
+
 ### AMS retail report
 
 Regions: Midwest, Northeast, Southeast, South Central, Southwest, Northwest, plus Alaska and Hawaii
@@ -485,3 +497,4 @@ Specification gaps to close in phase specs:
 | 2026-11-12 | Dogfooding: the template's Items page, its API, and the `item` table are removed; nothing in Patch & Pantry used them. |
 | 2026-11-12 | Dogfooding: the best-buy table states each item's storage time, stand-ins, and national-average fallback once, in notes under the table, instead of on every row. National-average rows read "National average (2023)", with one note naming the USDA ERS source. The explanation's bold text is rendered (paragraphs, bullets, and bold only; never as HTML). |
 | 2026-11-12 | Dogfooding: a price is the total paid for the amount bought. A per-unit price with a count ("$0.29 each (3)") is multiplied out by code, never the model; pages show the price of one unit beside the total, and the price book's edit asks for the total paid. Any question's line can be dropped at capture, and every line not saved is listed with its reason, before saving and after. |
+| 2026-11-12 | Dogfooding: the catalog covers every USDA ERS fruit and vegetable price row (124 new items, including canned, frozen, dried, and juice forms), except three rows that price the same purchase prepared another way. Juices are measured by volume (`cup_equivalent_pints`). Items sharing one FoodData Central food each get its nutrients. |

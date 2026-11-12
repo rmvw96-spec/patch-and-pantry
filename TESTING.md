@@ -7,7 +7,7 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 510 |
+| Backend tests | 58 | 545 |
 | Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
 | Backend suite, local run | 16.4 s | 21.4 s |
@@ -245,3 +245,4 @@ for it.
 | 2026-11-12 | Removed the template's Items page, API, `item` table, and their tests (dogfooding: unused by Patch & Pantry) | -11 backend, -1 E2E file | ___ |
 | 2026-11-12 | Dogfooding fixes, best buy: notes said once per item under the table, "National average (2023)" with its source, bold explanation text rendered. Checked that putting the storage note back on every row fails `test_item_notes_are_said_once_per_item` | +1 backend, E2E checks added to 2 tests | ___ |
 | 2026-11-12 | Dogfooding fixes, prices: per-unit prices with a count are multiplied out to the total; questions can be dropped; unsaved lines listed; unit prices in the price book. Checked that skipping the multiplication fails two capture tests | +10 backend, +2 E2E | ___ |
+| 2026-11-12 | Catalog expanded to every ERS row (124 items), juices by volume, items sharing an FDC food. Tests check every ERS row is mapped once (except three preparation variants), every ERS juice row's published price per cup, volume units and wrong measures, juices at capture and in best buy, and the shared-food load. Checked that mapping each FDC id to one slug fails the shared-food test. The catalog list is sorted in Python (case-insensitive), so the order no longer depends on the database collation | +35 backend | ___ |

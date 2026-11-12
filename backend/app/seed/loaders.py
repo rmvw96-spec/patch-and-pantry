@@ -110,13 +110,18 @@ def load_ers_prices(
         row = by_name.get((entry.ers_item, entry.ers_form))
         if not entry.ers_item or row is None:
             continue  # not an ERS item, or it lives in the other ERS file
-        if row.price_unit != "per pound" or row.cup_unit != "pounds":
+        by_pound = row.price_unit == "per pound" and row.cup_unit == "pounds"
+        # Juices: "per pint (16 fluid ounces ready to drink)", cup size in pints.
+        by_pint = row.price_unit.startswith("per pint") and row.cup_unit == "pints"
+        if not (by_pound or by_pint):
             raise ValueError(
-                f"{entry.slug}: ERS row {row.item} ({row.form}) is not priced by the pound"
+                f"{entry.slug}: ERS row {row.item} ({row.form}) is not priced by the pound "
+                "or the pint"
             )
         item = catalog[entry.slug]
         item.preparation_yield_factor = row.preparation_yield_factor
-        item.cup_equivalent_lb = row.cup_size
+        item.cup_equivalent_lb = row.cup_size if by_pound else None
+        item.cup_equivalent_pints = row.cup_size if by_pint else None
         item.conversion_source = f"USDA ERS Fruit and Vegetable Prices {info.version}: {row.item} ({row.form})"
         item.snapshot_id = snapshot.id
         session.add(
@@ -125,7 +130,7 @@ def load_ers_prices(
                 catalog_item_id=item.id,
                 price_cents=round(row.price * 100),
                 quantity=1,
-                unit="lb",
+                unit="lb" if by_pound else "pint",
                 observed_on=observed_on,
                 captured_via="public_dataset",
                 source_type="public_data",
@@ -419,7 +424,12 @@ def load_fdc_subset(
     crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     with zipfile.ZipFile(path) as archive:
         dataset, source = fdc_dataset(archive)
-        wanted = {e.fdc_id: e.slug for e in crosswalk if e.fdc_dataset == dataset}
+        # Several items can share one food (broccoli and broccoli florets), so each id maps to
+        # every slug that names it.
+        wanted: dict[str, list[str]] = {}
+        for entry in crosswalk:
+            if entry.fdc_dataset == dataset:
+                wanted.setdefault(entry.fdc_id, []).append(entry.slug)
         foods = {row["fdc_id"] for row in _zip_csv(archive, "food.csv")}
         missing = sorted(set(wanted) - foods)
         if missing:
@@ -446,19 +456,22 @@ def load_fdc_subset(
     if not created:
         return LoadResult(snapshot, False, 0)
     catalog = ensure_catalog(session, crosswalk)
+    written = 0
     for row in rows:
         nutrient = nutrients[row["nutrient_id"]]
-        session.add(
-            CatalogNutrient(
-                catalog_item_id=catalog[wanted[row["fdc_id"]]].id,
-                nutrient=nutrient["name"],
-                amount_per_100g=float(row["amount"]),
-                unit=nutrient["unit_name"],
-                snapshot_id=snapshot.id,
+        for slug in wanted[row["fdc_id"]]:
+            session.add(
+                CatalogNutrient(
+                    catalog_item_id=catalog[slug].id,
+                    nutrient=nutrient["name"],
+                    amount_per_100g=float(row["amount"]),
+                    unit=nutrient["unit_name"],
+                    snapshot_id=snapshot.id,
+                )
             )
-        )
+            written += 1
     session.flush()
-    return LoadResult(snapshot, True, len(rows))
+    return LoadResult(snapshot, True, written)
 
 
 # ---------- USDA SR28: household-measure weights and refuse ----------

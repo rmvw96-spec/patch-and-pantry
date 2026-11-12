@@ -94,7 +94,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "all", help="load every committed source, then USDA zips (FDC and SR28)"
     )
     everything.add_argument("zips", nargs="*", type=Path)
-    commands.add_parser("report", help="list first-crop-set items with gaps")
+    commands.add_parser("report", help="list catalog produce items with gaps")
     args = parser.parse_args(argv)
 
     if args.command == "report":

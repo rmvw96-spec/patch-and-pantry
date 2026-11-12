@@ -47,6 +47,16 @@ so the published column is the likely error. The app computes from the inputs:
 | Potatoes, 3 medium for 1.50 | 576.0 | 4.7994 | 0.3125 |
 | Sweet corn, 4 medium ears for 2.00 | 612.0 | 3.7087 | 0.5393 |
 
+Juices are measured by volume (ERS: price per pint, cup size 0.5 pint; yield 1 ready to drink, 4
+for frozen concentrate). Every ERS juice row at its own price gives its published price per cup
+within 0.001 USD (`test_every_ers_pint_price_matches_the_ers_formula`).
+
+| Price as written | Pints | Cups | Cost per cup |
+| --- | --- | --- | --- |
+| Orange juice, 52 fl oz, 3.99 | 3.25 | 6.5 | 0.6138 |
+| Orange juice, half gallon, 3.99 | 4 | 8 | 0.4988 |
+| Orange juice concentrate, 12 fl oz can, 3.99 | 0.75 | 6 | 0.6650 |
+
 ## Best buy with spoilage (compare_best_buy, P1-6)
 
 Range midpoints; "freeze extras" uses cooked leftovers' freezer range (30 to 60 days, 45).

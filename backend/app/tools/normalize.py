@@ -10,6 +10,16 @@ its inputs. ``catalog_facts`` and ``portion_grams`` read the database and hand t
 
 A piece's weight is its weight as purchased (P1-3), so the yield factor applies the same way to
 "3 lb of onions" and to "3 onions". The model never does this arithmetic; it calls this tool.
+
+Juices are measured by volume instead (ERS prices them per pint): an item has a cup size in
+pints (``cup_equivalent_pints``) and no cup size in pounds, and
+
+    pints_purchased = quantity x pints per unit       (pint, quart, gallon, fl oz, liter...)
+    cups            = pints_purchased x preparation_yield_factor / cup_equivalent_pints
+
+The yield factor is 1 for juice ready to drink and 4 for frozen concentrate (ERS: one pint of
+concentrate makes four). On a volume item "oz" means fluid ounces, and "pint" is a volume; on a
+weight item "pint" stays a container sold by count (a pint of blueberries).
 """
 
 import uuid
@@ -35,6 +45,18 @@ WEIGHT_UNITS: dict[str, float] = {
     "kg": 1000.0,
     "g": 1.0,
 }
+# Volume units, in pints per one unit (US liquid measure; a pint is 16 fl oz, 2 cups).
+LITER_PINTS = 2.113376419
+VOLUME_UNITS: dict[str, float] = {
+    "fl oz": 1 / 16,
+    "cup": 0.5,
+    "pint": 1.0,
+    "quart": 2.0,
+    "half gallon": 4.0,
+    "gallon": 8.0,
+    "ml": LITER_PINTS / 1000,
+    "liter": LITER_PINTS,
+}
 UNIT_SPELLINGS: dict[str, str] = {
     "lbs": "lb",
     "pound": "lb",
@@ -51,6 +73,27 @@ UNIT_SPELLINGS: dict[str, str] = {
     "heads": "head",
     "ears": "ear",
     "pints": "pint",
+    "pt": "pint",
+    "floz": "fl oz",
+    "fl. oz": "fl oz",
+    "fl oz.": "fl oz",
+    "fluid ounce": "fl oz",
+    "fluid ounces": "fl oz",
+    "cups": "cup",
+    "quarts": "quart",
+    "qt": "quart",
+    "half gallons": "half gallon",
+    "half-gallon": "half gallon",
+    "gallons": "gallon",
+    "gal": "gallon",
+    "liters": "liter",
+    "litre": "liter",
+    "litres": "liter",
+    "l": "liter",
+    "milliliter": "ml",
+    "milliliters": "ml",
+    "millilitre": "ml",
+    "millilitres": "ml",
 }
 COUNT_UNITS: frozenset[str] = frozenset(get_args(CountUnit))
 
@@ -61,7 +104,13 @@ class NormalizeError(ValueError):
 
 class UnknownUnit(NormalizeError):
     def __init__(self, unit: str) -> None:
-        known = ", ".join([*WEIGHT_UNITS, *sorted(COUNT_UNITS)])
+        known = ", ".join(
+            [
+                *WEIGHT_UNITS,
+                *sorted(COUNT_UNITS),
+                *(u for u in VOLUME_UNITS if u != "pint"),
+            ]
+        )
         super().__init__(f"Unknown unit {unit!r}. Use one of: {known}.")
         self.unit = unit
 
@@ -105,6 +154,25 @@ class InvalidAmount(NormalizeError):
     pass
 
 
+class WrongMeasure(NormalizeError):
+    """A volume for an item sold by weight or count, or a weight or count for a juice."""
+
+    def __init__(self, item: str, unit: str, by_volume: bool) -> None:
+        if by_volume:
+            message = (
+                f"{item} is measured by volume, not by {unit}. "
+                "Give the amount in fl oz, pints, quarts, gallons, or liters."
+            )
+        else:
+            message = (
+                f"{item} is sold by weight or count, not by {unit}. "
+                "Give the amount in pounds, ounces, or pieces."
+            )
+        super().__init__(message)
+        self.item = item
+        self.unit = unit
+
+
 @dataclass(frozen=True)
 class CatalogFacts:
     """The conversion facts for one item, already resolved through any stand-in."""
@@ -116,26 +184,71 @@ class CatalogFacts:
     # The item whose facts are borrowed, when this item has none of its own.
     stand_in_name: str | None = None
     snapshot_id: uuid.UUID | None = None
+    # Juices: pints per cup equivalent, set instead of cup_equivalent_lb.
+    cup_equivalent_pints: float | None = None
+
+    @property
+    def by_volume(self) -> bool:
+        return self.cup_equivalent_pints is not None
 
 
 @dataclass(frozen=True)
 class Normalized:
-    grams_purchased: float
-    grams_edible: float
+    # Weights for an item measured by weight or count; pints for a juice.
+    grams_purchased: float | None
+    grams_edible: float | None
     cups: float
     cost_per_cup_cents: float
     unit: str  # the canonical unit used, for example "lb" for "pounds"
     conversion_source: str
     stand_in_name: str | None
+    pints_purchased: float | None = None
 
 
 def canonical_unit(unit: str) -> str:
     """Lower-case, trimmed, and with common spellings folded: "Pounds" -> "lb"."""
     text = unit.strip().lower().rstrip(".")
+    text = " ".join(text.split())
     text = UNIT_SPELLINGS.get(text, text)
-    if text not in WEIGHT_UNITS and text not in COUNT_UNITS:
+    if (
+        text not in WEIGHT_UNITS
+        and text not in COUNT_UNITS
+        and text not in VOLUME_UNITS
+    ):
         raise UnknownUnit(unit)
     return text
+
+
+def needs_piece(unit: str, facts: CatalogFacts) -> bool:
+    """Whether a price in this (canonical) unit needs one piece's weight: a count unit for an
+    item measured by weight. A juice never does: "pint" is its volume, and "each" is refused."""
+    return unit in COUNT_UNITS and not facts.by_volume
+
+
+def _volume_cups(
+    price_cents: float, quantity: float, canonical: str, item: CatalogFacts
+) -> Normalized:
+    unit = (
+        "fl oz" if canonical == "oz" else canonical
+    )  # on a juice, ounces are fluid ounces
+    if unit not in VOLUME_UNITS:
+        raise WrongMeasure(item.name, canonical, by_volume=True)
+    if item.preparation_yield_factor is None or item.cup_equivalent_pints is None:
+        raise NoConversion(
+            item.name
+        )  # pragma: no cover - by_volume means a cup size is set
+    pints = quantity * VOLUME_UNITS[unit]
+    cups = pints * item.preparation_yield_factor / item.cup_equivalent_pints
+    return Normalized(
+        grams_purchased=None,
+        grams_edible=None,
+        cups=cups,
+        cost_per_cup_cents=price_cents / cups,
+        unit=unit,
+        conversion_source=item.conversion_source,
+        stand_in_name=item.stand_in_name,
+        pints_purchased=pints,
+    )
 
 
 def normalize_price(
@@ -156,6 +269,10 @@ def normalize_price(
     if quantity <= 0:
         raise InvalidAmount(f"A quantity must be more than zero, not {quantity}.")
     canonical = canonical_unit(unit)
+    if item.by_volume:
+        return _volume_cups(price_cents, quantity, canonical, item)
+    if canonical in VOLUME_UNITS and canonical not in COUNT_UNITS:
+        raise WrongMeasure(item.name, canonical, by_volume=False)
     if canonical in WEIGHT_UNITS:
         grams_per_unit = WEIGHT_UNITS[canonical]
     elif portion_grams is None:
@@ -202,6 +319,7 @@ def catalog_facts(session: Session, item: CatalogItem) -> CatalogFacts:
         name=item.name,
         preparation_yield_factor=source.preparation_yield_factor,
         cup_equivalent_lb=source.cup_equivalent_lb,
+        cup_equivalent_pints=source.cup_equivalent_pints,
         conversion_source=source.conversion_source,
         stand_in_name=source.name if source is not item else None,
         snapshot_id=source.snapshot_id,

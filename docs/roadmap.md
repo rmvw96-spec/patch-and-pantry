@@ -202,3 +202,4 @@ match hand calculations.
 | 2026-11-11 | `compare_best_buy` and its explanation done (P1-6). Next: P1-1 (replace Studies). Reloading reference data (`python -m app.seed all`) picks up FoodKeeper's range maximum and cooked leftovers. |
 | 2026-11-12 | Studies replaced by grocery analysis runs (P1-1): run and vendor APIs, the Prices page, and Playwright with seeded reference data. Next: pages and shopping list (P1-7). |
 | 2026-11-12 | Pages and shopping list done (P1-7): confirm drafts, price book, best buy with a printable shopping list, household settings. |
+| 2026-11-12 | Dogfooding fixes after P1-7: best-buy table notes, totals for per-unit prices, dropping a line at capture, the Items page removed, and the catalog expanded to every ERS row (not only North Alabama crops). Next: P1-8. |

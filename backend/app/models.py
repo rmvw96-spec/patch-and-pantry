@@ -386,6 +386,14 @@ class CatalogItem(SQLModel, table=True):
             "cup_equivalent_lb > 0", name="ck_catalog_item_cup_equivalent_lb"
         ),
         CheckConstraint(
+            "cup_equivalent_pints > 0", name="ck_catalog_item_cup_equivalent_pints"
+        ),
+        # An item is measured by weight (most produce) or by volume (juices), never both.
+        CheckConstraint(
+            "cup_equivalent_lb IS NULL OR cup_equivalent_pints IS NULL",
+            name="ck_catalog_item_one_cup_measure",
+        ),
+        CheckConstraint(
             "storage_days_min >= 0", name="ck_catalog_item_storage_days_min"
         ),
         CheckConstraint(
@@ -408,6 +416,7 @@ class CatalogItem(SQLModel, table=True):
     # Edible (or cooked) weight per purchased weight; ERS's preparation yield factor.
     preparation_yield_factor: float | None = None
     cup_equivalent_lb: float | None = None  # pounds of edible food per cup equivalent
+    cup_equivalent_pints: float | None = None  # juices: pints per cup equivalent
     storage_days_min: int | None = None
     # FoodKeeper ranges: spoilage uses the midpoint (Phase 1 spec, D4).
     storage_days_max: int | None = None
