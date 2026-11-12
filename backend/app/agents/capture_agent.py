@@ -14,7 +14,7 @@ import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -62,7 +62,8 @@ class ExtractedLine(BaseModel):
     )
     quantity: float | None = Field(
         default=None,
-        description="The number of units as written, or null if none is written",
+        description="The amount bought as written ('3 lb bag' is 3, '3 for $5' is 3, "
+        "'$0.29 each (3)' is 3), or null if none is written",
     )
     unit: str | None = Field(
         default=None,
@@ -90,7 +91,9 @@ You read a typed shopping list. Each line is numbered. Return one entry per line
 Copy what is written; never calculate, convert, or guess:
 - item_text: only the words naming the produce ("yellow onions"), as written, misspellings
   included. Leave out quantities, units, sizes, packaging words such as "bag", and prices.
-- quantity: the number of units written. "3 lb bag" is 3. "3 for $5" is 3. Null if none.
+- quantity: the amount bought, as written. "3 lb bag" is 3. "3 for $5" is 3. A count written
+  apart from the price is the amount bought too: "$0.29 each (3)", "1.29 ea x3", and
+  "$.73 ea - 3" are 3. Null if none.
 - unit: the unit word as written. "3 lb bag" is "lb". "3 for $5" and "2 ea" are "each". A bunch
   is "bunch". Null if no unit is written.
 - size: small, medium, or large only if the line says so.
@@ -124,6 +127,8 @@ class DraftPrice:
     # match the user confirms is saved as a household alias.
     item_text: str = ""
     match_kind: str = "exact"
+    # How a per-unit price became the total: "$0.29 each x 3". Code multiplies, never the model.
+    price_note: str | None = None
     piece_grams: float | None = None  # one piece as purchased, for count units
     piece_source: str | None = None
     grams_purchased: float | None = None
@@ -197,6 +202,16 @@ def price_cents(text: str | None) -> int | None:
         return int((Decimal(dollars.group(1)) * 100).to_integral_value())
     except InvalidOperation:  # pragma: no cover - the pattern admits only valid numbers
         return None
+
+
+def total_cents(per_unit_cents: int, quantity: float) -> int:
+    """The total for a per-unit price: 29 cents each x 3 -> 87. Rounded half up to the cent."""
+    total = Decimal(per_unit_cents) * Decimal(str(quantity))
+    return int(total.quantize(Decimal(1), rounding=ROUND_HALF_UP))
+
+
+def _per(unit: str) -> str:
+    return "each" if unit == "each" else f"a {unit}"
 
 
 def split_lines(text: str) -> list[str]:
@@ -277,8 +292,14 @@ def _process_line(
     except UnknownUnit as exc:
         result.questions.append(CaptureQuestion(raw, "unknown_unit", str(exc)))
         return
-    # A per-unit price ("2.49/lb") or a unit with no number ("lb 1.29") is the price of one unit.
-    quantity = 1.0 if line.price_is_per_unit or line.quantity is None else line.quantity
+    # A unit with no number ("lb 1.29", "2.49/lb") is one unit. Prices are stored as the total
+    # paid for the quantity, so a per-unit price ("$0.29 each (3)") is multiplied out here.
+    quantity = 1.0 if line.quantity is None else line.quantity
+    price_note = None
+    if line.price_is_per_unit and quantity > 0 and quantity != 1:
+        per_unit = cents
+        cents = total_cents(per_unit, quantity)
+        price_note = f"${per_unit / 100:.2f} {_per(unit)} x {quantity:g}"
 
     draft = DraftPrice(
         raw_text=raw,
@@ -293,6 +314,7 @@ def _process_line(
         price_cents=cents,
         vendor_id=vendor_id,
         observed_on=observed_on,
+        price_note=price_note,
     )
     piece: float | None = None
     if unit in COUNT_UNITS:

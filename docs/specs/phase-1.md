@@ -173,8 +173,14 @@ back to SR28's own figure (2 peppers: 2 x 164 g = 328 g; a romaine head: 626 g).
   `raw_text` always comes from the code, never from the model. A line the model skips, or a line
   number it repeats or invents, becomes an "unreadable" question rather than borrowed data.
 - Everything after the reading is code: dollars to cents (`price_cents`: "2.99", "$5", "99c"),
-  unit spellings, matching, piece weights, and `normalize_price`. A per-unit price ("2.49/lb") or
-  a unit with no number ("romaine head 2.49") is one unit.
+  unit spellings, matching, piece weights, and `normalize_price`. A unit with no number
+  ("romaine head 2.49", "2.49/lb") is one unit. Prices are stored as the **total paid** for the
+  amount bought (dogfooding, 2026-11-12): a per-unit price with an amount ("$0.29 each (3)",
+  "3 lb at 2.49/lb") is multiplied out by code (`total_cents`, rounded half up to the cent), and
+  the draft shows how ("$0.29 each x 3"). Pages show the price of one unit beside the total.
+- On the confirm step any question's line can be dropped. Lines that will not be saved
+  (unchecked, dropped, or with an unanswered question) are listed with the reason before saving,
+  and again after.
 - Question kinds: `unreadable`, `no_match`, `which_item`, `missing_price`, `missing_unit`,
   `unknown_unit`, `needs_weight`, `needs_size`. A question about a known item carries the draft
   read so far, so the answer completes it. An item with no cup conversion is a draft without a

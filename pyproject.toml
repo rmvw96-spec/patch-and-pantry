@@ -24,5 +24,8 @@ extend-exclude = [
 # Deliberate misspellings (test inputs for fuzzy matching) end their line with this marker.
 extend-ignore-re = ["(?Rm)^.*#\\s*spellchecker:disable-line$"]
 
+[tool.typos.default.extend-words]
+hass = "hass"  # Hass avocados
+
 [tool.typos.default.extend-identifiers]
 alls = "alls"

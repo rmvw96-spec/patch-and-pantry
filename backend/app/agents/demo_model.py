@@ -45,6 +45,10 @@ _QTY_UNIT = re.compile(
     r"\b(?P<qty>\d+(?:\.\d+)?)?\s*(?P<unit>lbs?|pounds?|oz|ounces?|kg|each|ea|bunch(?:es)?|heads?|ears?|pints?)\b",
     re.IGNORECASE,
 )
+# A count written after the price: "(3)", "x3", "- 3".
+_COUNT_AT_END = re.compile(
+    r"\s*(?:\((?P<a>\d+)\)|x\s*(?P<b>\d+)|-\s*(?P<c>\d+))\s*$", re.IGNORECASE
+)
 _SIZE = re.compile(r"\b(small|medium|large)\b", re.IGNORECASE)
 _PACKAGING = re.compile(r"\b(bag|box|pack|package|bundle)\b", re.IGNORECASE)
 
@@ -55,6 +59,9 @@ def read_list_line(text: str) -> dict[str, object]:
     It follows the same rules as the capture agent's instructions: copy, never calculate.
     """
     entry: dict[str, object] = {"is_price": False}
+    count = _COUNT_AT_END.search(text)
+    if count:
+        text = text[: count.start()]
     price = _PRICE_AT_END.search(text)
     if not price:
         return entry
@@ -83,6 +90,10 @@ def read_list_line(text: str) -> dict[str, object]:
     if size:
         entry["size"] = size.group(1).lower()
         rest = rest[: size.start()] + rest[size.end() :]
+    if count:
+        entry["quantity"] = float(
+            count.group("a") or count.group("b") or count.group("c")
+        )
     item = " ".join(_PACKAGING.sub("", rest).split())
     entry["item_text"] = item or None
     return entry
