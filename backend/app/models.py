@@ -528,6 +528,29 @@ class Vendor(SQLModel, table=True):
     )  # city or area; never a street address
 
 
+class HouseholdAlias(SQLModel, table=True):
+    """A household's own name for a catalog item, saved when the user confirms a match (D7).
+
+    ``text`` is stored folded (app/tools/catalog.py ``fold``), so "Yellow Onoins" and
+    "yellow onoin" are the same alias. It wins over the shared alias list next time.
+    """
+
+    __tablename__ = "household_alias"
+    __table_args__ = (
+        UniqueConstraint("household_id", "text", name="uq_household_alias_text"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    household_id: uuid.UUID = Field(
+        foreign_key="household.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    text: str = Field(min_length=1, max_length=200)
+    catalog_item_id: uuid.UUID = Field(
+        foreign_key="catalog_item.id", nullable=False, ondelete="CASCADE"
+    )
+    created_at: datetime | None = _tz_now()
+
+
 class CatalogPortion(SQLModel, table=True):
     """The weight of one purchased unit of an item ("1 medium onion"), for prices by count.
 

@@ -12,6 +12,9 @@ from app.models import Item, User
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import get_superuser_token_headers
 
+# Shared fixtures: a known catalog, household, and vendor in a rolled-back transaction.
+pytest_plugins = ["tests.catalog_fixtures"]
+
 # Safety switch: any request to a real model provider now raises. Pydantic AI's TestModel and
 # FunctionModel are unaffected, so tests need no API keys and can never spend model budget.
 models.ALLOW_MODEL_REQUESTS = False

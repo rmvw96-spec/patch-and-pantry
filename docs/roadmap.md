@@ -79,8 +79,8 @@ week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/
 - [x] Household setup: produce budget per week, number of people, optional calorie levels; region
       fixed to North Alabama (API; the settings page is built with the other pages).
 - [x] Count-unit conversion source decided and loaded: SR28 household measures with refuse (P1-3).
-- [ ] Typed-list capture: the agent turns "onions 3 lb bag 2.99" into a price observation and asks
-      when a unit is unclear instead of guessing.
+- [x] Typed-list capture: the agent turns "onions 3 lb bag 2.99" into a price observation and asks
+      when a unit is unclear instead of guessing (confirming drafts comes with the pages).
 - [x] Tool `normalize_price`: any unit to grams of the edible part, then to cups.
 - [ ] Tool `compare_best_buy`: cost per cup across stores, with spoilage from FoodKeeper range midpoints, and a per-item "cook and freeze extras" setting.
 - [ ] Generalize the study job into a `grocery_analysis_run` (question, kind, tools used, result,
@@ -198,3 +198,4 @@ match hand calculations.
 | 2026-11-11 | Household API done (P1-2). Its settings page moved to the Pages task (P1-7), with the other frontend work. |
 | 2026-11-11 | Count units done (P1-3): SR28 weights per piece, converted to purchased weight. |
 | 2026-11-11 | `normalize_price` done (P1-4). |
+| 2026-11-11 | Typed-list capture done (P1-5): the model reads lines; matching, piece weights, and per-cup math are code. The alias list awaits owner review; the match cutoff waits for real lists. |

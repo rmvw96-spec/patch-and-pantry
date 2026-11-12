@@ -76,3 +76,75 @@ def demo_study_model() -> FunctionModel:
 
 def demo_reviewer_model() -> FunctionModel:
     return FunctionModel(_demo_review)
+
+
+# ---------- typed-list capture (P1-5) ----------
+
+_NUMBERED = re.compile(r"^(\d+): (.*)$")
+_PRICE_AT_END = re.compile(
+    r"(?P<price>\$?\d*\.?\d+|\d+\s*(?:c|¢))\s*(?P<per>(?:/|per\s+|\s)(?:lb|lbs|ea|each|oz))?\s*$",
+    re.IGNORECASE,
+)
+_FOR = re.compile(r"\b(?P<qty>\d+)\s*(?:for|/)\s*$", re.IGNORECASE)
+_QTY_UNIT = re.compile(
+    r"\b(?P<qty>\d+(?:\.\d+)?)?\s*(?P<unit>lbs?|pounds?|oz|ounces?|kg|each|ea|bunch(?:es)?|heads?|ears?|pints?)\b",
+    re.IGNORECASE,
+)
+_SIZE = re.compile(r"\b(small|medium|large)\b", re.IGNORECASE)
+_PACKAGING = re.compile(r"\b(bag|box|pack|package|bundle)\b", re.IGNORECASE)
+
+
+def read_list_line(text: str) -> dict[str, object]:
+    """A rough, deterministic reading of one typed line, standing in for the model in demo mode.
+
+    It follows the same rules as the capture agent's instructions: copy, never calculate.
+    """
+    entry: dict[str, object] = {"is_price": False}
+    price = _PRICE_AT_END.search(text)
+    if not price:
+        return entry
+    rest = text[: price.start()].rstrip()
+    entry |= {
+        "is_price": True,
+        "price_text": price.group("price").strip(),
+        "price_is_per_unit": False,
+    }
+    if price.group("per"):
+        entry |= {
+            "price_is_per_unit": True,
+            "unit": re.sub(r"[/\s]|per", "", price.group("per").lower()),
+        }
+    lot = _FOR.search(rest)
+    if lot:
+        entry |= {"quantity": float(lot.group("qty")), "unit": "each"}
+        rest = rest[: lot.start()]
+    unit = _QTY_UNIT.search(rest)
+    if unit:
+        if unit.group("qty"):
+            entry["quantity"] = float(unit.group("qty"))
+        entry.setdefault("unit", unit.group("unit").lower())
+        rest = rest[: unit.start()] + rest[unit.end() :]
+    size = _SIZE.search(rest)
+    if size:
+        entry["size"] = size.group(1).lower()
+        rest = rest[: size.start()] + rest[size.end() :]
+    item = " ".join(_PACKAGING.sub("", rest).split())
+    entry["item_text"] = item or None
+    return entry
+
+
+def _demo_capture(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+    lines = []
+    for raw in _user_prompt(messages).splitlines():
+        numbered = _NUMBERED.match(raw)
+        if numbered:
+            lines.append(
+                {"line": int(numbered.group(1)), **read_list_line(numbered.group(2))}
+            )
+    return ModelResponse(
+        parts=[ToolCallPart(info.output_tools[0].name, {"lines": lines})]
+    )
+
+
+def demo_capture_model() -> FunctionModel:
+    return FunctionModel(_demo_capture)

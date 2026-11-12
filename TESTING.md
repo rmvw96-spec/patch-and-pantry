@@ -7,10 +7,10 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 327 |
-| Backend statements measured | 570 | 1,715 |
+| Backend tests | 58 | 423 |
+| Backend statements measured | 570 | 2,052 |
 | Backend coverage | 92% | 96% |
-| Backend suite, local run | 16.4 s | 27.6 s |
+| Backend suite, local run | 16.4 s | 29.9 s |
 | Browser E2E specs | 6 files | 7 files (adds `studies.spec.ts`, 6 tests) |
 
 Local times are single runs on one development machine, not CI. Most of the backend increase is
@@ -68,6 +68,8 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Backend: seed loaders | `backend/tests/test_seed.py`, fixtures in `backend/tests/fixtures/seed/` | 65 | Real Postgres on one connection rolled back at the end (sessions join with savepoints, so even the command line's commits are undone). Idempotency of every loader, ERS price per cup against every row of both committed ERS files (two swapped pairs checked), crosswalk catalog and stand-ins, coverage report, Prefect flow. SR28 piece weights: refuse divided out (known answers), amounts divided down, portion-map validation, zips loaded by content. Miniature FDC and SR28 zips are built in the test |
 | Backend: household API | `backend/tests/api/routes/test_household.py`, plus the delete-account test in `test_users.py` | 21 | Created on first access with defaults; budget and members replaced in order; removed members deleted; calorie levels, member count, and budget limits; personal fields refused (`extra_forbidden`), not dropped; users see only their own; the first-access race returns the existing household; deleting the account deletes the household and members |
 | Backend: tool `normalize_price` | `backend/tests/tools/test_normalize.py` | 58 | Spec and count-unit known answers within 0.0001; every ERS per-pound row against the ERS formula (and ERS's published column within 0.001); unit spellings; each failure's own error; stand-ins; piece-weight choice (no assumed size, weighed beats loaded, latest snapshot) |
+| Backend: matcher `find_catalog_item` | `backend/tests/tools/test_catalog.py` | 42 | Folding, exact names and aliases, misspellings with a note, shared aliases as questions, the margin, suggestion floor, household aliases (own household only), household-scoped items, supplies never matched, the alias file's validity |
+| Backend: typed-list capture, scripted models | `backend/tests/agents/test_capture_agent.py`, fixtures in `backend/tests/catalog_fixtures.py` | 54 | The known-answers behavioral cases; raw text kept and nothing saved; dollars to cents in code; every unclear line a question; skipped, repeated, or invented line numbers; limits; unusable and runaway model output; the demo reader end to end |
 | Migrations | `.github/workflows/test-backend.yml` | 1 step | Every migration down to an empty database and back up, then `alembic check` |
 | Backend integration: studies API | `backend/tests/api/routes/test_studies.py` | 12 | Real Postgres, Redis, and Prefect test harness |
 | Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | In-memory exporter that snapshots spans at export time; no Phoenix needed |
@@ -176,6 +178,14 @@ for it.
 | Stand-in not followed | `test_stand_ins_borrow_their_items_facts_and_say_so` |
 | A missing size assumed to be medium | `test_a_size_is_never_assumed` |
 | Loaded piece weight preferred over a weighed one | `test_a_weighed_piece_beats_a_loaded_one` and one more |
+| An alias shared by several items matches the first | `test_shared_aliases_are_questions` and five more |
+| Fuzzy match without the margin | `test_a_close_second_is_a_question_not_a_match` |
+| Household aliases ignored | `test_household_alias_wins_and_belongs_to_one_household` and two more |
+| Draft's raw text taken from the model | `test_raw_text_is_kept_exactly_and_nothing_is_saved` and one more |
+| A repeated line number overwrites the first | `test_a_line_the_model_skipped_is_unreadable` |
+| The size on the line dropped | `test_a_size_on_the_line_needs_no_question` |
+| A per-unit price treated as the lot's | `test_a_per_unit_price_is_the_price_of_one_unit` and one more |
+| Another household's vendor accepted | `test_only_the_households_own_vendors` |
 | Portion map accepts a duplicate unit and size | `test_portion_map_rejects_bad_rows` (listed twice) |
 | `ck_catalog_portion_provenance` dropped in Postgres | `test_owner_measured_portion_records_its_date` |
 
@@ -216,3 +226,4 @@ for it.
 | 2026-11-11 | PR #16: household API (P1-2): `GET` and `PUT /household`. Checked that four put-back bugs each fail their tests (table above) | +21 backend | ___ |
 | 2026-11-11 | PR #17: count units (P1-3): `catalog_portion` from SR28 with refuse, `catalog_portions.csv`, capture weights on prices. Owner's refuse override for potatoes (10%). Seven put-back bugs each caught (table above) | +34 backend | ___ |
 | 2026-11-11 | PR #18: tool `normalize_price` (P1-4), 100% covered. Six put-back bugs each caught (table above) | +58 backend | ___ |
+| 2026-11-11 | PR #19: typed-list capture (P1-5): `find_catalog_item`, `catalog_aliases.csv`, `household_alias`, the capture agent and its demo reader. Eight put-back bugs each caught (table above) | +96 backend | ___ |
