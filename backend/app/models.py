@@ -245,7 +245,16 @@ class DataSnapshot(SQLModel, table=True):
 
     __tablename__ = "data_snapshot"
     __table_args__ = (
-        UniqueConstraint("source", "sha256", name="uq_data_snapshot_source_sha256"),
+        # The same file loaded through a different crosswalk is a different snapshot, because the
+        # crosswalk decides which rows of the file reach which catalog items. NULLS NOT DISTINCT:
+        # rows loaded before crosswalk fingerprints existed still count as one snapshot each.
+        UniqueConstraint(
+            "source",
+            "sha256",
+            "crosswalk_sha256",
+            name="uq_data_snapshot_source_sha256_crosswalk",
+            postgresql_nulls_not_distinct=True,
+        ),
         _literal_check("source", SnapshotSource, "ck_data_snapshot_source"),
         CheckConstraint("row_count >= 0", name="ck_data_snapshot_row_count"),
     )
@@ -258,6 +267,12 @@ class DataSnapshot(SQLModel, table=True):
     sha256: str = Field(min_length=64, max_length=64)
     row_count: int
     notes: str | None = Field(default=None, max_length=2000)
+    # Fingerprint of the crosswalk rows used for the load (app/seed/crosswalk.py).
+    crosswalk_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+    # When the snapshot was loaded; the latest snapshot of a source is the current one.
+    loaded_at: datetime | None = Field(
+        default_factory=get_datetime_utc, sa_type=DateTime(timezone=True)
+    )
 
 
 class Region(SQLModel, table=True):

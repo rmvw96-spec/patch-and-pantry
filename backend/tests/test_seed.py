@@ -6,6 +6,7 @@ anything in the shared development database.
 """
 
 import csv
+import dataclasses
 import shutil
 import zipfile
 from collections.abc import Callable, Iterator
@@ -30,6 +31,7 @@ from app.seed import sources
 from app.seed.crosswalk import (
     CROSSWALK_PATH,
     CrosswalkRow,
+    crosswalk_fingerprint,
     ensure_catalog,
     read_crosswalk,
 )
@@ -148,19 +150,60 @@ def test_register_snapshot_is_idempotent_by_hash(
     path = tmp_path / "data.csv"
     path.write_text("a,b\n1,2\n")
     first, created = register_snapshot(
-        session, source="ers_prices", path=path, info=sources.ERS_PRICES, row_count=1
+        session,
+        source="ers_prices",
+        path=path,
+        info=sources.ERS_PRICES,
+        row_count=1,
+        crosswalk_sha256=None,
     )
     again, created_again = register_snapshot(
-        session, source="ers_prices", path=path, info=sources.ERS_PRICES, row_count=1
+        session,
+        source="ers_prices",
+        path=path,
+        info=sources.ERS_PRICES,
+        row_count=1,
+        crosswalk_sha256=None,
     )
     assert created and not created_again
     assert again.id == first.id
 
     path.write_text("a,b\n1,3\n")  # a new version of the file is a new snapshot
     changed, created_changed = register_snapshot(
-        session, source="ers_prices", path=path, info=sources.ERS_PRICES, row_count=1
+        session,
+        source="ers_prices",
+        path=path,
+        info=sources.ERS_PRICES,
+        row_count=1,
+        crosswalk_sha256=None,
     )
     assert created_changed and changed.id != first.id
+
+
+def test_a_changed_crosswalk_is_a_new_snapshot_that_applies_the_new_mapping(
+    session: Session, crosswalk: list[CrosswalkRow]
+) -> None:
+    path = FIXTURES / "ers_vegetables.csv"
+    first = load_ers_prices(session, path, crosswalk=crosswalk)
+    changed = [
+        dataclasses.replace(row, ers_form="Canned") if row.slug == "potato" else row
+        for row in crosswalk
+    ]
+    second = load_ers_prices(session, path, crosswalk=changed)
+    again = load_ers_prices(session, path, crosswalk=changed)
+
+    assert second.created and second.snapshot.id != first.snapshot.id
+    assert second.snapshot.sha256 == first.snapshot.sha256  # same file
+    assert not again.created  # same file and same crosswalk: nothing to do
+    potato = ensure_catalog(session, changed)["potato"]
+    assert potato.conversion_source.endswith("Potatoes (Canned)")
+    assert potato.snapshot_id == second.snapshot.id
+
+
+def test_crosswalk_fingerprint_ignores_row_order(crosswalk: list[CrosswalkRow]) -> None:
+    assert crosswalk_fingerprint(crosswalk) == crosswalk_fingerprint(crosswalk[::-1])
+    renamed = [dataclasses.replace(crosswalk[0], name="Changed"), *crosswalk[1:]]
+    assert crosswalk_fingerprint(renamed) != crosswalk_fingerprint(crosswalk)
 
 
 # ---------- every loader: twice on the same file creates one snapshot and no duplicates ----------

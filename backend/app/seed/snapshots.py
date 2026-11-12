@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.models import DataSnapshot, SnapshotSource
 
@@ -50,12 +50,15 @@ def register_snapshot(
     path: Path,
     info: SourceInfo,
     row_count: int,
+    crosswalk_sha256: str | None,
 ) -> tuple[DataSnapshot, bool]:
-    """Return the snapshot for this file, creating it only if (source, hash) is new."""
+    """Return the snapshot for this file and crosswalk, creating it only if the pair is new."""
     sha256 = file_sha256(path)
     existing = session.exec(
         select(DataSnapshot).where(
-            DataSnapshot.source == source, DataSnapshot.sha256 == sha256
+            DataSnapshot.source == source,
+            DataSnapshot.sha256 == sha256,
+            col(DataSnapshot.crosswalk_sha256).is_not_distinct_from(crosswalk_sha256),
         )
     ).first()
     if existing is not None:
@@ -68,6 +71,7 @@ def register_snapshot(
         sha256=sha256,
         row_count=row_count,
         notes=info.notes,
+        crosswalk_sha256=crosswalk_sha256,
     )
     session.add(snapshot)
     session.flush()

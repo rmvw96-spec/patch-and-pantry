@@ -28,7 +28,12 @@ from app.models import (
     SnapshotSource,
 )
 from app.seed import sources
-from app.seed.crosswalk import CrosswalkRow, ensure_catalog, read_crosswalk
+from app.seed.crosswalk import (
+    CrosswalkRow,
+    crosswalk_fingerprint,
+    ensure_catalog,
+    read_crosswalk,
+)
 from app.seed.snapshots import LoadResult, SourceInfo, register_snapshot
 
 # ---------- USDA ERS fruit and vegetable prices ----------
@@ -82,13 +87,18 @@ def load_ers_prices(
     crosswalk: list[CrosswalkRow] | None = None,
 ) -> LoadResult:
     """Conversion facts for national produce items, and one public-data price per item."""
+    crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     rows = read_ers_csv(path)
     snapshot, created = register_snapshot(
-        session, source="ers_prices", path=path, info=info, row_count=len(rows)
+        session,
+        source="ers_prices",
+        path=path,
+        info=info,
+        row_count=len(rows),
+        crosswalk_sha256=crosswalk_fingerprint(crosswalk),
     )
     if not created:
         return LoadResult(snapshot, False, 0)
-    crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     catalog = ensure_catalog(session, crosswalk)
     by_name = {(row.item, row.form): row for row in rows}
     written = 0
@@ -171,13 +181,18 @@ def load_planting_calendar(
     crosswalk: list[CrosswalkRow] | None = None,
 ) -> LoadResult:
     """North Alabama planting windows, always ``verified=False`` (derived, not checked)."""
+    crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     rows = _read_csv(path)
     snapshot, created = register_snapshot(
-        session, source="planting_calendar", path=path, info=info, row_count=len(rows)
+        session,
+        source="planting_calendar",
+        path=path,
+        info=info,
+        row_count=len(rows),
+        crosswalk_sha256=crosswalk_fingerprint(crosswalk),
     )
     if not created:
         return LoadResult(snapshot, False, 0)
-    crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     catalog = ensure_catalog(session, crosswalk)
     region = _region(session, "north-al")
     windows: set[tuple[str, Season, str, str]] = set()
@@ -221,13 +236,18 @@ def load_garden_yields(
     crosswalk: list[CrosswalkRow] | None = None,
 ) -> LoadResult:
     """Measured yield per square foot, one crop profile per crosswalk item with a Minnesota crop."""
+    crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     rows = {row["crop"]: row for row in _read_csv(path)}
     snapshot, created = register_snapshot(
-        session, source="garden_yields", path=path, info=info, row_count=len(rows)
+        session,
+        source="garden_yields",
+        path=path,
+        info=info,
+        row_count=len(rows),
+        crosswalk_sha256=crosswalk_fingerprint(crosswalk),
     )
     if not created:
         return LoadResult(snapshot, False, 0)
-    crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     catalog = ensure_catalog(session, crosswalk)
     written = 0
     for entry in crosswalk:
@@ -278,15 +298,20 @@ def load_foodkeeper(
     crosswalk: list[CrosswalkRow] | None = None,
 ) -> LoadResult:
     """Storage time (range minimum, in days) and storage location for each crosswalk item."""
+    crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     workbook = json.loads(path.read_text(encoding="utf-8"))
     products = {int(p["ID"]): p for p in _sheet(workbook, "Product")}
     info = replace(info, version=info.version or Path(workbook["fileName"]).stem)
     snapshot, created = register_snapshot(
-        session, source="foodkeeper", path=path, info=info, row_count=len(products)
+        session,
+        source="foodkeeper",
+        path=path,
+        info=info,
+        row_count=len(products),
+        crosswalk_sha256=crosswalk_fingerprint(crosswalk),
     )
     if not created:
         return LoadResult(snapshot, False, 0)
-    crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     catalog = ensure_catalog(session, crosswalk)
     written = 0
     for entry in crosswalk:
@@ -356,7 +381,12 @@ def load_fdc_subset(
         sources.FDC_SR_LEGACY if dataset == "sr_legacy" else sources.FDC_FOUNDATION
     )
     snapshot, created = register_snapshot(
-        session, source=source, path=path, info=info or default, row_count=len(foods)
+        session,
+        source=source,
+        path=path,
+        info=info or default,
+        row_count=len(foods),
+        crosswalk_sha256=crosswalk_fingerprint(crosswalk),
     )
     if not created:
         return LoadResult(snapshot, False, 0)
