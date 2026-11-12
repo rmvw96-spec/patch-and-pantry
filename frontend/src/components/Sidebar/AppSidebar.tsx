@@ -1,4 +1,12 @@
-import { Briefcase, Home, ShoppingBasket, Users } from "lucide-react"
+import {
+  BookOpen,
+  Briefcase,
+  Home,
+  Scale,
+  ShoppingBasket,
+  Users,
+  UsersRound,
+} from "lucide-react"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
 import { Logo } from "@/components/Common/Logo"
@@ -16,6 +24,9 @@ const baseItems: Item[] = [
   { icon: Home, title: "Dashboard", path: "/" },
   { icon: Briefcase, title: "Items", path: "/items" },
   { icon: ShoppingBasket, title: "Prices", path: "/prices" },
+  { icon: BookOpen, title: "Price book", path: "/price-book" },
+  { icon: Scale, title: "Best buy", path: "/best-buy" },
+  { icon: UsersRound, title: "Household", path: "/household" },
 ]
 
 export function AppSidebar() {

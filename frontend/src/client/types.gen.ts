@@ -223,6 +223,10 @@ export type CaptureQuestion = {
      */
     options?: Array<string>;
     draft?: DraftPrice | null;
+    /**
+     * Item Text
+     */
+    item_text?: string | null;
 };
 
 /**
