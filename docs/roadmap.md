@@ -81,7 +81,7 @@ week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/
 - [x] Count-unit conversion source decided and loaded: SR28 household measures with refuse (P1-3).
 - [ ] Typed-list capture: the agent turns "onions 3 lb bag 2.99" into a price observation and asks
       when a unit is unclear instead of guessing.
-- [ ] Tool `normalize_price`: any unit to grams of the edible part, then to cups.
+- [x] Tool `normalize_price`: any unit to grams of the edible part, then to cups.
 - [ ] Tool `compare_best_buy`: cost per cup across stores, with spoilage from FoodKeeper range midpoints, and a per-item "cook and freeze extras" setting.
 - [ ] Generalize the study job into a `grocery_analysis_run` (question, kind, tools used, result,
       data versions, model) and retire the pipeline simulator, its tests, and the Studies page.
@@ -197,3 +197,4 @@ match hand calculations.
 | 2026-11-11 | Replacing Studies (P1-1) moved after the best-buy tool (P1-6), so runs, demo scripts, and the replacement page are built once, against the real agents. |
 | 2026-11-11 | Household API done (P1-2). Its settings page moved to the Pages task (P1-7), with the other frontend work. |
 | 2026-11-11 | Count units done (P1-3): SR28 weights per piece, converted to purchased weight. |
+| 2026-11-11 | `normalize_price` done (P1-4). |

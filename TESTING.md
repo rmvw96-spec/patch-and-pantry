@@ -7,10 +7,10 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 269 |
-| Backend statements measured | 570 | 1,617 |
+| Backend tests | 58 | 327 |
+| Backend statements measured | 570 | 1,715 |
 | Backend coverage | 92% | 96% |
-| Backend suite, local run | 16.4 s | 27.2 s |
+| Backend suite, local run | 16.4 s | 27.6 s |
 | Browser E2E specs | 6 files | 7 files (adds `studies.spec.ts`, 6 tests) |
 
 Local times are single runs on one development machine, not CI. Most of the backend increase is
@@ -67,6 +67,7 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Backend: food planner tables | `backend/tests/test_food_models.py` | 53 | Real Postgres, one rolled-back transaction per test: user deletion cascades, CHECK constraints (calorie levels, percentages, dates, closed sets, portion provenance and refuse, capture weights), catalog uniqueness and scope, public-dataset prices, snapshot immutability trigger, seeded region |
 | Backend: seed loaders | `backend/tests/test_seed.py`, fixtures in `backend/tests/fixtures/seed/` | 65 | Real Postgres on one connection rolled back at the end (sessions join with savepoints, so even the command line's commits are undone). Idempotency of every loader, ERS price per cup against every row of both committed ERS files (two swapped pairs checked), crosswalk catalog and stand-ins, coverage report, Prefect flow. SR28 piece weights: refuse divided out (known answers), amounts divided down, portion-map validation, zips loaded by content. Miniature FDC and SR28 zips are built in the test |
 | Backend: household API | `backend/tests/api/routes/test_household.py`, plus the delete-account test in `test_users.py` | 21 | Created on first access with defaults; budget and members replaced in order; removed members deleted; calorie levels, member count, and budget limits; personal fields refused (`extra_forbidden`), not dropped; users see only their own; the first-access race returns the existing household; deleting the account deletes the household and members |
+| Backend: tool `normalize_price` | `backend/tests/tools/test_normalize.py` | 58 | Spec and count-unit known answers within 0.0001; every ERS per-pound row against the ERS formula (and ERS's published column within 0.001); unit spellings; each failure's own error; stand-ins; piece-weight choice (no assumed size, weighed beats loaded, latest snapshot) |
 | Migrations | `.github/workflows/test-backend.yml` | 1 step | Every migration down to an empty database and back up, then `alembic check` |
 | Backend integration: studies API | `backend/tests/api/routes/test_studies.py` | 12 | Real Postgres, Redis, and Prefect test harness |
 | Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | In-memory exporter that snapshots spans at export time; no Phoenix needed |
@@ -169,6 +170,12 @@ for it.
 | Portion map left out of the snapshot fingerprint | `test_a_changed_portion_map_is_a_new_snapshot` |
 | Coverage report ignores portions | `test_report_lists_the_expected_gaps` |
 | Owner's refuse override ignored | `test_sr28_portions_store_purchased_weight_with_their_arithmetic` |
+| `normalize_price` skips the yield factor | Spec examples, count-unit examples, every-ERS-row test (7 tests) |
+| Piece weight not multiplied by the quantity | Count-unit examples, "3 for 5" (4 tests) |
+| Wrong grams per ounce | `test_weight_units_agree` |
+| Stand-in not followed | `test_stand_ins_borrow_their_items_facts_and_say_so` |
+| A missing size assumed to be medium | `test_a_size_is_never_assumed` |
+| Loaded piece weight preferred over a weighed one | `test_a_weighed_piece_beats_a_loaded_one` and one more |
 | Portion map accepts a duplicate unit and size | `test_portion_map_rejects_bad_rows` (listed twice) |
 | `ck_catalog_portion_provenance` dropped in Postgres | `test_owner_measured_portion_records_its_date` |
 
@@ -208,3 +215,4 @@ for it.
 | 2026-11-11 | PR #15: Phase 0 close-out. Crosswalk fingerprint on snapshots (+2 backend; the changed-crosswalk test fails when the lookup ignores the fingerprint). Backend suite passes with the real reference data loaded | +2 backend | End of Phase 0, on `master` at `3e9252f`: Test Backend 1 m 15 s (baseline 46 s; adds the migration round trip and the Prefect test server), Test Docker Compose 1 m 56 s (baseline 1 m 48 s), Playwright 3 m 34 s (baseline 4 m 29 s) |
 | 2026-11-11 | PR #16: household API (P1-2): `GET` and `PUT /household`. Checked that four put-back bugs each fail their tests (table above) | +21 backend | ___ |
 | 2026-11-11 | PR #17: count units (P1-3): `catalog_portion` from SR28 with refuse, `catalog_portions.csv`, capture weights on prices. Owner's refuse override for potatoes (10%). Seven put-back bugs each caught (table above) | +34 backend | ___ |
+| 2026-11-11 | PR #18: tool `normalize_price` (P1-4), 100% covered. Six put-back bugs each caught (table above) | +58 backend | ___ |

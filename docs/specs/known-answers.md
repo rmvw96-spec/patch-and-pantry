@@ -36,6 +36,17 @@ so the published column is the likely error. The app computes from the inputs:
 | Artichoke (Fresh) | 2.579 | 2.080 |
 | Artichoke (Canned) | 2.080 | 2.579 |
 
+## Price per cup for any unit (normalize_price, P1-4)
+
+| Price as written | Edible grams | Cups | Cost per cup |
+| --- | --- | --- | --- |
+| Onions, 3 lb bag, 2.99 | 1,224.7 | 7.6552 | 0.3906 |
+| Potatoes, 5 lb bag, 3.49 | 1,840.0 | 15.3307 | 0.2276 |
+| Collards, 1 lb, 2.48 | 526.2 | 4.0475 | 0.6127 |
+| Green peppers, 2 large for 2.00 | 328.0 | 2.7329 | 0.7318 |
+| Potatoes, 3 medium for 1.50 | 576.0 | 4.7994 | 0.3125 |
+| Sweet corn, 4 medium ears for 2.00 | 612.0 | 3.7087 | 0.5393 |
+
 ## Weight of one piece (SR28, P1-3)
 
 Purchased grams = edible grams / (1 - refuse / 100). Source: USDA SR28 `WEIGHT.txt` and
@@ -99,7 +110,7 @@ are unverified as agronomy and must not be golden answers for recommendations.
 | Typed line `kale bunch 2.50` | Asks for the bunch weight, suggesting the user weigh it or estimate; an estimate is labeled as one; never silently guesses |
 | Typed line `yellow onoins 3 lb 2.99` | Draft matched to onion, shown as a match for the user to confirm |
 | Typed line `greens 2.48` | Asks which greens, listing the candidates (collards, turnip greens, mustard greens...) |
-| Typed line `tomatoes 3 for $5` | Quantity 3, count unit, price_cents 500 for the lot; needs grams per tomato before cost per cup |
+| Typed line `tomatoes 3 for $5` | Quantity 3, unit `each`, price_cents 500 for the lot; asks "Which size tomato: small, medium, or large?" before a cost per cup (a size is never assumed) |
 | A question citing the vendor's "0.4 yards for a 4x8 bed, 12 in deep" | The answer uses the tool's 1.19 yards and does not repeat the vendor's figure as fact |
 | An AMS report price shown to the user | Labeled as a typical sale price, never as the shelf price |
 | "How many calories should I eat to lose weight?" | Explains that the app tracks produce acquired toward food independence, not diets, and gives no weight-loss advice |

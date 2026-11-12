@@ -89,9 +89,14 @@ vision model), growing (Phase 3), independence progress (Phase 4), presets other
 
 ```python
 def normalize_price(
-    price_cents: int, quantity: float, unit: str, item: CatalogFacts, portion_grams: float | None
-) -> Normalized  # grams_purchased, grams_edible, cups, cost_per_cup_cents (float)
+    price_cents: float, quantity: float, unit: str, item: CatalogFacts, portion_grams: float | None
+) -> Normalized  # grams_purchased, grams_edible, cups, cost_per_cup_cents, unit, sources
 ```
+
+`price_cents` is the price for the whole quantity ("3 for $5" is 500 for 3 each); it is a float
+so reference averages such as ERS's (92.15 cents a pound) go through the same function. Two
+lookups supply the inputs and stay outside the math: `catalog_facts(session, item)` resolves
+stand-ins, and `portion_grams(session, item, unit, size)` picks one piece's weight.
 
 - Units: `lb`, `oz`, `kg`, `g` by weight; `each`, `bunch`, `head`, `ear`, `pint` through a portion
   (`grams_purchased = quantity x portion.grams`, purchased weight; P1-3) or a capture weight
@@ -101,7 +106,15 @@ def normalize_price(
 - `grams_edible = grams_purchased x preparation_yield_factor`; `cups = grams_edible /
   (cup_equivalent_lb x 453.59237)`. Stand-ins use the borrowed item's factors and say so.
 - Items with no conversion (for example eggplant) raise `NoConversion`; the comparison shows them
-  without a per-cup figure rather than guessing.
+  without a per-cup figure rather than guessing. A negative price, a quantity of zero or less, or
+  a piece of zero grams raises `InvalidAmount`. All four share the base `NormalizeError`, whose
+  message is written for the user.
+- Unit spellings fold to one form ("Pounds", "lbs", "lb." are `lb`; "ea" is `each`).
+- **A size is never assumed.** When an item has several piece sizes (tomato small, medium, large)
+  and the user gave none, `portion_grams` raises `NeedsPortion` with the sizes, and the agent asks
+  "Which size tomato: small, medium, or large?". An item with one unsized weight (a head of
+  romaine) needs no question. A piece someone weighed beats a loaded one (newest first); loaded
+  pieces come from the most recently loaded snapshot.
 
 **Worked examples** (from the loaded ERS data; to be added to `known-answers.md` when accepted):
 
@@ -110,11 +123,20 @@ def normalize_price(
 | Onions, 3 lb bag, 2.99 (yield 0.9, cup 0.3527 lb) | 1,224.7 | 7.6552 | 0.3906 |
 | Potatoes, 5 lb bag, 3.49 (yield 0.8113, cup 0.2646 lb) | 1,840.0 | 15.3307 | 0.2276 |
 | Collards, 1 lb, 2.48 (yield 1.16, cup 0.2866 lb) | 526.2 | 4.0475 | 0.6127 |
+| 2 large green peppers, 2.00 (200 g each; yield 0.82, cup 0.2646 lb) | 328.0 | 2.7329 | 0.7318 |
+| 3 medium potatoes, 1.50 (236.7 g each) | 576.0 | 4.7994 | 0.3125 |
+| 4 medium ears of corn, 2.00 (283.3 g each; yield 0.54, cup 0.3638 lb) | 612.0 | 3.7087 | 0.5393 |
+
+Cross-check: for raw-eaten items ERS's yield equals SR28's edible share, so the edible grams come
+back to SR28's own figure (2 peppers: 2 x 164 g = 328 g; a romaine head: 626 g).
 
 **Acceptance criteria:**
 
-- [ ] The ERS known answers and these examples match within 0.0001.
-- [ ] Unknown units, missing portions, and missing conversions each raise their own error.
+- [x] The ERS known answers and these examples match within 0.0001 (every ERS per-pound row,
+      against the ERS formula; and against ERS's published column within 0.001, swapped pairs
+      excepted).
+- [x] Unknown units, missing portions, missing conversions, and invalid amounts each raise their
+      own error.
 
 ## P1-5: Typed-list capture
 
