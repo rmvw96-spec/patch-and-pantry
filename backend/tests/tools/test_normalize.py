@@ -20,8 +20,10 @@ from app.tools.normalize import (
     NoConversion,
     NormalizeError,
     UnknownUnit,
+    WrongMeasure,
     canonical_unit,
     catalog_facts,
+    needs_piece,
     normalize_price,
     portion_grams,
 )
@@ -171,10 +173,101 @@ def test_weight_units_agree(quantity: float, unit: str) -> None:
     )
 
 
+# ---------- juices: by volume (ERS prices them per pint) ----------
+
+
+def _juice(yield_factor: float, name: str = "Orange juice") -> CatalogFacts:
+    return CatalogFacts(name, yield_factor, None, "test", cup_equivalent_pints=0.5)
+
+
+ORANGE_JUICE = _juice(1)
+OJ_CONCENTRATE = _juice(4, "Orange juice concentrate")
+
+
+def test_every_ers_pint_price_matches_the_ers_formula() -> None:
+    """A pint at ERS's juice price gives ERS's price per cup: the volume formula, every row."""
+    rows = [
+        r
+        for path in ERS_SOURCES
+        for r in read_ers_csv(path)
+        if r.price_unit.startswith("per pint")
+    ]
+    assert len(rows) == 11
+    for row in rows:
+        assert row.cup_unit == "pints"
+        facts = CatalogFacts(
+            row.item,
+            row.preparation_yield_factor,
+            None,
+            "ERS",
+            cup_equivalent_pints=row.cup_size,
+        )
+        result = normalize_price(row.price * 100, 1, "pint", facts)
+        assert result.cost_per_cup_cents / 100 == pytest.approx(
+            row.published_price_per_cup, abs=1e-3
+        ), row.item
+        assert result.grams_purchased is None and result.pints_purchased == 1
+
+
+@pytest.mark.parametrize(
+    ("quantity", "unit", "facts", "cups"),
+    [
+        (1, "pint", ORANGE_JUICE, 2.0),  # a pint is 2 cups
+        (52, "fl oz", ORANGE_JUICE, 6.5),
+        (52, "oz", ORANGE_JUICE, 6.5),  # on a juice, ounces are fluid ounces
+        (1, "half gallon", ORANGE_JUICE, 8.0),
+        (1, "gallon", ORANGE_JUICE, 16.0),
+        (2, "quarts", ORANGE_JUICE, 8.0),
+        (1, "L", ORANGE_JUICE, 4.226752838),
+        (12, "fl oz", OJ_CONCENTRATE, 6.0),  # a 12 oz can of concentrate makes 48 fl oz
+    ],
+)
+def test_juice_cups_by_volume(
+    quantity: float, unit: str, facts: CatalogFacts, cups: float
+) -> None:
+    result = normalize_price(399, quantity, unit, facts)
+    assert result.cups == pytest.approx(cups)
+    assert result.cost_per_cup_cents == pytest.approx(399 / cups)
+    assert result.grams_edible is None
+
+
+@pytest.mark.parametrize("unit", ["lb", "each", "bunch"])
+def test_a_juice_by_weight_or_count_is_the_wrong_measure(unit: str) -> None:
+    with pytest.raises(WrongMeasure, match="measured by volume"):
+        normalize_price(399, 1, unit, ORANGE_JUICE, portion_grams=100.0)
+
+
+@pytest.mark.parametrize("unit", ["quart", "gallon", "fl oz", "liter", "cup"])
+def test_produce_by_volume_is_the_wrong_measure(unit: str) -> None:
+    with pytest.raises(WrongMeasure, match="sold by weight or count"):
+        normalize_price(399, 1, unit, ONION)
+
+
+def test_a_pint_is_a_container_for_produce_and_a_volume_for_juice() -> None:
+    assert needs_piece("pint", ONION) and not needs_piece("pint", ORANGE_JUICE)
+    assert not needs_piece(
+        "each", ORANGE_JUICE
+    )  # normalize refuses it instead of asking
+    assert not needs_piece("lb", ONION)
+    # A pint of blueberries goes by its weight.
+    assert (
+        normalize_price(399, 1, "pint", ONION, portion_grams=340.0).grams_purchased
+        == 340.0
+    )
+
+
+@pytest.mark.parametrize(
+    ("written", "canonical"),
+    [("Qt", "quart"), ("fl. oz", "fl oz"), ("fluid ounces", "fl oz"), ("half-gallon", "half gallon"), ("Litres", "liter"), ("gal", "gallon"), ("ml", "ml"), ("fl  oz", "fl oz")],
+)  # fmt: skip
+def test_volume_spellings(written: str, canonical: str) -> None:
+    assert canonical_unit(written) == canonical
+
+
 # ---------- each failure has its own error ----------
 
 
-@pytest.mark.parametrize("unit", ["dozen", "bag", "3 lb bag", "cup", ""])
+@pytest.mark.parametrize("unit", ["dozen", "bag", "3 lb bag", "peck", ""])
 def test_unknown_units(unit: str) -> None:
     with pytest.raises(UnknownUnit, match="Unknown unit"):
         normalize_price(299, 1, unit, ONION)

@@ -35,11 +35,11 @@ from app.models import (
     Vendor,
 )
 from app.tools.normalize import (
-    COUNT_UNITS,
     CatalogFacts,
     NormalizeError,
     canonical_unit,
     catalog_facts,
+    needs_piece,
     normalize_price,
     portion_grams,
 )
@@ -365,6 +365,7 @@ def _piece(
 def _price_input(
     session: Session,
     item: CatalogItem,
+    facts: CatalogFacts,
     observation: PriceObservation,
     kind: RowKind,
     label: str,
@@ -376,7 +377,7 @@ def _price_input(
     except NormalizeError as exc:
         unit, problem = observation.unit, str(exc)
     else:
-        if unit in COUNT_UNITS:
+        if needs_piece(unit, facts):
             piece, piece_note, problem, snapshot = _piece(
                 session, item, observation, unit
             )
@@ -385,7 +386,7 @@ def _price_input(
     # ERS rows keep the full-precision price in their raw text; cents round it.
     cents: float = observation.price_cents
     if kind != "household" and observation.raw_text:
-        exact = re.search(r":\s*([0-9.]+) per pound$", observation.raw_text)
+        exact = re.search(r":\s*([0-9.]+) per (?:pound|pint)\b", observation.raw_text)
         if exact:
             cents = float(exact.group(1)) * 100
     return PriceInput(
@@ -454,6 +455,7 @@ def compare_best_buy(
             _price_input(
                 session,
                 item,
+                facts,
                 observation,
                 "household",
                 vendor.name if vendor else "a store",
@@ -474,7 +476,13 @@ def compare_best_buy(
                 )
             prices.append(
                 _price_input(
-                    session, item, observation, kind, label, table.data_snapshot_ids
+                    session,
+                    item,
+                    facts,
+                    observation,
+                    kind,
+                    label,
+                    table.data_snapshot_ids,
                 )
             )
             table.data_snapshot_ids.add(snapshot.id)

@@ -41,7 +41,7 @@ def test_fold(text: str, folded: str) -> None:
     ("text", "slug"),
     [
         ("onions", "onion"), ("Onion", "onion"), ("yellow onions", "onion"),
-        ("russets", "potato"), ("Roma tomatoes", "tomato"), ("collard greens", "collards"),
+        ("russets", "potato"), ("slicing tomatoes", "tomato"), ("collard greens", "collards"),
         ("romaine", "lettuce"), ("corn", "sweet-corn"), ("bell peppers", "sweet-pepper"),
         ("jalapeños", "hot-pepper"), ("organic kale", "kale"),
     ],

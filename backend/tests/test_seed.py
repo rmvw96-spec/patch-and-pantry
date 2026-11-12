@@ -341,7 +341,7 @@ def test_every_catalog_item_has_a_conversion_source_and_stand_ins_point_at_their
 ) -> None:
     crosswalk = read_crosswalk()
     catalog = ensure_catalog(session, crosswalk)
-    assert len(catalog) == 44
+    assert len(catalog) == 168
     assert all(item.conversion_source for item in catalog.values())
     for row in crosswalk:
         item = catalog[row.slug]
@@ -352,6 +352,27 @@ def test_every_catalog_item_has_a_conversion_source_and_stand_ins_point_at_their
             assert item.stand_in_for_id is None
     assert catalog["eggplant"].conversion_source.startswith("none: no USDA ERS")
     assert catalog["compost"].conversion_source == "not applicable: garden supply"
+
+
+# ERS rows that price the same purchase prepared another way: one catalog item per thing bought.
+ERS_PREPARATION_VARIANTS = {
+    ("Carrots, cooked whole", "Fresh"),
+    ("Cucumbers without peel", "Fresh"),
+    ("Spinach, boiled", "Fresh"),
+}
+
+
+def test_every_ers_row_is_in_the_crosswalk_once() -> None:
+    """The catalog covers all of ERS's fruit and vegetable prices (dogfooding, 2026-11-12)."""
+    ers = {
+        (row.item, row.form)
+        for path in sorted((REPO / "data" / "sources" / "usda-ers").glob("*.csv"))
+        for row in read_ers_csv(path)
+    }
+    mapped = [(r.ers_item, r.ers_form) for r in read_crosswalk() if r.ers_item]
+    assert len(mapped) == len(set(mapped)), "an ERS row is mapped twice"
+    assert set(mapped) <= ers, "the crosswalk names an ERS row that does not exist"
+    assert ers - set(mapped) == ERS_PREPARATION_VARIANTS
 
 
 def test_crosswalk_rejects_unknown_stand_ins(tmp_path: Path) -> None:
@@ -447,11 +468,40 @@ def test_ers_loader_rejects_non_pound_rows(session: Session, tmp_path: Path) -> 
     path.write_text(
         "Fruit,Form,AverageRetailPrice,AverageRetailPriceUnitOfMeasure,PreparationYieldFactor,"
         "SizeOfACupEquivalent ,CupEquivalentUnitOfMeasure,AveragePricePerCupEquivalent\n"
-        "Watermelon,Fresh,0.5,per pint,1,0.5,pints,0.25\n"
+        "Watermelon,Fresh,0.5,per bushel,1,0.5,bushels,0.25\n"
     )
     watermelon = [row for row in read_crosswalk() if row.slug == "watermelon"]
-    with pytest.raises(ValueError, match="not priced by the pound"):
+    with pytest.raises(ValueError, match="not priced by the pound or the pint"):
         load_ers_prices(session, path, crosswalk=watermelon)
+
+
+def test_ers_loader_measures_juices_by_the_pint(
+    session: Session, tmp_path: Path
+) -> None:
+    path = tmp_path / "fruit.csv"
+    path.write_text(
+        "Fruit,Form,AverageRetailPrice,AverageRetailPriceUnitOfMeasure,PreparationYieldFactor,"
+        "SizeOfACupEquivalent ,CupEquivalentUnitOfMeasure,AveragePricePerCupEquivalent\n"
+        '"Oranges, frozen concentrate",Juice,3.401422791,per pint (16 fluid ounces concentrate),4,0.5,pints,0.425177849\n'
+    )
+    (entry,) = [
+        row for row in read_crosswalk() if row.slug == "orange-juice-concentrate"
+    ]
+
+    result = load_ers_prices(session, path, crosswalk=[entry])
+
+    item = session.exec(select(CatalogItem).where(CatalogItem.slug == entry.slug)).one()
+    assert (
+        item.cup_equivalent_pints,
+        item.cup_equivalent_lb,
+        item.preparation_yield_factor,
+    ) == (0.5, None, 4)
+    price = session.exec(
+        select(PriceObservation).where(
+            PriceObservation.snapshot_id == result.snapshot.id
+        )
+    ).one()
+    assert (price.quantity, price.unit, price.price_cents) == (1, "pint", 340)
 
 
 def test_ers_reader_strips_the_padded_header() -> None:
@@ -651,6 +701,26 @@ def test_fdc_loads_only_its_own_dataset_and_skips_blank_amounts(
     assert sorted(nutrients) == sorted((slug, "Protein", "G") for slug in foods)
 
 
+def test_items_sharing_one_fdc_food_each_get_its_nutrients(
+    session: Session, tmp_path: Path
+) -> None:
+    """Broccoli and broccoli florets name the same FDC food; both get its nutrients."""
+    shared = [r for r in read_crosswalk() if r.slug in ("broccoli", "broccoli-florets")]
+    assert len({r.fdc_id for r in shared}) == 1
+    result = load_fdc_subset(
+        session,
+        _fdc_zip(tmp_path, "foundation", {"broccoli": shared[0].fdc_id}),
+        crosswalk=shared,
+    )
+    slugs = session.exec(
+        select(CatalogItem.slug, CatalogNutrient.nutrient)
+        .join(CatalogItem, col(CatalogItem.id) == col(CatalogNutrient.catalog_item_id))
+        .where(CatalogNutrient.snapshot_id == result.snapshot.id)
+    ).all()
+    assert sorted(slug for slug, _ in slugs) == ["broccoli", "broccoli-florets"]
+    assert result.rows_written == 2
+
+
 def test_fdc_id_missing_from_the_download_is_an_error(
     session: Session, crosswalk: list[CrosswalkRow], tmp_path: Path
 ) -> None:
@@ -723,7 +793,7 @@ def test_report_lists_the_expected_gaps(
 
 
 def test_report_with_no_gaps() -> None:
-    assert format_report([]).startswith("Every first-crop-set item")
+    assert format_report([]).startswith("Every catalog produce item")
 
 
 # ---------- command line ----------
@@ -785,7 +855,7 @@ def test_cli_report(
 ) -> None:
     monkeypatch.setattr(seed_cli, "_default_session", session_factory)
     assert seed_cli.main(["report"]) == 0
-    assert "first-crop-set" in capsys.readouterr().out
+    assert "catalog produce" in capsys.readouterr().out
 
 
 def test_snapshots_are_keyed_by_content_not_file_name(

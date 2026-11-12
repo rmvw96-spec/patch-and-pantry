@@ -558,6 +558,17 @@ def test_stand_ins_are_noted(
     assert "Conversions borrowed from Zucchini." in note.notes
 
 
+def test_a_juice_priced_by_the_pint_needs_no_piece_weight(
+    db_session: Session, catalog: Catalog, household: Household, vendor: Vendor
+) -> None:
+    _own_price(db_session, household, vendor, catalog["orange-juice"], 199, 1, "pint")
+    (row,) = _table(db_session, household, (catalog["orange-juice"], 4)).rows
+    assert not any("weigh" in note for note in row.notes) and "piece" not in row.sources
+    assert row.cups_bought == pytest.approx(2.0)  # a pint is 2 cups
+    assert row.cost_per_usable_cup_cents == pytest.approx(99.5)
+    assert row.marked
+
+
 @pytest.mark.parametrize("cups", [0, -1])
 def test_needs_must_be_positive(
     db_session: Session, catalog: Catalog, household: Household, cups: float

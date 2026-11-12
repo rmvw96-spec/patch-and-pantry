@@ -29,13 +29,14 @@ from app.core.config import settings
 from app.models import CatalogItem, Household, PortionSize, Vendor
 from app.tools.catalog import Match, find_catalog_item
 from app.tools.normalize import (
-    COUNT_UNITS,
     InvalidAmount,
     NeedsPortion,
     NoConversion,
     UnknownUnit,
+    WrongMeasure,
     canonical_unit,
     catalog_facts,
+    needs_piece,
     normalize_price,
     portion_grams,
 )
@@ -316,8 +317,9 @@ def _process_line(
         observed_on=observed_on,
         price_note=price_note,
     )
+    facts = catalog_facts(session, item)
     piece: float | None = None
-    if unit in COUNT_UNITS:
+    if needs_piece(unit, facts):
         try:
             choice = portion_grams(session, item, unit, line.size)
         except NeedsPortion as exc:
@@ -331,13 +333,17 @@ def _process_line(
         if choice.snapshot_id:
             result.data_snapshot_ids.add(choice.snapshot_id)
 
-    facts = catalog_facts(session, item)
     try:
         normalized = normalize_price(cents, quantity, unit, facts, piece)
     except NoConversion as exc:
         draft.note = str(exc)
     except InvalidAmount as exc:
         result.questions.append(CaptureQuestion(raw, "unreadable", str(exc), [], draft))
+        return
+    except WrongMeasure as exc:
+        result.questions.append(
+            CaptureQuestion(raw, "unknown_unit", str(exc), [], draft)
+        )
         return
     else:
         draft.grams_purchased = normalized.grams_purchased

@@ -434,7 +434,7 @@ def test_the_catalog_lists_visible_produce_by_name(
         for i in client.get(f"{API}/catalog/", headers=normal_user_token_headers).json()
     ]
     assert mine["onion"].name in names
-    assert names == sorted(names)
+    assert names == sorted(names, key=lambda n: (n.casefold(), n))
     theirs = [
         i["name"]
         for i in client.get(f"{API}/catalog/", headers=superuser_token_headers).json()

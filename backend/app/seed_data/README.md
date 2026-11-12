@@ -12,7 +12,7 @@ caching, and versioning"). Never edit a file here in place without recording why
 
 | `catalog_portions.csv` | For each item sold by count: unit (`each`, `head`, `ear`, `bunch`), size, and the SR28 weight row (NDB number and sequence) that weighs one piece | Built by hand from SR28 `WEIGHT.txt` | 2026-11-11 | **Owner-reviewed** (2026-11-11). `refuse_pct_override` replaces SR28's refuse where the owner judged it wrong (potatoes: 10%, not 25%). A row without SR28 keys marks an item sold by count with no weight (the coverage report lists it). Notes record each judgment call, such as weights left out because SR28's refuse does not fit them. |
 | `catalog_aliases.csv` | Common names for catalog items ("russet", "yellow onion", "collard green"); an alias listed for several items ("greens", "squash") is a question by design | Written by hand | 2026-11-11 | **Needs owner review.** Singular forms: matching folds plurals and case. Used by `find_catalog_item` (P1-5). |
-| `catalog_crosswalk.csv` | Each catalog slug (38 first-crop-set produce items, 6 garden supplies) and its exact name in every source: ERS item and form, FDC id and dataset, FoodKeeper product id and storage location, Minnesota crop, planting-chart crops (`;`-separated), stand-in | Built by hand from the sources below | 2026-11-11 | **Owner-reviewed** (2026-11-11). Loaders match only the names given here; no fuzzy matching. The notes column explains each judgment call. |
+| `catalog_crosswalk.csv` | Each catalog slug (162 produce items, 6 garden supplies) and its exact name in every source: ERS item and form, FDC id and dataset, FoodKeeper product id and storage location, Minnesota crop, planting-chart crops (`;`-separated), stand-in | Built by hand from the sources below | 2026-11-11, expanded 2026-11-12 | The first 38 produce rows are **owner-reviewed** (2026-11-11). The 124 rows from `apple` to `frozen-turnip-greens` (every other ERS row, 2026-11-12) **need owner review**. Loaders match only the names given here; no fuzzy matching. The notes column explains each judgment call. |
 
 ## Raw source downloads
 
@@ -35,7 +35,7 @@ From `backend/`, with the database migrated (`scripts/prestart.sh`):
 
 ```bash
 uv run python -m app.seed all ~/Downloads/FoodData_Central_*.zip ~/Downloads/sr28asc.zip  # every source above
-uv run python -m app.seed report                                    # first-crop-set gaps
+uv run python -m app.seed report                                    # catalog coverage gaps
 ```
 
 Each file loads in its own transaction inside a Prefect flow. Loading the same file again changes

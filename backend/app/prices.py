@@ -26,11 +26,12 @@ from app.models import (
 )
 from app.tools.catalog import remember_alias
 from app.tools.normalize import (
-    COUNT_UNITS,
     WEIGHT_UNITS,
     NormalizeError,
+    WrongMeasure,
     canonical_unit,
     catalog_facts,
+    needs_piece,
     normalize_price,
     portion_grams,
 )
@@ -180,20 +181,21 @@ def _check(
         canonical = canonical_unit(unit)
     except NormalizeError as exc:
         raise PriceError(str(exc)) from exc
+    facts = catalog_facts(session, item)
     unit_grams = piece_grams(weight) if weight is not None else None
-    if canonical in WEIGHT_UNITS:
-        unit_grams = None  # a weight unit needs no piece weight
+    if not needs_piece(canonical, facts):
+        unit_grams = None  # a weight or volume needs no piece weight
     piece = unit_grams
-    if canonical in COUNT_UNITS and piece is None:
+    if needs_piece(canonical, facts) and piece is None:
         try:
             piece = portion_grams(session, item, canonical, size).grams
         except NormalizeError as exc:
             raise PriceError(str(exc)) from exc
     try:
-        normalized = normalize_price(
-            price_cents, quantity, canonical, catalog_facts(session, item), piece
-        )
+        normalized = normalize_price(price_cents, quantity, canonical, facts, piece)
         grams_edible: float | None = normalized.grams_edible
+    except WrongMeasure as exc:
+        raise PriceError(str(exc)) from exc
     except NormalizeError:
         grams_edible = None  # no cup conversion yet: saved, shown by price only
     return Checked(
@@ -300,15 +302,12 @@ def _cost_per_cup(
 ) -> tuple[float | None, str | None]:
     try:
         unit = canonical_unit(observation.unit)
+        facts = catalog_facts(session, item)
         piece = observation.unit_grams
-        if unit in COUNT_UNITS and piece is None:
+        if needs_piece(unit, facts) and piece is None:
             piece = portion_grams(session, item, unit, observation.size).grams
         normalized = normalize_price(
-            observation.price_cents,
-            observation.quantity,
-            unit,
-            catalog_facts(session, item),
-            piece,
+            observation.price_cents, observation.quantity, unit, facts, piece
         )
     except NormalizeError as exc:
         return None, str(exc)

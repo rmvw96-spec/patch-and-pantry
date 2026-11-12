@@ -26,8 +26,7 @@ def read_catalog(session: SessionDep, current_user: CurrentUser) -> Any:
     """Produce items: national, your region's, and your own, by name."""
     household = get_or_create_household(session, current_user.id)
     items = session.exec(
-        select(CatalogItem)
-        .where(
+        select(CatalogItem).where(
             CatalogItem.kind == "produce",
             or_(
                 col(CatalogItem.scope) == "national",
@@ -35,9 +34,10 @@ def read_catalog(session: SessionDep, current_user: CurrentUser) -> Any:
                 col(CatalogItem.household_id) == household.id,
             ),
         )
-        .order_by(col(CatalogItem.name))
     ).all()
+    # Sorted here, not by the database, so the order is the same under any collation:
+    # case-insensitive, so "Frozen Brussels sprouts" sits among the other frozen items.
     return [
         CatalogItemPublic(id=i.id, slug=i.slug, name=i.name, category=i.category)
-        for i in items
+        for i in sorted(items, key=lambda i: (i.name.casefold(), i.name))
     ]

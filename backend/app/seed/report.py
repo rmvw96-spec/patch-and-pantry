@@ -1,4 +1,4 @@
-"""Coverage report: first-crop-set items lacking a price, conversion, nutrients, storage, or portion.
+"""Coverage report: catalog produce lacking a price, conversion, nutrients, storage, or portion.
 
 The expected gaps are listed in docs/design.md ("ERS coverage of the first crop set"); items
 without an ERS fresh form rely on captured prices instead. "portion" is checked only for items
@@ -28,7 +28,8 @@ class Coverage:
 
 def _has_conversion(item: CatalogItem, by_id: dict[object, CatalogItem]) -> bool:
     """Conversions are present on the item itself, or on the item it stands in for."""
-    if item.preparation_yield_factor is not None and item.cup_equivalent_lb is not None:
+    cup_size = item.cup_equivalent_lb or item.cup_equivalent_pints
+    if item.preparation_yield_factor is not None and cup_size is not None:
         return True
     stand_in = by_id.get(item.stand_in_for_id) if item.stand_in_for_id else None
     return stand_in is not None and _has_conversion(stand_in, by_id)
@@ -39,7 +40,7 @@ def coverage_gaps(
     crosswalk: list[CrosswalkRow] | None = None,
     portions: list[PortionMapRow] | None = None,
 ) -> list[Coverage]:
-    """One entry per first-crop-set produce item that is missing anything (or not loaded at all)."""
+    """One entry per catalog produce item that is missing anything (or not loaded at all)."""
     crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     portions = (
         portions if portions is not None else read_portion_map(crosswalk=crosswalk)
@@ -89,11 +90,11 @@ def coverage_gaps(
 def format_report(gaps: list[Coverage]) -> str:
     if not gaps:
         return (
-            "Every first-crop-set item has a price, conversion, nutrients, storage time, "
+            "Every catalog produce item has a price, conversion, nutrients, storage time, "
             "and (if sold by count) a portion weight."
         )
     width = max(len(gap.slug) for gap in gaps)
-    lines = [f"{len(gaps)} first-crop-set items have gaps:"]
+    lines = [f"{len(gaps)} catalog produce items have gaps:"]
     lines += [
         f"  {gap.slug:<{width}}  missing {', '.join(gap.missing)}" for gap in gaps
     ]

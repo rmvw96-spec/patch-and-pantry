@@ -45,6 +45,10 @@ ITEMS: dict[str, tuple[str, float | None, float | None]] = {
     "eggplant": ("Eggplant", None, None),
     "broccoli": ("Broccoli", 0.78, 0.3417),
 }
+# slug: (name, yield factor, cup pints). Juices are measured by volume.
+JUICES: dict[str, tuple[str, float, float]] = {
+    "orange-juice": ("Orange juice", 1.0, 0.5),
+}
 # slug: FoodKeeper range in days (refrigerator or pantry). Tomato has none ("When ripe").
 STORAGE: dict[str, tuple[int, int]] = {
     "onion": (30, 30),
@@ -103,6 +107,17 @@ def catalog(db_session: Session) -> dict[str, CatalogItem]:
             storage_days_min=STORAGE.get(slug, (None, None))[0],
             storage_days_max=STORAGE.get(slug, (None, None))[1],
             storage_location="refrigerator" if slug in STORAGE else None,
+        )
+        session.add(items[slug])
+    for slug, (name, yield_factor, cup_pints) in JUICES.items():
+        items[slug] = CatalogItem(
+            slug=slug,
+            name=name,
+            kind="produce",
+            category="fruit",
+            preparation_yield_factor=yield_factor,
+            cup_equivalent_pints=cup_pints,
+            conversion_source=f"test: {name}",
         )
         session.add(items[slug])
     session.flush()
