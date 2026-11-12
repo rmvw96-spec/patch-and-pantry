@@ -21,7 +21,20 @@ rounds its yield and cup-size columns. Tests must use that tolerance.
 | Okra (Fresh) | 5.680314126 | 0.7695 | 0.3527 | 2.603951096 |
 | Sweet potatoes (Fresh) | 1.164626523 | 0.8818 | 0.4409 | 0.582313262 |
 
-A yield factor above 1 is expected for dried beans (they absorb water when cooked).
+A yield factor above 1 is expected for dried beans (they absorb water when cooked) and for some
+cooked greens (collard greens: 1.16).
+
+**ERS swapped two pairs of published values** (found 2026-11-11 by the P0-4 loader test). For
+Artichoke (Fresh, Canned) and Lima beans (Frozen, Dried), each row's own price, yield, and cup size
+give the *other* row's published price per cup, within 0.0001. The inputs agree with each other,
+so the published column is the likely error. The app computes from the inputs:
+
+| ERS item (form) | Computed from the row | ERS published |
+| --- | --- | --- |
+| Lima beans (Dried), used for `lima-bean` | 0.403 | 0.968 |
+| Lima beans (Frozen) | 0.968 | 0.403 |
+| Artichoke (Fresh) | 2.579 | 2.080 |
+| Artichoke (Canned) | 2.080 | 2.579 |
 
 ## Garden supplies: unit price and quantities
 

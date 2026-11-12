@@ -1,0 +1,45 @@
+slug,name,kind,category,ers_item,ers_form,fdc_id,fdc_dataset,foodkeeper_id,foodkeeper_location,minnesota_crop,planting_chart_crops,stand_in_for,notes
+tomato,Tomato,produce,vegetable,"Tomatoes, large round",Fresh,170457,sr_legacy,306,pantry,Tomatoes,Tomatoes,,FDC: SR Legacy year-round average; Foundation has only grape and Roma
+sweet-pepper,Sweet pepper,produce,vegetable,Green peppers,Fresh,2258588,foundation,296,refrigerator,Peppers (Sweet/Bell),Peppers,,ERS also has Red peppers; green chosen because garden bells are usually picked green
+hot-pepper,Hot pepper,produce,vegetable,,,2747661,foundation,548,refrigerator,Peppers (Hot),Peppers,sweet-pepper,No ERS form; sweet pepper is the stand-in for conversions. FDC: jalapeno
+snap-bean,Snap bean,produce,vegetable,Green beans,Fresh,2346400,foundation,273,refrigerator,Green Beans,"Beans, Bush Snap;Beans, Pole Snap",,
+cucumber,Cucumber,produce,vegetable,Cucumbers with peel,Fresh,2346406,foundation,283,refrigerator,Cucumber,Cucumbers,,
+zucchini,Zucchini,produce,vegetable,Zucchini,Fresh,2685568,foundation,302,refrigerator,Zucchini,"Squash, Summer",,
+yellow-squash,Yellow squash,produce,vegetable,,,2685569,foundation,302,refrigerator,Summer Squash,"Squash, Summer",zucchini,No ERS form; zucchini is the stand-in for conversions
+collards,Collards,produce,vegetable,Collard greens,Fresh,2685574,foundation,287,refrigerator,Collard Greens,Collards,,
+kale,Kale,produce,vegetable,Kale,Fresh,323505,foundation,423,refrigerator,Kale,Kale,,
+turnip-greens,Turnip greens,produce,vegetable,Turnip greens,Fresh,170061,sr_legacy,287,refrigerator,,Turnips,,"Planting chart lists turnips once, for roots and greens"
+mustard-greens,Mustard greens,produce,vegetable,,,169256,sr_legacy,287,refrigerator,,Mustard,,ERS has canned and frozen only: captured prices
+lettuce,Lettuce,produce,vegetable,"Lettuce, romaine, heads",Fresh,327923,foundation,290,refrigerator,Lettuce,Lettuces,,ERS also has iceberg and romaine hearts. FDC: cos or romaine (75 nutrients) over the newer romaine entry (23)
+spinach,Spinach,produce,vegetable,"Spinach, eaten raw",Fresh,1999633,foundation,291,refrigerator,Spinach,Spinach,,ERS also has a boiled form
+swiss-chard,Swiss chard,produce,vegetable,,,169991,sr_legacy,550,refrigerator,Swiss Chard,Swiss Chard,,No ERS form: captured prices
+onion,Onion,produce,vegetable,Onions,Fresh,790646,foundation,294,pantry,Onion,"Onions, Bulb",,FDC: yellow onion
+okra,Okra,produce,vegetable,Okra,Fresh,169260,sr_legacy,293,refrigerator,,Okra,,Not in Foundation Foods
+cabbage,Cabbage,produce,vegetable,"Cabbage, green",Fresh,2346407,foundation,278,refrigerator,Cabbage,Cabbage,,
+carrot,Carrot,produce,vegetable,"Carrots, raw whole",Fresh,2258586,foundation,279,refrigerator,Carrot,Carrots,,
+broccoli,Broccoli,produce,vegetable,Broccoli heads,Fresh,747447,foundation,276,refrigerator,Broccoli,Broccoli,,ERS also has florets
+cauliflower,Cauliflower,produce,vegetable,Cauliflower heads,Fresh,2685573,foundation,280,refrigerator,Cauliflower,Cauliflower,,ERS also has florets
+radish,Radish,produce,vegetable,Radish,Fresh,2747665,foundation,299,refrigerator,Radish,Radishes,,
+beet,Beet,produce,vegetable,,,2685576,foundation,274,refrigerator,Beet,Beets,,ERS has canned only: captured prices
+turnip,Turnip,produce,vegetable,,,2747674,foundation,307,refrigerator,,Turnips,,No ERS form: captured prices
+eggplant,Eggplant,produce,vegetable,,,2685577,foundation,284,refrigerator,Eggplant,Eggplant,,No ERS form: captured prices
+sweet-potato,Sweet potato,produce,vegetable,Sweet potatoes,Fresh,2346404,foundation,422,pantry,,"Potatoes, Sweet",,
+potato,Potato,produce,vegetable,Potatoes,Fresh,2346401,foundation,297,pantry,Potatoes,"Potatoes, Irish",,FDC: russet without skin
+butternut-squash,Butternut squash,produce,vegetable,Butternut squash,Fresh,2685570,foundation,303,pantry,Winter Squash,"Squash, Winter",,
+acorn-squash,Acorn squash,produce,vegetable,Acorn squash,Fresh,2685571,foundation,303,pantry,Winter Squash,"Squash, Winter",,
+sweet-corn,Sweet corn,produce,vegetable,Corn,Fresh,2710826,foundation,282,refrigerator,,"Corn, Sweet",,
+field-corn,Field corn,produce,grain,,,170288,sr_legacy,218,pantry,,,,"For meal; no ERS form, not on the planting chart"
+black-bean,Black bean,produce,legume,Black beans,Dried,173734,sr_legacy,333,pantry,,,,FDC: SR Legacy raw mature seeds; Foundation lists only a 0% moisture entry
+pinto-bean,Pinto bean,produce,legume,Pinto beans,Dried,175199,sr_legacy,333,pantry,,,,FDC: SR Legacy raw mature seeds; Foundation lists only a 0% moisture entry
+lima-bean,Lima bean,produce,legume,Lima beans,Dried,174252,sr_legacy,333,pantry,,"Beans, Lima;Beans, Pole Lima",,
+southern-pea,Southern pea,produce,legume,Blackeye peas,Dried,2644284,foundation,333,pantry,,"Peas, Southern",,"Dried, like the other beans; fresh southern peas have no ERS form"
+garden-pea,Garden pea,produce,vegetable,,,170419,sr_legacy,273,refrigerator,Peas (pods),"Peas, Garden",,ERS has canned and frozen only: captured prices. Minnesota measured peas in the pod
+peanut,Peanut,produce,legume,,,2515376,foundation,441,pantry,,,,No ERS form: captured prices
+watermelon,Watermelon,produce,fruit,Watermelon,Fresh,2747675,foundation,495,refrigerator,,Watermelons,,
+cantaloupe,Cantaloupe,produce,fruit,Cantaloupe,Fresh,746770,foundation,496,refrigerator,,Muskmelons,,
+topsoil-bag,"Topsoil, bagged",supply,soil,,,,,,,,,,
+topsoil-bulk,"Topsoil, bulk",supply,soil,,,,,,,,,,
+compost,Compost,supply,soil,,,,,,,,,,
+cedar-1x8x8,"Cedar board, 1x8, 8 ft",supply,lumber,,,,,,,,,,
+cedar-2x8x8,"Cedar board, 2x8, 8 ft",supply,lumber,,,,,,,,,,
+seed-packet,Seed packet,supply,seed,,,,,,,,,,

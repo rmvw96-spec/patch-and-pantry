@@ -164,15 +164,37 @@ Alembic revision. Money is **integer cents** (proposed; confirm in review).
   pinto-bean, lima-bean, southern-pea, garden-pea, peanut, watermelon, cantaloupe. Supplies:
   topsoil-bag, topsoil-bulk, compost, cedar-1x8x8, cedar-2x8x8, seed-packet.
 
+**Implementation notes** (decided while building, 2026-11-11):
+
+- The crosswalk creates all 44 national catalog items (owner's choice); loaders then fill what
+  their source has. Items with no ERS form get a `conversion_source` saying why.
+- The crosswalk also names each item's FoodKeeper storage location (`refrigerator` or `pantry`),
+  so the loader never guesses which storage time applies. Storage time is the range minimum,
+  preferring FoodKeeper's "from date of purchase" columns.
+- `catalog_item.storage_snapshot_id` (new) records the FoodKeeper snapshot; `snapshot_id` stays the
+  conversion (ERS) snapshot.
+- The P0-3 constraint capping `preparation_yield_factor` at 1 was wrong (ERS: dried beans 2.47,
+  collard greens 1.16); the same migration relaxes it to `> 0`.
+- ERS prices load as one public observation per item: `price_cents` rounds the price per pound,
+  so `raw_text` keeps the full-precision value. `observed_on` is the middle of the data year.
+- The FDC loader reads the zip as downloaded and detects Foundation or SR Legacy from its files.
+  The 2026-10-29 Foundation release is incomplete, so 2026-04-30 is used.
+- Raw ERS and FoodKeeper files are committed under `data/sources/`, byte for byte; FDC zips are
+  not (about 10 MB), and their URLs and hashes are in the seed-data README.
+- Each file is loaded in its own transaction inside a Prefect flow (`python -m app.seed`).
+
 **Acceptance criteria:**
 
-- [ ] Each loader run twice on the same file creates one snapshot and no duplicate rows.
-- [ ] The ERS loader's computed price per cup matches ERS's published column within 0.001 USD for
-      every row (see known answers).
-- [ ] Every catalog item has a `conversion_source`; stand-ins point at the item they borrow from.
-- [ ] A report command lists first-crop-set items missing a price, conversion, nutrients, or
-      storage time, matching the gaps in `design.md` ("ERS coverage").
-- [ ] Loader tests use fixtures only; no network in CI.
+- [x] Each loader run twice on the same file creates one snapshot and no duplicate rows.
+- [x] The ERS loader's computed price per cup matches ERS's published column within 0.001 USD for
+      every row, **except two pairs where ERS's published column is swapped** (Artichoke Fresh
+      and Canned, Lima beans Frozen and Dried); the test checks those pairs swap exactly (see
+      known answers).
+- [x] Every catalog item has a `conversion_source`; stand-ins point at the item they borrow from.
+- [x] A report command lists first-crop-set items missing a price, conversion, nutrients, or
+      storage time, matching the gaps in `design.md` ("ERS coverage"), plus tomato's storage
+      (FoodKeeper gives no number) and garden peas (now in the table).
+- [x] Loader tests use fixtures only; no network in CI.
 
 ## P0-5: Close out
 

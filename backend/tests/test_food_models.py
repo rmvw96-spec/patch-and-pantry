@@ -219,6 +219,26 @@ def test_one_household_per_user(session: Session, region: Region) -> None:
 # ---------- catalog and prices ----------
 
 
+@pytest.mark.parametrize("factor", [0.4586, 1.0, 1.16, 2.4692])  # ERS values
+def test_preparation_yield_factor_may_exceed_one(
+    session: Session, factor: float
+) -> None:
+    """Dried beans and cooked greens weigh more prepared than purchased."""
+    session.add(_produce(preparation_yield_factor=factor))
+    session.flush()
+
+
+@pytest.mark.parametrize("factor", [0, -0.5])
+def test_preparation_yield_factor_must_be_positive(
+    session: Session, factor: float
+) -> None:
+    _rejects(
+        session,
+        _produce(preparation_yield_factor=factor),
+        "ck_catalog_item_preparation_yield_factor",
+    )
+
+
 def test_national_slugs_are_unique(session: Session) -> None:
     """Without NULLS NOT DISTINCT, two national rows (both owner columns NULL) could share a slug."""
     session.add(_produce(slug="test-dup"))

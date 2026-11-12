@@ -59,7 +59,7 @@ Lay the food domain's foundations without disturbing the working Studies feature
 - [ ] Measure tokens per run with tracing on; update `design.md`'s budget section.
 - [x] Core tables: household with anonymous members, region, catalog item (produce and garden
       supplies), vendor, price observation, data snapshot.
-- [ ] Versioned seed snapshots through Prefect flows (run by hand at first): ERS prices and
+- [x] Versioned seed snapshots through Prefect flows (run by hand at first): ERS prices and
       conversions, the North Alabama planting calendar (unverified dates flagged), Minnesota
       yields, FoodKeeper storage times, FoodData Central nutrients for the first crop set.
 
@@ -184,3 +184,4 @@ match hand calculations.
 | 2026-11-11 | Model changed to DeepSeek-V3.2 on Foundry (Claude needs an enterprise Azure subscription). Phase 0 budget and deployment ticked. Model comparison deferred; photo capture and the Phase 4 judge check need a second model. |
 | 2026-11-11 | Model factory done (P0-1); live smoke run and token measurement (P0-2) next. |
 | 2026-11-11 | Smoke run done by the owner (P0-1 and the first P0-2 step); token measurement and prices wait for more Azure cost data. Core tables done (P0-3). |
+| 2026-11-11 | Seed loaders done (P0-4), with an owner-reviewed catalog crosswalk. |

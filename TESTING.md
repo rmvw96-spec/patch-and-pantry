@@ -7,10 +7,10 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 163 |
-| Backend statements measured | 570 | 1,082 |
-| Backend coverage | 92% | 95% |
-| Backend suite, local run | 16.4 s | 18.9 s |
+| Backend tests | 58 | 212 |
+| Backend statements measured | 570 | 1,434 |
+| Backend coverage | 92% | 96% |
+| Backend suite, local run | 16.4 s | 25.3 s |
 | Browser E2E specs | 6 files | 7 files (adds `studies.spec.ts`, 6 tests) |
 
 Local times are single runs on one development machine, not CI. Most of the backend increase is
@@ -57,6 +57,7 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Backend: model factory | `backend/tests/agents/test_models.py` | 20 | Spec parsing, the pinned DeepSeek profile under a custom deployment name, settings over `AZURE_OPENAI_*` variables, v1-endpoint check, no sampling settings, imports without Foundry settings (subprocess), `.env.local` gitignored |
 | Backend: live smoke check, offline | `backend/tests/agents/test_smoke.py` | 4 | The tool-call probe catches a tool call written as text; the smoke study reports usage and a trace ID that finds its span |
 | Backend: food planner tables | `backend/tests/test_food_models.py` | 33 | Real Postgres, one rolled-back transaction per test: user deletion cascades, CHECK constraints (calorie levels, percentages, dates, closed sets), catalog uniqueness and scope, public-dataset prices, snapshot immutability trigger, seeded region |
+| Backend: seed loaders | `backend/tests/test_seed.py`, fixtures in `backend/tests/fixtures/seed/` | 43 | Real Postgres on one connection rolled back at the end (sessions join with savepoints, so even the command line's commits are undone). Idempotency of every loader, ERS price per cup against every row of both committed ERS files (two swapped pairs checked), crosswalk catalog and stand-ins, coverage report, Prefect flow. Miniature FDC zips are built in the test |
 | Migrations | `.github/workflows/test-backend.yml` | 1 step | Every migration down to an empty database and back up, then `alembic check` |
 | Backend integration: studies API | `backend/tests/api/routes/test_studies.py` | 12 | Real Postgres, Redis, and Prefect test harness |
 | Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | In-memory exporter that snapshots spans at export time; no Phoenix needed |
@@ -183,3 +184,4 @@ for it.
 | 2026-11-11 | PR #9: Patch & Pantry branding; removed the template's release and `fastapi`-organization workflows; tracing service name is now `patch-and-pantry` | No change (Playwright 68 passed) | Fewer skipped workflow runs; Smokeshow removed (no coverage status on commits; report stays a downloadable artifact) |
 | 2026-11-11 | PR #11: model factory for DeepSeek-V3.2 on Foundry (P0-1), `SIM_MODEL` moved into `Settings` (default `demo`), offline-tested smoke check, secrets in `.env.local`. Checked that the profile and lazy-import tests fail with their bugs put back | +24 backend | ___ |
 | 2026-11-11 | PR #12: food planner core tables (P0-3) with CHECK constraints and a snapshot immutability trigger; migration round trip in CI. Checked the calorie and cascade tests fail with the constraint dropped in Postgres | +33 backend | Test Backend: one more step (migration round trip) |
+| 2026-11-11 | PR #13: seed loaders (P0-4). Tests caught bugs from three put-back defects (no idempotency, no stand-in links, wrong storage preference). Loading the real files found a wrong P0-3 constraint (yield factor capped at 1) and two swapped pairs in ERS's published column. A first version of the flow test committed to the dev database (a default argument captured the real session); fixed, and the stray rows removed | +49 backend | ___ |
