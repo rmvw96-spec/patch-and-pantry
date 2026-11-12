@@ -121,13 +121,14 @@ test.describe("Reading a typed list", () => {
   test("A price for one with a count is saved as the total", async ({
     page,
   }) => {
-    await readList(page, "large tomatoes $0.29 each (3)")
+    // A weight unit, so no piece weight is needed: CI loads no SR28 portions.
+    await readList(page, "onions $0.99/lb (3)")
     const draft = page.getByTestId("capture-draft")
-    await expect(draft).toContainText("3 large each")
-    // 0.29 x 3 = 0.87, multiplied by the capture code, not the model
-    await expect(draft.getByTestId("draft-price")).toContainText("$0.87")
+    await expect(draft).toContainText("3 lb")
+    // 0.99 x 3 = 2.97, multiplied by the capture code, not the model
+    await expect(draft.getByTestId("draft-price")).toContainText("$2.97")
     await expect(draft.getByTestId("draft-price")).toContainText(
-      "$0.29 each x 3",
+      "$0.99 a lb x 3",
     )
   })
 
