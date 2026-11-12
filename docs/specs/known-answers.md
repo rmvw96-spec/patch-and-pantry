@@ -63,8 +63,6 @@ are unverified as agronomy and must not be golden answers for recommendations.
 | Two members at 2,000 calories | 70 cups per week |
 | Member at 1,600 calories | 2.5 vegetable + 1.5 fruit cups per day |
 | Labor rate from the Minnesota study (48 hours, 365 sq ft) | 13.15 hours per 100 sq ft per season |
-| Cost per run, Sonnet 5.5, 7,500 input and 600 output tokens, no caching | 0.015 + 0.006 = 0.021 USD |
-| Same on Haiku 5.5 | 0.00075 + 0.0003 = 0.00105 USD |
 
 ## Behavioral cases (need owner confirmation)
 
