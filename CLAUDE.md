@@ -109,12 +109,16 @@ These come from `docs/design.md`; follow them in every change.
   golden answers until checked against Extension's ANR-1165 table.
 - **Photos are never stored.** CI fixture photos must be the owner's own or made up, because the
   repository is public.
-- **Claude on Microsoft Foundry:** build models through the factory (Phase 0); always pass
-  `profile=anthropic_model_profile(<canonical name>)` so Sonnet 5.5 keeps Pydantic AI's
-  forced-tool-use fallback whatever the deployment is called; never set `temperature`, `top_p`, or
-  `top_k`; construct clients lazily so importing `app` needs no Foundry settings.
+- **DeepSeek-V3.2 on Microsoft Foundry** is the only live model for now (Claude on Foundry needs
+  an enterprise Azure subscription). Build models through the factory (Phase 0) with
+  `OpenAIChatModel` and `AzureProvider`; always pass `profile=AzureProvider.model_profile(<canonical
+  name>)`, because a custom deployment name otherwise gets a generic OpenAI profile; pass the
+  endpoint and key from `Settings`, never through `AZURE_OPENAI_*` variables; never set
+  `temperature`, `top_p`, or `top_k`; construct clients lazily so importing `app` needs no Foundry
+  settings. DeepSeek-V3.2 reads text only, and no LLM-as-judge checks run until a second model
+  exists.
 - **No live model calls in PR CI.** Live calls run nightly only. The budget is 200 USD a month;
-  default to the smaller model and measure tokens with Phoenix.
+  measure tokens with Phoenix.
 
 ## Keeping the docs current
 

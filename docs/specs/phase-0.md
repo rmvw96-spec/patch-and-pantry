@@ -5,9 +5,9 @@ Design: [`../design.md`](../design.md). Known answers for tests: [`known-answers
 
 ## Goal
 
-Lay the food domain's data foundations and connect Claude on Microsoft Foundry, without changing
-any user-visible behavior. The Studies feature stays as it is (it is replaced at the start of
-Phase 1), so the platform's patterns remain covered by the existing tests.
+Lay the food domain's data foundations and connect DeepSeek-V3.2 on Microsoft Foundry, without
+changing any user-visible behavior. The Studies feature stays as it is (it is replaced at the start
+of Phase 1), so the platform's patterns remain covered by the existing tests.
 
 **Out of scope:** new pages, new agent behavior, the AMS weekly flow (Phase 2), automated NOAA
 pulls (the region row is seeded by hand from `design.md`), and anything that calls a live model
@@ -15,62 +15,73 @@ in CI.
 
 ## Prerequisites (owner)
 
-- [ ] Azure budget with email alerts at 50% and 90% of 200 USD.
-- [ ] Microsoft Foundry deployments of `claude-sonnet-5-5` and `claude-haiku-5-5`, ideally with
-      those exact deployment names.
-- [ ] Local `.env` values (never committed): `ANTHROPIC_FOUNDRY_RESOURCE` (or
-      `ANTHROPIC_FOUNDRY_BASE_URL`) and `ANTHROPIC_FOUNDRY_API_KEY`.
+- [x] Azure budget with email alerts at 50% and 90% of 200 USD.
+- [x] Microsoft Foundry deployment of DeepSeek-V3.2 (the model sold by Azure), named
+      `DeepSeek-V3.2`. Claude could not be deployed: it needs an Enterprise Agreement or MCA-E
+      subscription (see `design.md`, Model, budget, and integration).
+- [ ] Local `.env` values (never committed): `FOUNDRY_ENDPOINT` (the deployment's v1 endpoint,
+      ending in `/openai/v1/`, copied from the portal) and `FOUNDRY_API_KEY`.
 
 ## P0-1: Model factory
 
 **Where:** new `backend/app/agents/models.py`; `backend/app/core/config.py`;
-`backend/pyproject.toml`; `backend/app/agents/study_agent.py`.
+`backend/app/agents/study_agent.py`.
 
-- Add the Anthropic extra: `pydantic-ai-slim[openai,anthropic]`.
-- Add settings (read from `.env` by `Settings`): `ANTHROPIC_FOUNDRY_RESOURCE: str | None`,
-  `ANTHROPIC_FOUNDRY_BASE_URL: str | None`, `ANTHROPIC_FOUNDRY_API_KEY: SecretStr | None`, and
-  move `SIM_MODEL` into `Settings` (default `"demo"`; it is currently read from `os.environ` at
-  import time, which `CLAUDE.md` documents as a gotcha).
+- No new dependency: `OpenAIChatModel` and `AzureProvider` come with the `openai` extra already
+  installed.
+- Add settings (read from `.env` by `Settings`): `FOUNDRY_ENDPOINT: str | None`,
+  `FOUNDRY_API_KEY: SecretStr | None`, and move `SIM_MODEL` into `Settings` (default `"demo"`; it
+  is currently read from `os.environ` at import time, which `CLAUDE.md` documents as a gotcha).
+  Do not name them `AZURE_OPENAI_*`: `AzureProvider` reads those from the environment on its own,
+  and the app must pass its settings explicitly.
 - `build_model(spec: str) -> Model | str`:
 
   | `spec` | Returns |
   | --- | --- |
   | `demo` | The existing deterministic scripted model |
   | `test` | `"test"` (Pydantic AI `TestModel`) |
-  | `foundry:<canonical>` | `AnthropicModel(<canonical>, provider=..., profile=anthropic_model_profile(<canonical>))` |
+  | `foundry:<canonical>` | `OpenAIChatModel(<default deployment>, provider=AzureProvider(azure_endpoint=..., api_key=...), profile=AzureProvider.model_profile(<canonical>))` |
   | `foundry:<canonical>@<deployment>` | Same, but the request uses `<deployment>` as the model name |
   | anything else | `ValueError` naming the allowed forms |
 
-  `<canonical>` must be `claude-sonnet-5-5` or `claude-haiku-5-5`. The provider is
-  `AnthropicProvider(anthropic_client=AsyncAnthropicFoundry(resource=... or base_url=...,
-  api_key=...))`.
-- **Always pass `profile=anthropic_model_profile(<canonical>)`.** Pydantic AI looks profiles up by
-  model name; with a custom deployment name and no explicit profile, Sonnet 5.5 loses the
-  forced-tool-use fallback and every structured-output request fails (verified 2026-11-11 with
-  `anthropic` 2.8.0 and Pydantic AI 2.65).
+  `<canonical>` must be `deepseek-v3.2`; its default deployment name is `DeepSeek-V3.2`. Keep the
+  allowed models in one mapping (canonical name to default deployment) so a second model, such as
+  one for photo capture, is a one-line addition.
+- **Always pass `profile=AzureProvider.model_profile(<canonical>)`.** Pydantic AI looks profiles
+  up by deployment name; under a custom name, DeepSeek-V3.2 gets a generic OpenAI profile that
+  claims JSON-schema output, which the model does not support (verified 2026-11-11 with Pydantic
+  AI 2.65).
 - Never set `temperature`, `top_p`, or `top_k` in model settings.
 - **Build lazily.** Importing any `app` module must not require Foundry settings or construct a
   network client. Resolve the model when a run starts (`run_study` already accepts `model=`).
-  A `foundry:` spec with missing settings raises a clear error naming the three variables.
+  A `foundry:` spec with missing settings raises a clear error naming both variables.
 
 **Acceptance criteria:**
 
-- [ ] Unit tests (no network): `foundry:claude-sonnet-5-5` yields an `AnthropicModel` whose
-      profile has `supports_forced_tool_choice == False`; the same holds for
-      `foundry:claude-sonnet-5-5@my-custom-name`; `foundry:claude-haiku-5-5` yields `True`;
+- [ ] Unit tests (no network): `foundry:deepseek-v3.2` yields an `OpenAIChatModel` named
+      `DeepSeek-V3.2` whose profile has `supports_json_schema_output == False`; the same profile
+      holds for `foundry:deepseek-v3.2@my-custom-name`, whose requests use `my-custom-name`;
       `demo` and `test` behave as today; unknown specs raise `ValueError`.
 - [ ] A test asserts no model settings set `temperature`, `top_p`, or `top_k`.
+- [ ] A test asserts `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY` in the environment are
+      ignored: the provider uses the values from `Settings`.
 - [ ] The full suite passes with no Foundry variables set.
-- [ ] `scripts/smoke_foundry.py` (manual, never in CI) runs one tiny study through each Foundry
-      model with tracing on and prints the trace ID and token usage.
+- [ ] `scripts/smoke_foundry.py` (manual, never in CI) runs one tiny study through DeepSeek-V3.2
+      with tracing on and prints the trace ID and token usage. It first checks that the model
+      returns a real tool call, not tool-call text in a message (a reported Foundry issue), and
+      fails clearly if not.
 
 ## P0-2: Measure tokens
 
 - [ ] With `docker compose up -d phoenix` and `PHOENIX_COLLECTOR_ENDPOINT` set, run the smoke
-      script for both models.
+      script.
 - [ ] Record input, output, and cache tokens per run, plus the run's request count, in
-      `design.md`'s budget section; replace the assumed 7,500 / 600 figures and recompute the
-      cost table. Add a change-log row.
+      `design.md`'s budget section; replace the assumed 7,500 / 600 figures. Add a change-log row.
+- [ ] Derive the prices: run the smoke script a few times (enough tokens that the cost is not
+      rounded to zero), wait for Azure Cost Management to show the cost (up to a day), and divide
+      the input and output meter costs by the token totals from Phoenix. Record the rates in
+      `design.md` with the date and method, add the cost table, and compare it with the
+      unverified estimate of about 16 USD a month.
 
 ## P0-3: Core tables
 
@@ -146,7 +157,7 @@ Alembic revision. Money is **integer cents** (proposed; confirm in review).
 ## Gate
 
 Migrations round-trip; seed loads are repeatable and versioned; CI is green with scripted models
-and no Foundry settings; one live Foundry run per model appears in Phoenix with token counts, and
+and no Foundry settings; one live Foundry run appears in Phoenix with token counts, and
 `design.md`'s budget section uses measured numbers.
 
 ## Decisions for the owner's review

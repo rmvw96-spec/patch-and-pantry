@@ -8,7 +8,7 @@ and record plan changes in the [change log](#change-log).
 
 ```mermaid
 flowchart LR
-    p0["0 Foundations<br/>data model, seed data,<br/>Claude on Foundry, token counts"] --> p1["1 Best buy<br/>typed lists, cost per cup,<br/>shopping list"]
+    p0["0 Foundations<br/>data model, seed data,<br/>DeepSeek on Foundry, token counts"] --> p1["1 Best buy<br/>typed lists, cost per cup,<br/>shopping list"]
     p1 --> p2["2 Plus local<br/>board photos, farm-share value,<br/>sale prices"]
     p2 --> p3["3 Plus growing<br/>grow or buy, bed costs, labor,<br/>season plan"]
     p3 --> p4["4 Independence<br/>targets, actual, receipts,<br/>stage progress"]
@@ -23,7 +23,7 @@ flowchart LR
 ## How the phases are ordered
 
 - **Phase 0 builds nothing visible.** It lays the food domain's data foundations and connects
-  Claude on Foundry, while the existing Studies feature keeps the platform's patterns tested.
+  DeepSeek-V3.2 on Foundry, while the existing Studies feature keeps the platform's patterns tested.
 - **Phase 1 is the first useful release.** Best buy across stores is valuable even to someone who
   never grows or buys local, so it ships first. It also replaces the Studies feature.
 - **Each later phase adds one user setting,** and Phase 4 ties them together.
@@ -50,10 +50,11 @@ sets weekly hours (see [Decisions to settle](#decisions-to-settle)).
 Lay the food domain's foundations without disturbing the working Studies feature. Spec:
 [`specs/phase-0.md`](specs/phase-0.md).
 
-- [ ] Azure budget alert at 50% and 90% of 200 USD (owner, in the Azure portal).
-- [ ] Foundry deployments named exactly `claude-sonnet-5-5` and `claude-haiku-5-5` (owner).
-- [ ] Model factory: Foundry Claude through `AnthropicProvider`, alongside the existing demo and
-      scripted models; temperature never set.
+- [x] Azure budget alert at 50% and 90% of 200 USD (owner, in the Azure portal).
+- [x] Foundry deployment of DeepSeek-V3.2, the model sold by Azure, named `DeepSeek-V3.2` (owner).
+      Claude could not be deployed on a pay-as-you-go subscription.
+- [ ] Model factory: DeepSeek-V3.2 through `AzureProvider` with an explicit profile, alongside
+      the existing demo and scripted models; temperature never set.
 - [x] Phoenix tracing with OpenTelemetry (PR #7).
 - [ ] Measure tokens per run with tracing on; update `design.md`'s budget section.
 - [ ] Core tables: household with anonymous members, region, catalog item (produce and garden
@@ -88,7 +89,8 @@ week's produce, per cup, with a shopping list.
 - [ ] Agent instructions and tone guide written and reviewed.
 - [ ] Golden evals: extraction field by field; conversions and rankings exact; clarification
       cases; a trace check that every number came from a tool.
-- [ ] Run the golden set on Haiku and Sonnet per task; keep the cheaper model wherever it passes.
+- [ ] Model comparison per task: deferred until a second model is deployed (see `design.md`,
+      Open questions).
 - [ ] Nightly eval workflow against live models, comparing pass rates and run time with the last
       good run.
 
@@ -97,8 +99,8 @@ real shopping.
 
 ## Phase 2: Plus local
 
-- [ ] Market-board photo capture (Haiku first). Photos are never stored; CI fixtures are the
-      owner's own photos or made-up boards (public repository).
+- [ ] Market-board photo capture (needs a vision model; choose it before this phase). Photos are
+      never stored; CI fixtures are the owner's own photos or made-up boards (public repository).
 - [ ] Local price premium setting, applied through the Balanced preset.
 - [ ] Tool `value_farm_share`: contents priced at best alternative prices, minus unwanted items,
       minus pickup cost; value-to-cost ratio and break-even.
@@ -133,7 +135,7 @@ match hand calculations.
       stage 2 nutrient coverage from FoodData Central and FDA Daily Values.
 - [ ] Multi-year projection as the garden grows, with startup cost spread over its useful life.
 - [ ] Golden evals: coverage math exact; a judge check that explanations never use dieting
-      language.
+      language (needs a second model to judge).
 
 **Gate:** one full season tracked end to end, matching a hand calculation.
 
@@ -167,7 +169,7 @@ match hand calculations.
 | Name of the job record | "Run" instead of "Study" | Start of Phase 1 |
 | Money representation | Integer cents | Phase 0 spec review |
 | Eval pass threshold | Exact answers: every case passes 3 of 3 runs; extraction: at least 95% of fields correct | End of Phase 0 |
-| Model for each task | Haiku for capture; Sonnet for orchestration and judging, until the first comparison | First eval comparison in Phase 1 |
+| Model for each task | **Decided 2026-11-11:** DeepSeek-V3.2 for every text task; judging and comparisons wait for a second model | Settled for text; photo model before Phase 2 |
 | Hours per week for building | Needed before phases get dates | Start of Phase 0 |
 | App name | **Decided 2026-11-11:** Patch & Pantry; domain [patchandpantry.app](https://patchandpantry.app) | Settled |
 | Repository name | Rename `sim-agent` to `patch-and-pantry` on GitHub. Every file already uses the new name; the Compose project name is pinned to `patch-and-pantry` in `compose.yml`, so it does not depend on the folder name | Right after PR #9 merges |
@@ -179,3 +181,4 @@ match hand calculations.
 | 2026-11-11 | Migrated from the claude.ai roadmap. Tracing marked done (PR #7). Replacing the Studies feature moved from Phase 0 to the start of Phase 1, so the working end-to-end path stays tested until the first food tool exists. Added count units, agent instructions, and money representation. |
 | 2026-11-11 | App name settled: Patch & Pantry (patchandpantry.app). Repository rename scheduled for right after PR #9 merges. The Compose project name is pinned to `patch-and-pantry`; existing local `sim-agent_*` volumes need a one-time copy (see `development.md`). |
 | 2026-11-11 | Added the iPhone home-screen icon task to Phase 1. Removed the template's release and maintenance automation (release notes, release workflows, workflows that run only in the `fastapi` organization). |
+| 2026-11-11 | Model changed to DeepSeek-V3.2 on Foundry (Claude needs an enterprise Azure subscription). Phase 0 budget and deployment ticked. Model comparison deferred; photo capture and the Phase 4 judge check need a second model. |

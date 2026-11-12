@@ -44,7 +44,7 @@ Principles that constrain every design choice:
 | Photos | Not stored; only photos used as CI test fixtures are kept | No reason to hold users' images |
 | Foraging | Out of scope | Wild-plant identification is a safety risk; a possible collaboration later |
 | Terminology | "User settings" = choices a person makes; "feature flags" = code switches for unreleased features | Keeps the two from being confused |
-| Model | Claude Sonnet 5.5 on Microsoft Foundry; Claude Haiku 5.5 to be evaluated for extraction | See [Model, budget, and integration](#model-budget-and-integration) |
+| Model | DeepSeek-V3.2 on Microsoft Foundry for all text tasks, for now; a second model for photos and for judging evals later | Claude on Foundry needs an enterprise subscription; see [Model, budget, and integration](#model-budget-and-integration) |
 | Region | North Alabama, the Shoals area first; NOAA station Muscle Shoals 2 N | The owner's location; see [Region: North Alabama](#region-north-alabama) |
 | Name | Patch & Pantry; domain [patchandpantry.app](https://patchandpantry.app) (decided 2026-11-11) | The owner's choice; the domain is registered. Trademark clearance pending (see [Scaling notes](#scaling-notes)) |
 | Brand | Concept A: a soil-filled jar with a sprout. Colors: moss `#3F5230`, red clay `#B5653F`, paper `#F6F1E8`. Typeface: Bricolage Grotesque for the name, bundled with the app (no Google Fonts request), system sans-serif fallback. Assets in `frontend/public/assets/images/` (`patch-and-pantry-icon.svg`, a `-light` variant for dark mode, and `patch-and-pantry-app-icon.svg` for the favicon) | The owner's choice (decided 2026-11-11) |
@@ -312,53 +312,64 @@ as "typical sale price," never as the shelf price.
 
 ## Model, budget, and integration
 
-**Model choice.** The owner chose Claude Sonnet 5.5 on Microsoft Foundry. Recommendation: split
-by task and let the evals confirm it.
+**Model choice.** DeepSeek-V3.2 on Microsoft Foundry, for every text task, for now (decided
+2026-11-11). The first choice was Claude Sonnet 5.5 and Haiku 5.5 on Foundry, but Claude on Foundry
+[requires an Enterprise Agreement or MCA-E subscription](https://learn.microsoft.com/en-us/training/modules/claude-in-foundry/02-foundry);
+the owner's pay-as-you-go subscription cannot deploy it. DeepSeek-V3.2 was the model the owner's
+quota allowed. It reads text only, so photo capture (Phase 2) needs a second model.
 
-| Task | Starting model | Why |
+| Task | Model | Notes |
 | --- | --- | --- |
-| Price capture: typed lists, market-board photos, receipts | Claude Haiku 5.5 | [Built for extraction, classification, routing, subagent work](https://platform.claude.com/docs/en/models/haiku-5-5/overview); accepts images; available on Microsoft Foundry; about 1/20 of Sonnet's price |
-| Agent orchestration and explanations | Claude Sonnet 5.5 | Multi-step tool use and careful wording; try Haiku as a challenger |
-| LLM-as-judge in evals | Claude Sonnet 5.5 | A judge should be at least as strong as the model it grades |
+| Typed-list price capture | DeepSeek-V3.2 | |
+| Agent orchestration and explanations | DeepSeek-V3.2 | |
+| Market-board photos and receipts (Phase 2) | To be chosen | Needs image input; see [Open questions](#open-questions) |
+| LLM-as-judge in evals | Deferred | A model grading its own output is weak evidence; exact-answer evals and trace checks do not need a judge |
 | Pull request tests | Scripted models | No live calls |
 
-**Prices** (USD per million tokens; prompts up to 100,000 tokens):
+**Hosting and data.** The deployment is the [DeepSeek-V3.2](https://ai.azure.com/catalog/models/DeepSeek-V3.2)
+catalog entry, a model sold by Azure, not the Fireworks partner entry (FW-DeepSeek-V3.2). For models
+sold by Azure, Microsoft hosts the model, and prompts and completions are
+[not available to the model's maker or used to improve its models](https://learn.microsoft.com/en-us/azure/foundry/responsible-ai/openai/data-privacy).
+Microsoft may still store data to run the service and monitor for abuse.
 
-| Model | Input | Output | Cache read | Source |
-| --- | --- | --- | --- | --- |
-| Claude Sonnet 5.5 | 2.00 | 10.00 | 0.10 | Owner's Foundry pricing (5-minute cache write 2.50, 1-hour write 4.00); input and output match [Anthropic's model page](https://platform.claude.com/docs/en/models/sonnet-5-5/overview) |
-| Claude Haiku 5.5 | 0.10 | 0.50 | 0.01 | [Anthropic's model page](https://platform.claude.com/docs/en/models/haiku-5-5/overview); higher rates above 100,000 tokens |
+**Prices.** Not yet known. The portal showed no price before deployment, Azure publishes no list
+price for this model that we found, and third-party trackers disagree. Plan: work backwards from
+the first live runs (Phase 0, P0-2). Phoenix records the input and output tokens; Azure Cost
+Management shows the cost of the deployment's input and output token meters (cost data can lag by
+up to a day). Each rate is cost divided by tokens. Unverified estimate from an earlier
+conversation, to check against the measured rates: about 3 times GPT-5.4 nano's price, roughly
+16 USD a month at the planned usage.
 
-**Budget.** 200 USD for the first month. Assumed usage per agent run: about 3 model requests,
-roughly 7,500 input and 600 output tokens, before thinking tokens (both models think adaptively;
-thinking bills as output, so routine steps should use a lower effort setting). Caching the stable
-prefix (instructions and tool definitions; at least 512 tokens) roughly halves Sonnet's input cost
-within a run. **Replace these assumptions with measured token counts from Phoenix** (Phase 0).
+| Model | Input (USD per million tokens) | Output (USD per million tokens) | Source |
+| --- | --- | --- | --- |
+| DeepSeek-V3.2 | ___ | ___ | Derived from Azure Cost Management and Phoenix token counts (to record) |
 
-| Scenario | Sonnet 5.5 (USD) | Haiku 5.5 (USD) |
-| --- | --- | --- |
-| One run | about 0.02; about 0.01 with caching | about 0.001 |
-| One eval run: 20 golden cases x 5 trials | about 2; about 1 with caching | about 0.10 |
-| Nightly eval runs for 30 days | about 33 to 63 | about 3 |
+**Budget.** 200 USD a month. Assumed usage per agent run: about 3 model requests, roughly 7,500
+input and 600 output tokens. **Replace these assumptions with measured token counts from Phoenix**
+(Phase 0), then add the cost table once the prices are recorded.
 
 Guardrails: an Azure budget with alerts at 50% and 90%; the per-run usage cap the agent already
-has; pull request tests never call live models; a small model by default.
+has; pull request tests never call live models.
 
 **Integration notes for Pydantic AI (verified against the installed 2.65):**
 
-- Claude on Foundry needs the `anthropic` extra and an `AsyncAnthropicFoundry` client passed to
-  `AnthropicProvider` ([Pydantic AI docs](https://pydantic.dev/docs/ai/models/azure/)); the
-  endpoint form is `https://<resource>.services.ai.azure.com/anthropic/`.
-- Sonnet 5.5 [rejects forced tool use](https://platform.claude.com/docs/en/models/sonnet-5-5/overview).
-  Pydantic AI's profile for `claude-sonnet-5-5` sets `supports_forced_tool_choice=False`, so
-  output tools fall back to letting the model choose. The profile is looked up **by model name**,
-  so a custom deployment name loses the fallback and every structured-output request fails.
-  The model factory must pass `profile=anthropic_model_profile(<canonical name>)` explicitly
-  (verified 2026-11-11 with `anthropic` 2.8.0); naming deployments `claude-sonnet-5-5` and
-  `claude-haiku-5-5` is still recommended.
-- Leave `temperature`, `top_p`, and `top_k` unset; non-default values are rejected.
-- Azure's Batch API gives 50% off but returns within 24 hours: useful for single-call judge or
-  extraction evals, not multi-step agent runs.
+- DeepSeek on Foundry uses `OpenAIChatModel` with `AzureProvider` (the `openai` extra, already
+  installed). `AzureProvider` accepts a v1 endpoint, a path ending in `/openai/v1/`, without an
+  API version; the owner copies the exact endpoint from the deployment's page in the portal.
+- The model profile is looked up **by deployment name**. The name `DeepSeek-V3.2` gets the DeepSeek
+  profile (no JSON-schema or JSON-object output, 128,000-token context). Any other name falls back
+  to a generic OpenAI profile that claims JSON-schema output, so structured-output requests may
+  use a format the model does not support. The model factory passes
+  `profile=AzureProvider.model_profile("deepseek-v3.2")` explicitly, whatever the deployment is
+  called (verified 2026-11-11, offline).
+- `AzureProvider` falls back to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and
+  `OPENAI_API_VERSION` environment variables when arguments are missing. The app reads its own
+  settings and always passes them explicitly, so a stray environment variable cannot redirect calls.
+- Tool calling: the catalog lists function calling as supported, but one
+  [report](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/-/4477549) describes tool
+  calls returned as plain text on Foundry. The Phase 0 smoke run checks this first.
+- Leave sampling settings (`temperature`, `top_p`, `top_k`) unset, so runs use the provider's
+  defaults and stay comparable across models.
 
 ## Privacy and personal data
 
@@ -424,6 +435,12 @@ Research items still open:
 - [ ] The advertised-versus-everyday price gap (measure from captures).
 - [ ] Whether fresh or local produce lasts longer than FoodKeeper's store-bought times.
 - [ ] Measured token counts per run (Phoenix), then update the budget section.
+- [ ] DeepSeek-V3.2 prices, derived from the first live runs (cost divided by tokens).
+- [ ] **Model for photo capture**, before Phase 2: DeepSeek-V3.2 reads text only. Options include
+  a vision-capable model sold by Azure within the pay-as-you-go quota, or Claude through
+  Anthropic's own API (outside Azure, so outside the Azure budget).
+- [ ] **Second model for LLM-as-judge checks** (the dieting-language judge in Phase 4, and any
+  model comparison). Likely the same answer as photo capture.
 - [x] App name: Patch & Pantry (decided 2026-11-11).
 
 Specification gaps to close in phase specs:
@@ -443,3 +460,4 @@ Specification gaps to close in phase specs:
 | 2026-11-11 | Migrated to the repository from the planning conversation and the claude.ai design doc; research findings folded into their topics. Added the explicit-profile requirement for the Foundry model factory and the 2025-2030 guideline cups seed file. |
 | 2026-11-11 | Named the app Patch & Pantry (domain patchandpantry.app). Trademark clearance added to the pre-launch legal review; a Keller, Texas, farmstand uses the same name. |
 | 2026-11-11 | Added the Brand decision (concept A jar-and-sprout icon, moss, red clay, and paper colors, Bricolage Grotesque, bundled with the app so visitors make no request to Google) and replaced the template's FastAPI branding in the app. |
+| 2026-11-11 | Model changed to DeepSeek-V3.2 on Foundry (sold by Azure) for all text tasks: Claude on Foundry needs an Enterprise Agreement or MCA-E subscription, and the owner's is pay-as-you-go. LLM-as-judge checks and model comparisons deferred until a second model; photo-capture model added to open questions. Claude prices and cost table removed until DeepSeek prices are recorded. |
