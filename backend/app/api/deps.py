@@ -68,7 +68,7 @@ RedisDep = Annotated[redis.Redis, Depends(get_redis)]
 
 
 def get_study_model() -> models.Model | str | None:
-    """Model for the study agents. None means each agent's configured default (Azure OpenAI).
+    """Model for the study agent. None means the model built from settings.SIM_MODEL.
 
     Tests replace this dependency (app.dependency_overrides) to inject Pydantic AI's FunctionModel
     or TestModel, so API tests never depend on a live model or on context variables.

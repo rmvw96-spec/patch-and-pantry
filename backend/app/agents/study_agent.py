@@ -2,10 +2,9 @@
 Dummy study agent: a stand-in for an agentic "describe a problem -> simulate -> report" flow.
 
 Practice code for a portfolio project. Mirrors the shape of the stack:
-Pydantic AI agents on Azure OpenAI, a simulator behind a dependency.
+Pydantic AI agents on Microsoft Foundry, a simulator behind a dependency.
 """
 
-import os
 from dataclasses import dataclass
 from typing import TypedDict
 
@@ -14,18 +13,12 @@ from pydantic_ai import Agent, ModelRetry, RunContext, models
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.usage import UsageLimits
 
-# defer_model_check=True lets this module import in CI with no Azure credentials configured.
-# SIM_MODEL=demo swaps in a deterministic scripted model (app/agents/demo_model.py), for running
-# the platform locally, in E2E tests, or in nightly runs without an LLM API key.
-PRODUCTION_MODEL = os.environ.get("SIM_MODEL", "azure:gpt-4o")
+from app.agents.models import build_model
+from app.core.config import settings
 
-
-def _model_for(role: str) -> models.Model | str:
-    if PRODUCTION_MODEL != "demo":
-        return PRODUCTION_MODEL
-    from app.agents.demo_model import demo_reviewer_model, demo_study_model
-
-    return demo_study_model() if role == "study" else demo_reviewer_model()
+# The agents have no model of their own: each run builds one from settings.SIM_MODEL when it
+# starts (app/agents/models.py), so importing this module needs no model settings. Tests replace
+# the model with Agent.override, which takes precedence over the model passed to a run.
 
 
 # Hard cap per study, so a looping agent cannot burn budget forever
@@ -69,15 +62,11 @@ class StudyFailed(Exception):
 
 
 reviewer_agent = Agent(
-    _model_for("reviewer"),
-    defer_model_check=True,
     output_type=str,
     instructions="Review a simulation summary for physical plausibility in one sentence.",
 )
 
 study_agent = Agent(
-    _model_for("study"),
-    defer_model_check=True,
     deps_type=SimClient,
     output_type=StudyResult,
     retries=2,
@@ -109,14 +98,22 @@ async def run_simulation(
 async def request_review(ctx: RunContext[SimClient], summary: str) -> str:
     """Ask the reviewer agent to sanity-check a result summary."""
     # usage=ctx.usage makes the sub-agent's requests count toward the same usage limits.
-    result = await reviewer_agent.run(summary, usage=ctx.usage)
+    result = await reviewer_agent.run(
+        summary, usage=ctx.usage, model=build_model(settings.SIM_MODEL, role="reviewer")
+    )
     return result.output
 
 
 async def run_study(
     prompt: str, sim: SimClient, model: models.Model | str | None = None
 ) -> StudyResult:
-    """Production entry point, called by the API handler or a Prefect task."""
+    """Production entry point, called by the API handler or a Prefect task.
+
+    ``model`` replaces the configured model for the study agent (API tests inject one); by
+    default it is built from settings.SIM_MODEL.
+    """
+    if model is None:
+        model = build_model(settings.SIM_MODEL, role="study")
     try:
         result = await study_agent.run(
             prompt,

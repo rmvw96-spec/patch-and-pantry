@@ -1,16 +1,16 @@
 # Testing
 
 A living record of this repository's test layers, CI timings, and changes to them. Started
-2026-11-03; last updated 2026-11-09.
+2026-11-03; last updated 2026-11-11.
 
 ## Current snapshot
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 106 |
-| Backend statements measured | 570 | 866 |
-| Backend coverage | 92% | 93% |
-| Backend suite, local run | 16.4 s | 20.4 s |
+| Backend tests | 58 | 130 |
+| Backend statements measured | 570 | 943 |
+| Backend coverage | 92% | 94% |
+| Backend suite, local run | 16.4 s | 18.7 s |
 | Browser E2E specs | 6 files | 7 files (adds `studies.spec.ts`, 6 tests) |
 
 Local times are single runs on one development machine, not CI. Most of the backend increase is
@@ -54,6 +54,8 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Static checks | `.pre-commit-config.yaml` | 14 hooks | Ruff, strict mypy and `ty` on `backend/app`, Biome, typos, `zizmor`, client generation |
 | Backend unit: simulator | `backend/tests/agents/test_simulator.py` | 9 | Known answers plus physics invariants |
 | Backend: agent logic, no live LLM | `backend/tests/agents/test_study_agent.py`, `test_demo_model.py` | 16 | `TestModel` / `FunctionModel`; live model calls blocked globally |
+| Backend: model factory | `backend/tests/agents/test_models.py` | 20 | Spec parsing, the pinned DeepSeek profile under a custom deployment name, settings over `AZURE_OPENAI_*` variables, v1-endpoint check, no sampling settings, imports without Foundry settings (subprocess), `.env.local` gitignored |
+| Backend: live smoke check, offline | `backend/tests/agents/test_smoke.py` | 4 | The tool-call probe catches a tool call written as text; the smoke study reports usage and a trace ID that finds its span |
 | Backend integration: studies API | `backend/tests/api/routes/test_studies.py` | 12 | Real Postgres, Redis, and Prefect test harness |
 | Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | In-memory exporter that snapshots spans at export time; no Phoenix needed |
 | Backend: study job tracing | `backend/tests/test_study_job_tracing.py` | 4 | `execute_study` against real Postgres and the Prefect test harness |
@@ -177,3 +179,4 @@ for it.
 | 2026-11-03 | PR #4: Studies page with browser E2E in demo mode; idempotency keys that work over plain HTTP | +6 E2E | ___ |
 | 2026-11-09 | PR #7: OpenTelemetry tracing of study jobs to a local Phoenix | +11 backend | ___ |
 | 2026-11-11 | PR #9: Patch & Pantry branding; removed the template's release and `fastapi`-organization workflows; tracing service name is now `patch-and-pantry` | No change (Playwright 68 passed) | Fewer skipped workflow runs; Smokeshow removed (no coverage status on commits; report stays a downloadable artifact) |
+| 2026-11-11 | PR #11: model factory for DeepSeek-V3.2 on Foundry (P0-1), `SIM_MODEL` moved into `Settings` (default `demo`), offline-tested smoke check, secrets in `.env.local`. Checked that the profile and lazy-import tests fail with their bugs put back | +24 backend | ___ |

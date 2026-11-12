@@ -6,6 +6,7 @@ Every test runs offline in milliseconds, because conftest.py blocks real model r
 """
 
 import pytest
+from pydantic import SecretStr
 from pydantic_ai import (
     ModelResponse,
     RetryPromptPart,
@@ -26,6 +27,7 @@ from app.agents.study_agent import (
     run_study,
     study_agent,
 )
+from app.core.config import settings
 
 pytestmark = pytest.mark.anyio
 
@@ -58,11 +60,13 @@ def was_rejected(part) -> bool:
 
 
 async def test_safety_switch_blocks_live_model_calls(fake_sim, monkeypatch):
-    """With no override, the agent would call Azure OpenAI; conftest makes that fail loudly instead."""
-    # Fake Azure settings so the provider can be built; the switch must be what stops the request.
-    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.invalid")
-    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "test-key-not-real")
-    monkeypatch.setenv("OPENAI_API_VERSION", "2024-10-21")
+    """With a live model configured, conftest's switch makes the request fail loudly instead."""
+    # Fake Foundry settings so the model can be built; the switch must be what stops the request.
+    monkeypatch.setattr(settings, "SIM_MODEL", "foundry:deepseek-v3.2")
+    monkeypatch.setattr(
+        settings, "FOUNDRY_ENDPOINT", "https://example.invalid/openai/v1/"
+    )
+    monkeypatch.setattr(settings, "FOUNDRY_API_KEY", SecretStr("test-key-not-real"))
     with pytest.raises(RuntimeError, match="ALLOW_MODEL_REQUESTS"):
         await run_study("Optimize case A", fake_sim)
     assert fake_sim.calls == []

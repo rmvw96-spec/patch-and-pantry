@@ -5,6 +5,7 @@ from pydantic import (
     EmailStr,
     HttpUrl,
     PostgresDsn,
+    SecretStr,
     computed_field,
     field_validator,
     model_validator,
@@ -14,8 +15,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        # Use top level .env file (one level above ./backend/)
-        env_file="../.env",
+        # Top-level files, one level above ./backend/. .env is committed (shared, non-secret
+        # defaults); .env.local is gitignored and overrides it, for secrets such as FOUNDRY_API_KEY.
+        env_file=("../.env", "../.env.local"),
         env_ignore_empty=True,
         extra="ignore",
     )
@@ -41,6 +43,14 @@ class Settings(BaseSettings):
 
     # Redis holds short-lived job coordination state (idempotency keys for study submissions).
     REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Model for the agents (see app/agents/models.py): "demo" (scripted, no key), "test", or
+    # "foundry:deepseek-v3.2[@<deployment>]". Live models run only when set explicitly.
+    SIM_MODEL: str = "demo"
+    # Microsoft Foundry deployment for "foundry:" models: the v1 endpoint from the deployment's page
+    # (ending in /openai/v1/) and its key. Read only when a run uses a Foundry model.
+    FOUNDRY_ENDPOINT: str | None = None
+    FOUNDRY_API_KEY: SecretStr | None = None
 
     # Toy pipeline simulator used by the study agent (see app/agents/simulator.py).
     SIM_MAX_INLET_BAR: float = 80.0

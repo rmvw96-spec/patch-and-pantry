@@ -359,12 +359,15 @@ has; pull request tests never call live models.
 - The model profile is looked up **by deployment name**. The name `DeepSeek-V3.2` gets the DeepSeek
   profile (no JSON-schema or JSON-object output, 128,000-token context). Any other name falls back
   to a generic OpenAI profile that claims JSON-schema output, so structured-output requests may
-  use a format the model does not support. The model factory passes
-  `profile=AzureProvider.model_profile("deepseek-v3.2")` explicitly, whatever the deployment is
-  called (verified 2026-11-11, offline).
+  use a format the model does not support. Passing `AzureProvider.model_profile("deepseek-v3.2")`
+  does not fix it (that partial profile omits the JSON-output flags and is merged on top), so the
+  model factory pins the full profile of the default deployment name, whatever the deployment is
+  called (verified 2026-11-11, offline, by a unit test).
 - `AzureProvider` falls back to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and
   `OPENAI_API_VERSION` environment variables when arguments are missing. The app reads its own
-  settings and always passes them explicitly, so a stray environment variable cannot redirect calls.
+  settings (`FOUNDRY_ENDPOINT`, `FOUNDRY_API_KEY`), always passes them explicitly, and accepts only
+  a v1 endpoint, the one form for which `AzureProvider` ignores `OPENAI_API_VERSION`.
+- Secrets go in `.env.local`, which is gitignored and overrides `.env`; `.env` is committed.
 - Tool calling: the catalog lists function calling as supported, but one
   [report](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/-/4477549) describes tool
   calls returned as plain text on Foundry. The Phase 0 smoke run checks this first.
@@ -461,3 +464,4 @@ Specification gaps to close in phase specs:
 | 2026-11-11 | Named the app Patch & Pantry (domain patchandpantry.app). Trademark clearance added to the pre-launch legal review; a Keller, Texas, farmstand uses the same name. |
 | 2026-11-11 | Added the Brand decision (concept A jar-and-sprout icon, moss, red clay, and paper colors, Bricolage Grotesque, bundled with the app so visitors make no request to Google) and replaced the template's FastAPI branding in the app. |
 | 2026-11-11 | Model changed to DeepSeek-V3.2 on Foundry (sold by Azure) for all text tasks: Claude on Foundry needs an Enterprise Agreement or MCA-E subscription, and the owner's is pay-as-you-go. LLM-as-judge checks and model comparisons deferred until a second model; photo-capture model added to open questions. Claude prices and cost table removed until DeepSeek prices are recorded. |
+| 2026-11-11 | Model factory built (P0-1). Corrected the profile note: the partial `AzureProvider.model_profile` profile does not override a custom deployment name's generic profile, so the factory pins the default name's full profile. Secrets moved to a gitignored `.env.local`. |
