@@ -7,7 +7,7 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 545 |
+| Backend tests | 58 | 561 |
 | Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
 | Backend suite, local run | 16.4 s | 21.4 s |
@@ -247,3 +247,4 @@ for it.
 | 2026-11-12 | Dogfooding fixes, prices: per-unit prices with a count are multiplied out to the total; questions can be dropped; unsaved lines listed; unit prices in the price book. Checked that skipping the multiplication fails two capture tests | +10 backend, +2 E2E | ___ |
 | 2026-11-12 | Catalog expanded to every ERS row (124 items), juices by volume, items sharing an FDC food. Tests check every ERS row is mapped once (except three preparation variants), every ERS juice row's published price per cup, volume units and wrong measures, juices at capture and in best buy, and the shared-food load. Checked that mapping each FDC id to one slug fails the shared-food test. The catalog list is sorted in Python (case-insensitive), so the order no longer depends on the database collation | +35 backend | ___ |
 | 2026-11-12 | Dogfooding fix: "Read the list again" leaves out the lines the user dropped or unchecked, instead of asking about them again. Checked that sending the original text fails the new test | +1 E2E | ___ |
+| 2026-11-12 | Dogfooding: name matching (word order, possessives, filler in item names, broader names, form words kept). Tests use the owner's market list phrasings. Checked that five put-back bugs each fail a test: no form guard, order-sensitive names, filler always dropped, broader names never stopping at a named item, possessives kept | +16 backend | ___ |
