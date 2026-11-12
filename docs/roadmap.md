@@ -84,7 +84,7 @@ week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/
 - [ ] Typed-list capture: the agent turns "onions 3 lb bag 2.99" into a price observation and asks
       when a unit is unclear instead of guessing.
 - [ ] Tool `normalize_price`: any unit to grams of the edible part, then to cups.
-- [ ] Tool `compare_best_buy`: cost per cup across stores, with spoilage from FoodKeeper minimums.
+- [ ] Tool `compare_best_buy`: cost per cup across stores, with spoilage from FoodKeeper range midpoints, and a per-item "cook and freeze extras" setting.
 - [ ] Pages: price capture, price book, best-buy comparison with its trade-off table, printable
       shopping list.
 - [ ] iPhone home-screen icon: replace the stopgap `apple-touch-icon.png` (the app icon with its
@@ -191,3 +191,4 @@ match hand calculations.
 | 2026-11-11 | Seed loaders done (P0-4), with an owner-reviewed catalog crosswalk. |
 | 2026-11-11 | Phase 0 closed out (P0-5): gate met except the budget section, moved to Phase 1. Phase 1 spec drafted for review. Decisions table updated: money and repository name settled; the job record name and eval threshold move to the Phase 1 spec. |
 | 2026-11-11 | Repository secrets for the nightly evals added by the owner. Phases stay undated (no hours per week needed). |
+| 2026-11-11 | Spoilage decided (Phase 1 D4: midpoint plus cook-and-freeze setting). Added a note to explore suggesting smaller purchases later in Phase 1. |

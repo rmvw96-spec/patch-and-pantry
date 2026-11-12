@@ -23,7 +23,7 @@ vision model), growing (Phase 3), independence progress (Phase 4), presets other
       can be committed (no names or addresses).
 - [x] **GitHub Actions secrets** `FOUNDRY_ENDPOINT` and `FOUNDRY_API_KEY` for the nightly eval
       workflow (repository settings; never in a file).
-- [ ] Answers to the decisions at the end of this spec, especially **spoilage** (D4).
+- [ ] Answers to the decisions at the end of this spec (D4, spoilage, is decided).
 
 ## P1-1: Agent runs replace studies
 
@@ -152,19 +152,34 @@ def normalize_price(
 - Prices count when they are the household's own and observed within the last 30 days (D5).
   ERS averages appear as a separate, labeled reference row: a national average, not a store.
 - **Spoilage** (design: "storage life and how fast the household uses the item"): usable cups =
-  min(cups bought, cups used per day x storage days), with storage days from FoodKeeper (D4).
+  min(cups bought, cups used per day x storage days). Storage days are the **midpoint** of the
+  item's FoodKeeper range (D4). The loader stores the range maximum next to the minimum
+  (`catalog_item.storage_days_max`, a migration and a new FoodKeeper snapshot).
+- **Cook and freeze extras** (D4): a per-item household setting (`household_item_setting`:
+  household, catalog item, `freeze_extras`). When it is on, the household cooks the item on
+  purchase and freezes what it will not eat within a few days, so storage days are the freezer
+  midpoint of FoodKeeper's "Leftovers, without meat" entry (ID 174, "such as cooked vegetables":
+  1 to 2 months, 45 days). The loader records entry 174 from the same FoodKeeper snapshot. The
+  row in the table carries a note: "assumes you freeze what you won't eat in 3-4 days" (entry
+  174's refrigerator range).
 
-**Worked example of the spoilage rule** (FoodKeeper minimums, as `design.md` specifies today):
+**Worked example of the spoilage rule** (range midpoints; collards and kale at ERS 2023 prices):
 
-| Purchase | Use | Keeps | Usable cups | Spoiled | Cost per usable cup |
-| --- | --- | --- | --- | --- | --- |
-| Onions, 3 lb, 2.99 | 2 cups/week | 30 days | 7.66 of 7.66 | 0% | 0.39 |
-| Collards, 1 lb, 2.48 | 3 cups/week | 1 day | 0.43 of 4.05 | 89% | 5.79 |
-| Kale, 1 lb, 2.99 | 3 cups/week | 3 days | 1.29 of 3.66 | 65% | 2.33 |
+| Purchase | Use | Setting | Keeps | Usable cups | Spoiled | Cost per usable cup |
+| --- | --- | --- | --- | --- | --- | --- |
+| Onions, 3 lb, 2.99 | 2 cups/week | - | 30 days (1 month) | 7.66 of 7.66 | 0% | 0.39 |
+| Collards, 1 lb, 2.48 | 3 cups/week | - | 2.5 days (1-4) | 1.07 of 4.05 | 74% | 2.31 |
+| Collards, 1 lb, 2.48 | 3 cups/week | freeze extras | 45 days (1-2 months) | 4.05 of 4.05 | 0% | 0.61 |
+| Kale, 1 lb, 3.57 | 3 cups/week | - | 4 days (3-5) | 1.71 of 3.66 | 53% | 2.08 |
+| Kale, 1 lb, 3.57 | 3 cups/week | freeze extras | 45 days (1-2 months) | 3.66 of 3.66 | 0% | 0.97 |
 
-FoodKeeper's minimum for "Greens" is 1 day (range 1 to 4), so the rule makes leafy greens look
-nine times more expensive than their shelf price per cup. This is the most consequential choice
-in Phase 1; see D4.
+Why not other rules (worked through with the owner, 2026-11-11): FoodKeeper minimums gave
+collards 89% spoilage (5.79 per usable cup) and turnip greens 82% (6.93); the range maximum still
+left collards at 58% (1.45). Cooking on purchase without freezing barely helps, because cooked
+leftovers keep 3 to 4 days, about as long as raw greens (collards 1.65, kale 2.38, spinach 3.00).
+Adding raw and cooked days together was rejected: FoodKeeper does not say cooking resets the
+clock, so the numbers would rest on an unsourced food-safety claim. FoodKeeper has no
+cooked-greens entries; entry 174 is its general one for cooked vegetables.
 
 **Acceptance criteria:**
 
@@ -211,6 +226,16 @@ installed yet and would be a new dependency), `.github/workflows/nightly-evals.y
 - [ ] `uv run python -m evals --cases extraction` runs locally against `SIM_MODEL`.
 - [ ] The nightly workflow passes zizmor and pins actions by SHA, like the others.
 
+## Later in Phase 1: explore smaller purchases
+
+Not a task yet; explore after P1-6 works. The spoilage examples show the purchase size is often
+the problem: 1 lb of collards is about 4 cups, more than a week's use at 3 cups a week, so any rule
+that respects storage life spoils the rest. `compare_best_buy` could suggest a smaller purchase
+("buy 1/2 lb") when the household cannot use a whole unit before it spoils. Questions to settle
+first: which purchase sizes a store or market actually sells (bunches, bags, loose by weight), and
+whether the suggestion belongs in the table or the explanation. Write it up as a task, or park it
+in `design.md`, after the owner reviews the idea.
+
 ## P1-10: iPhone home-screen icon
 
 Replace the stopgap `apple-touch-icon.png` with a purpose-made 180 px full-bleed icon and check it
@@ -229,7 +254,7 @@ uses measured token counts and derived prices.
 | D1 | Name of the job record | `agent_run` ("run") |
 | D2 | Eval pass threshold | Exact answers 3 of 3 runs; extraction at least 95% of fields |
 | D3 | A bunch with no measured weight | The agent asks; the owner may record measured bunch weights as catalog portions |
-| D4 | Storage days for spoilage | FoodKeeper **minimum**, as `design.md` says, which gives greens 89% spoilage at weekly shopping (table above). Alternatives: the range midpoint (greens 2.5 days), or the maximum (4 days) |
+| D4 | Storage days for spoilage | **Decided 2026-11-11:** FoodKeeper range **midpoint**, plus a per-item "cook and freeze extras" household setting that uses the cooked-leftovers freezer midpoint (45 days). See P1-6 |
 | D5 | Which prices count | The household's own, from the last 30 days; ERS averages shown as a labeled reference row only |
 | D6 | Retiring Studies | Delete the code (git history keeps it), after the run equivalents of its tests pass |
 | D7 | Matching typed item names | Catalog names plus a reviewed alias list; no fuzzy matching |
