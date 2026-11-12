@@ -28,7 +28,7 @@ FOUNDRY_MODELS: dict[str, str] = {
 
 FOUNDRY_PREFIX = "foundry:"
 
-Role = Literal["study", "reviewer", "capture"]
+Role = Literal["study", "reviewer", "capture", "best_buy"]
 
 
 class ModelConfigError(ValueError):
@@ -95,6 +95,7 @@ def build_model(spec: str, role: Role = "study") -> models.Model | str:
     """Build the model for one agent. ``role`` matters only for ``demo``, which scripts each agent."""
     if spec == "demo":
         from app.agents.demo_model import (
+            demo_best_buy_model,
             demo_capture_model,
             demo_reviewer_model,
             demo_study_model,
@@ -104,6 +105,7 @@ def build_model(spec: str, role: Role = "study") -> models.Model | str:
             "study": demo_study_model,
             "reviewer": demo_reviewer_model,
             "capture": demo_capture_model,
+            "best_buy": demo_best_buy_model,
         }
         return demos[role]()
     if spec == "test":

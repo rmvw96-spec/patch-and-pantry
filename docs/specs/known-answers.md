@@ -47,6 +47,18 @@ so the published column is the likely error. The app computes from the inputs:
 | Potatoes, 3 medium for 1.50 | 576.0 | 4.7994 | 0.3125 |
 | Sweet corn, 4 medium ears for 2.00 | 612.0 | 3.7087 | 0.5393 |
 
+## Best buy with spoilage (compare_best_buy, P1-6)
+
+Range midpoints; "freeze extras" uses cooked leftovers' freezer range (30 to 60 days, 45).
+
+| Purchase | Use | Setting | Keeps | Usable cups | Spoiled | Cost per usable cup |
+| --- | --- | --- | --- | --- | --- | --- |
+| Onions, 3 lb, 2.99 | 2 cups/week | - | 30 days | 7.66 of 7.66 | 0% | 0.39 |
+| Collards, 1 lb, 2.48 | 3 cups/week | - | 2.5 days | 1.07 of 4.05 | 74% | 2.31 |
+| Collards, 1 lb, 2.48 | 3 cups/week | freeze extras | 45 days | 4.05 of 4.05 | 0% | 0.61 |
+| Kale, 1 lb, 3.57 (ERS, no store price) | 3 cups/week | - | 4 days | 1.71 of 3.66 | 53% | 2.08 |
+| Kale, 1 lb, 3.57 | 3 cups/week | freeze extras | 45 days | 3.66 of 3.66 | 0% | 0.97 |
+
 ## Weight of one piece (SR28, P1-3)
 
 Purchased grams = edible grams / (1 - refuse / 100). Source: USDA SR28 `WEIGHT.txt` and

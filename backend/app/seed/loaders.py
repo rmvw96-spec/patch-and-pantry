@@ -27,6 +27,7 @@ from app.models import (
     Region,
     Season,
     SnapshotSource,
+    StorageReference,
 )
 from app.seed import sources
 from app.seed.crosswalk import (
@@ -273,7 +274,16 @@ def load_garden_yields(
 # ---------- USDA FSIS FoodKeeper ----------
 
 _DAYS_PER = {"Days": 1, "Weeks": 7, "Months": 30, "Years": 365}
-_STORAGE_COLUMN = {"refrigerator": "Refrigerate", "pantry": "Pantry"}
+_STORAGE_COLUMN = {
+    "refrigerator": "Refrigerate",
+    "pantry": "Pantry",
+    "freezer": "Freeze",
+}
+# FoodKeeper's "Leftovers, without meat, fish, poultry, or egg (such as cooked vegetables...)":
+# the range "cook and freeze extras" uses (Phase 1 spec, D4).
+FOODKEEPER_COOKED_LEFTOVERS = 174
+# Bump when the loader starts reading more from the same file, so a reload is a new snapshot.
+FOODKEEPER_LOADER_VERSION = "2: range maximum and cooked leftovers"
 
 
 def _sheet(workbook: dict[str, Any], name: str) -> list[dict[str, Any]]:
@@ -282,15 +292,51 @@ def _sheet(workbook: dict[str, Any], name: str) -> list[dict[str, Any]]:
     return [{k: v for cell in row for k, v in cell.items()} for row in sheet["data"]]
 
 
-def storage_days_min(product: dict[str, Any], location: str) -> int | None:
-    """The range minimum in days. Prefers the 'from date of purchase' columns (DOP_)."""
+def storage_range(product: dict[str, Any], location: str) -> tuple[int, int] | None:
+    """The range (minimum, maximum) in days. Prefers the 'from date of purchase' columns (DOP_)."""
     column = _STORAGE_COLUMN[location]
     for prefix in ("DOP_", ""):
         minimum = product.get(f"{prefix}{column}_Min")
+        maximum = product.get(f"{prefix}{column}_Max")
         metric = product.get(f"{prefix}{column}_Metric")
         if minimum is not None and metric in _DAYS_PER:
-            return round(float(minimum) * _DAYS_PER[metric])
+            days = _DAYS_PER[metric]
+            high = maximum if maximum is not None else minimum
+            return round(float(minimum) * days), round(float(high) * days)
     return None  # for example tomatoes: "When Ripe", with no number
+
+
+def storage_days_min(product: dict[str, Any], location: str) -> int | None:
+    """The range minimum in days (see storage_range)."""
+    days = storage_range(product, location)
+    return days[0] if days else None
+
+
+def _cooked_leftovers(
+    products: dict[int, dict[str, Any]], snapshot_id: Any
+) -> list[StorageReference]:
+    product = products.get(FOODKEEPER_COOKED_LEFTOVERS)
+    if product is None:
+        raise ValueError(
+            f"FoodKeeper product {FOODKEEPER_COOKED_LEFTOVERS} (cooked leftovers) not found"
+        )
+    description = f"{product.get('Name')}, {product.get('Name_subtitle')}"
+    rows = []
+    for location in ("refrigerator", "freezer"):
+        days = storage_range(product, location)
+        if days is None:
+            raise ValueError(f"FoodKeeper cooked leftovers has no {location} range")
+        rows.append(
+            StorageReference(
+                key="cooked_leftovers",
+                location=location,
+                days_min=days[0],
+                days_max=days[1],
+                description=description[:300],
+                snapshot_id=snapshot_id,
+            )
+        )
+    return rows
 
 
 def load_foodkeeper(
@@ -300,7 +346,7 @@ def load_foodkeeper(
     info: SourceInfo = sources.FOODKEEPER,
     crosswalk: list[CrosswalkRow] | None = None,
 ) -> LoadResult:
-    """Storage time (range minimum, in days) and storage location for each crosswalk item."""
+    """Storage range (in days) and location for each crosswalk item, and cooked leftovers' range."""
     crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     workbook = json.loads(path.read_text(encoding="utf-8"))
     products = {int(p["ID"]): p for p in _sheet(workbook, "Product")}
@@ -311,7 +357,9 @@ def load_foodkeeper(
         path=path,
         info=info,
         row_count=len(products),
-        crosswalk_sha256=crosswalk_fingerprint(crosswalk),
+        crosswalk_sha256=crosswalk_fingerprint(
+            crosswalk, loader_version=FOODKEEPER_LOADER_VERSION
+        ),
     )
     if not created:
         return LoadResult(snapshot, False, 0)
@@ -326,9 +374,13 @@ def load_foodkeeper(
                 f"{entry.slug}: FoodKeeper product {entry.foodkeeper_id} not found"
             )
         item = catalog[entry.slug]
-        item.storage_days_min = storage_days_min(product, entry.foodkeeper_location)
+        days = storage_range(product, entry.foodkeeper_location)
+        item.storage_days_min, item.storage_days_max = days if days else (None, None)
         item.storage_location = entry.foodkeeper_location
         item.storage_snapshot_id = snapshot.id
+        written += 1
+    for reference in _cooked_leftovers(products, snapshot.id):
+        session.add(reference)
         written += 1
     session.flush()
     return LoadResult(snapshot, True, written)

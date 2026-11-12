@@ -70,16 +70,21 @@ def read_crosswalk(path: Path = CROSSWALK_PATH) -> list[CrosswalkRow]:
 
 
 def crosswalk_fingerprint(
-    crosswalk: list[CrosswalkRow], portions: list[PortionMapRow] | None = None
+    crosswalk: list[CrosswalkRow],
+    portions: list[PortionMapRow] | None = None,
+    loader_version: str = "",
 ) -> str:
     """SHA-256 of the mapping rows used for a load, independent of row order.
 
     Stored on each snapshot, so loading a file again through a changed crosswalk (or portion map)
     is a new snapshot that applies the new mapping, while loading it again unchanged is a no-op.
+    ``loader_version`` does the same when a loader starts reading more from the same file.
     """
     rows = sorted(astuple(row) for row in crosswalk)
     if portions is not None:
         rows += sorted(astuple(row) for row in portions)
+    if loader_version:
+        rows.append(("loader_version", loader_version))
     canonical = json.dumps(rows, ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 

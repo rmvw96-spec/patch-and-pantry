@@ -7,10 +7,10 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 423 |
-| Backend statements measured | 570 | 2,052 |
-| Backend coverage | 92% | 96% |
-| Backend suite, local run | 16.4 s | 29.9 s |
+| Backend tests | 58 | 486 |
+| Backend statements measured | 570 | 2,381 |
+| Backend coverage | 92% | 97% |
+| Backend suite, local run | 16.4 s | 29.4 s |
 | Browser E2E specs | 6 files | 7 files (adds `studies.spec.ts`, 6 tests) |
 
 Local times are single runs on one development machine, not CI. Most of the backend increase is
@@ -70,6 +70,7 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Backend: tool `normalize_price` | `backend/tests/tools/test_normalize.py` | 58 | Spec and count-unit known answers within 0.0001; every ERS per-pound row against the ERS formula (and ERS's published column within 0.001); unit spellings; each failure's own error; stand-ins; piece-weight choice (no assumed size, weighed beats loaded, latest snapshot) |
 | Backend: matcher `find_catalog_item` | `backend/tests/tools/test_catalog.py` | 42 | Folding, exact names and aliases, misspellings with a note, shared aliases as questions, the margin, suggestion floor, household aliases (own household only), household-scoped items, supplies never matched, the alias file's validity |
 | Backend: typed-list capture, scripted models | `backend/tests/agents/test_capture_agent.py`, fixtures in `backend/tests/catalog_fixtures.py` | 54 | The known-answers behavioral cases; raw text kept and nothing saved; dollars to cents in code; every unclear line a question; skipped, repeated, or invented line numbers; limits; unusable and runaway model output; the demo reader end to end |
+| Backend: tool `compare_best_buy` and its explanation | `backend/tests/tools/test_best_buy.py` | 49 | Spoilage and the spec's worked example; marking (lowest usable cost, spoilage changing the pick, reference never marked, fallback marked, ties); no-price and no-conversion rows; the 30-day window and the household's own prices; latest ERS snapshot at full precision; cook and freeze extras; prices by count; the explanation's numbers check (sent back, fails after retries, runaway stopped, demo) |
 | Migrations | `.github/workflows/test-backend.yml` | 1 step | Every migration down to an empty database and back up, then `alembic check` |
 | Backend integration: studies API | `backend/tests/api/routes/test_studies.py` | 12 | Real Postgres, Redis, and Prefect test harness |
 | Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | In-memory exporter that snapshots spans at export time; no Phoenix needed |
@@ -186,6 +187,16 @@ for it.
 | The size on the line dropped | `test_a_size_on_the_line_needs_no_question` |
 | A per-unit price treated as the lot's | `test_a_per_unit_price_is_the_price_of_one_unit` and one more |
 | Another household's vendor accepted | `test_only_the_households_own_vendors` |
+| Storage minimum used instead of the midpoint | Spec worked example and four more |
+| Spoilage ignored | Seven best-buy tests |
+| A reference row can be marked | `test_a_reference_row_is_never_marked` |
+| "Cook and freeze extras" ignored | `test_cook_and_freeze_extras` |
+| Prices older than 30 days counted | `test_only_the_last_30_days_of_the_households_own_prices` |
+| Another household's prices counted | `test_only_the_last_30_days_of_the_households_own_prices` |
+| ERS rows priced from rounded cents | `test_the_household_prices_come_first_with_ers_as_reference` |
+| Explanation numbers not checked | Three explanation tests |
+| FoodKeeper loader version left out of the fingerprint | `test_a_new_foodkeeper_loader_version_is_a_new_snapshot` |
+| Cooked leftovers not stored | `test_foodkeeper_keeps_the_range_and_cooked_leftovers` |
 | Portion map accepts a duplicate unit and size | `test_portion_map_rejects_bad_rows` (listed twice) |
 | `ck_catalog_portion_provenance` dropped in Postgres | `test_owner_measured_portion_records_its_date` |
 
@@ -227,3 +238,4 @@ for it.
 | 2026-11-11 | PR #17: count units (P1-3): `catalog_portion` from SR28 with refuse, `catalog_portions.csv`, capture weights on prices. Owner's refuse override for potatoes (10%). Seven put-back bugs each caught (table above) | +34 backend | ___ |
 | 2026-11-11 | PR #18: tool `normalize_price` (P1-4), 100% covered. Six put-back bugs each caught (table above) | +58 backend | ___ |
 | 2026-11-11 | PR #19: typed-list capture (P1-5): `find_catalog_item`, `catalog_aliases.csv`, `household_alias`, the capture agent and its demo reader. Eight put-back bugs each caught (table above) | +96 backend | ___ |
+| 2026-11-11 | PR #20: `compare_best_buy` and its explanation (P1-6); FoodKeeper range maximum and cooked leftovers; item settings; price sizes. Ten put-back bugs each caught (table above) | +63 backend | ___ |

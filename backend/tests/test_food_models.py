@@ -21,9 +21,11 @@ from app.models import (
     CatalogPortion,
     DataSnapshot,
     Household,
+    HouseholdItemSetting,
     HouseholdMember,
     PriceObservation,
     Region,
+    StorageReference,
     User,
     Vendor,
 )
@@ -476,4 +478,76 @@ def test_capture_weights_are_checked(
         session,
         _price(catalog_item_id=item.id, household_id=household.id, **fields),
         constraint,
+    )
+
+
+# ---------- storage ranges, item settings, price sizes (Phase 1, P1-6) ----------
+
+
+def test_storage_maximum_is_not_below_the_minimum(session: Session) -> None:
+    _rejects(
+        session,
+        _produce(storage_days_min=5, storage_days_max=4),
+        "ck_catalog_item_storage_days_max",
+    )
+
+
+@pytest.mark.parametrize(
+    ("fields", "constraint"),
+    [
+        ({"key": "raw_greens"}, "ck_storage_reference_key"),
+        ({"location": "cellar"}, "ck_storage_reference_location"),
+        ({"days_min": -1}, "ck_storage_reference_days_min"),
+        ({"days_min": 5, "days_max": 4}, "ck_storage_reference_days_max"),
+    ],
+)
+def test_storage_reference_values_are_checked(
+    session: Session, fields: dict[str, Any], constraint: str
+) -> None:
+    snapshot = DataSnapshot(
+        source="foodkeeper",
+        version="test",
+        retrieved_at=datetime(2026, 11, 11, tzinfo=UTC),
+        url="https://example.com",
+        sha256="b" * 64,
+        row_count=1,
+    )
+    session.add(snapshot)
+    session.flush()
+    values: dict[str, Any] = {
+        "key": "cooked_leftovers",
+        "location": "freezer",
+        "days_min": 30,
+        "days_max": 60,
+        "description": "test",
+        "snapshot_id": snapshot.id,
+    }
+    _rejects(session, StorageReference(**(values | fields)), constraint)
+
+
+def test_one_setting_per_household_and_item(
+    session: Session, region: Region, item: CatalogItem
+) -> None:
+    household = _household(session, region)
+    session.add(
+        HouseholdItemSetting(
+            household_id=household.id, catalog_item_id=item.id, freeze_extras=True
+        )
+    )
+    session.flush()
+    _rejects(
+        session,
+        HouseholdItemSetting(household_id=household.id, catalog_item_id=item.id),
+        "uq_household_item_setting_item",
+    )
+
+
+def test_price_sizes_are_checked(
+    session: Session, region: Region, item: CatalogItem
+) -> None:
+    household = _household(session, region)
+    _rejects(
+        session,
+        _price(catalog_item_id=item.id, household_id=household.id, size="jumbo"),
+        "ck_price_observation_size",
     )
