@@ -153,7 +153,9 @@ def model_name(model: models.Model | str | None) -> str:
         return settings.SIM_MODEL
     if isinstance(model, str):
         return model
-    return f"{model.system}:{model.model_name}"
+    name = model.model_name
+    # Some names already carry the system ("function:..."); others do not ("DeepSeek-V3.2").
+    return name if name.startswith(f"{model.system}:") else f"{model.system}:{name}"
 
 
 async def _price_capture(

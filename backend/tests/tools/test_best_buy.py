@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from pydantic_ai import ModelMessage, ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
-from sqlmodel import Session
+from sqlmodel import Session, delete
 
 from app.agents.best_buy_agent import (
     ExplanationFailed,
@@ -392,9 +392,8 @@ def test_no_price_at_all(
 
 
 def _cooked_leftovers(session: Session) -> DataSnapshot:
-    snapshot = _snapshot(
-        session, "foodkeeper", "test", datetime(2026, 11, 11, tzinfo=UTC)
-    )
+    # Loaded "now", so it is newer than any real FoodKeeper load in the development database.
+    snapshot = _snapshot(session, "foodkeeper", "test", datetime.now(UTC))
     for location, low, high in (("refrigerator", 3, 4), ("freezer", 30, 60)):
         session.add(
             StorageReference(
@@ -444,6 +443,8 @@ def test_cook_and_freeze_extras(
 def test_freeze_extras_without_cooked_leftovers_falls_back_to_the_item(
     db_session: Session, catalog: Catalog, household: Household
 ) -> None:
+    # The development database may hold real cooked-leftovers rows; this transaction rolls back.
+    db_session.exec(delete(StorageReference))
     db_session.add(
         HouseholdItemSetting(
             household_id=household.id,

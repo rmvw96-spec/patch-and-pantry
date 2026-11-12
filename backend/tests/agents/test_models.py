@@ -10,8 +10,9 @@ from pydantic import SecretStr
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.openai import OpenAIChatModel
 
+from app.agents.best_buy_agent import best_buy_agent
+from app.agents.capture_agent import capture_agent
 from app.agents.models import ModelConfigError, build_model
-from app.agents.study_agent import reviewer_agent, study_agent
 from app.core.config import settings
 
 ENDPOINT = "https://example-resource.services.ai.azure.com/openai/v1/"
@@ -25,7 +26,7 @@ def foundry_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _foundry(spec: str) -> OpenAIChatModel:
-    model = build_model(spec)
+    model = build_model(spec, role="capture")
     assert isinstance(model, OpenAIChatModel)
     return model
 
@@ -76,7 +77,7 @@ def test_missing_foundry_settings_name_both_variables(
     monkeypatch.setattr(settings, "FOUNDRY_ENDPOINT", endpoint)
     monkeypatch.setattr(settings, "FOUNDRY_API_KEY", SecretStr(key) if key else None)
     with pytest.raises(ModelConfigError, match="FOUNDRY_ENDPOINT and FOUNDRY_API_KEY"):
-        build_model("foundry:deepseek-v3.2")
+        build_model("foundry:deepseek-v3.2", role="capture")
 
 
 @pytest.mark.parametrize(
@@ -93,19 +94,19 @@ def test_non_v1_endpoint_is_rejected(
     monkeypatch.setattr(settings, "FOUNDRY_ENDPOINT", endpoint)
     monkeypatch.setattr(settings, "FOUNDRY_API_KEY", SecretStr(KEY))
     with pytest.raises(ModelConfigError, match="/openai/v1/"):
-        build_model("foundry:deepseek-v3.2")
+        build_model("foundry:deepseek-v3.2", role="capture")
 
 
 # ---------- other specs ----------
 
 
 def test_demo_scripts_each_agent() -> None:
-    assert isinstance(build_model("demo", role="study"), FunctionModel)
-    assert isinstance(build_model("demo", role="reviewer"), FunctionModel)
+    assert isinstance(build_model("demo", role="capture"), FunctionModel)
+    assert isinstance(build_model("demo", role="best_buy"), FunctionModel)
 
 
 def test_test_spec_is_pydantic_ai_test_model() -> None:
-    assert build_model("test") == "test"
+    assert build_model("test", role="capture") == "test"
 
 
 @pytest.mark.parametrize(
@@ -120,7 +121,7 @@ def test_test_spec_is_pydantic_ai_test_model() -> None:
 )
 def test_unknown_specs_raise_value_error(spec: str) -> None:
     with pytest.raises(ValueError, match="expected 'demo', 'test'"):
-        build_model(spec)
+        build_model(spec, role="capture")
 
 
 def test_default_model_is_demo() -> None:
@@ -137,7 +138,7 @@ SAMPLING = {"temperature", "top_p", "top_k"}
 @pytest.mark.usefixtures("foundry_settings")
 def test_no_sampling_settings() -> None:
     """Neither the agents nor the Foundry model carry settings, so sampling stays at defaults."""
-    for agent in (study_agent, reviewer_agent):
+    for agent in (capture_agent, best_buy_agent):
         assert agent.model_settings is None
     settings_ = _foundry("foundry:deepseek-v3.2").settings
     assert settings_ is None or not SAMPLING & set(settings_)
@@ -156,7 +157,7 @@ def test_importing_the_app_needs_no_foundry_settings() -> None:
         [
             sys.executable,
             "-c",
-            "import app.main, app.agents.study_agent, app.study_jobs",
+            "import app.main, app.agents.capture_agent, app.grocery_analysis_jobs",
         ],
         cwd=backend,
         env=env,

@@ -98,7 +98,7 @@ def test_authenticate_user_with_bcrypt_upgrades_to_argon2(db: Session) -> None:
     email = random_email()
     password = random_lower_string()
 
-    # Create a bcrypt hash directly (simulating legacy password)
+    # Create a bcrypt hash directly, as a legacy password would have
     bcrypt_hasher = BcryptHasher()
     bcrypt_hash = bcrypt_hasher.hash(password)
     assert bcrypt_hash.startswith("$2")  # bcrypt hashes start with $2
