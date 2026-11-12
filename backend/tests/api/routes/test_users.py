@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app import crud
 from app.core.config import settings
 from app.core.security import verify_password
-from app.models import User, UserCreate
+from app.models import Household, HouseholdMember, User, UserCreate
 from tests.utils.user import create_random_user
 from tests.utils.utils import random_email, random_lower_string
 
@@ -432,6 +432,13 @@ def test_delete_user_me(client: TestClient, db: Session) -> None:
     tokens = r.json()
     a_token = tokens["access_token"]
     headers = {"Authorization": f"Bearer {a_token}"}
+    # Give the user a household with two members, so the cascade has something to delete.
+    household = client.put(
+        f"{settings.API_V1_STR}/household/",
+        headers=headers,
+        json={"produce_budget_cents_per_week": 5000, "members": [2000, 1600]},
+    ).json()
+    household_id = uuid.UUID(household["id"])
 
     r = client.delete(
         f"{settings.API_V1_STR}/users/me",
@@ -446,6 +453,14 @@ def test_delete_user_me(client: TestClient, db: Session) -> None:
     user_query = select(User).where(User.id == user_id)
     user_db = db.execute(user_query).first()
     assert user_db is None
+
+    # Deleting the account deletes the household and its members (design.md, personal data).
+    db.expire_all()
+    assert db.get(Household, household_id) is None
+    members = select(HouseholdMember).where(
+        HouseholdMember.household_id == household_id
+    )
+    assert db.exec(members).first() is None
 
 
 def test_delete_user_me_as_superuser(

@@ -27,18 +27,20 @@ vision model), growing (Phase 3), independence progress (Phase 4), presets other
 
 ## P1-2: Household setup
 
-**Where:** `backend/app/api/routes/household.py`; settings page section.
+**Where:** `backend/app/api/routes/household.py`. The settings page moved to P1-7 (owner,
+2026-11-11: no frontend changes until the agents and tools exist).
 
 - `GET /household` creates the user's household on first access (region `north-al`,
-  `user_setting=store_only`). `PUT /household` sets `produce_budget_cents_per_week` and the
-  members: a list of calorie levels (default 2,000), nothing else.
-- The page asks for the weekly produce budget and the number of people, with an optional calorie
-  level per person (the 12 Dietary Guidelines levels in a select). No names, ages, or body data.
+  `user_setting=store_only`, one member at 2,000 calories). `PUT /household` replaces
+  `produce_budget_cents_per_week` (null for none; at most 1,000,000 cents, so a typo cannot
+  overflow the column) and the members: a list of 1 to 20 calorie levels, nothing else.
+  Unknown fields are refused with a 422 (`extra_forbidden`) rather than dropped, so a client
+  cannot send a name or age and believe it was stored.
 
 **Acceptance criteria:**
 
-- [ ] Members can be added and removed; each is only a calorie level.
-- [ ] Deleting the account deletes the household (existing cascade test extended).
+- [x] Members can be added and removed; each is only a calorie level.
+- [x] Deleting the account deletes the household (existing cascade test extended).
 
 ## P1-3: Count units
 
@@ -218,6 +220,9 @@ pages).
 
 ## P1-7: Pages and shopping list
 
+- **Household settings** (moved from P1-2): the weekly produce budget and the number of people,
+  with an optional calorie level per person (the 12 Dietary Guidelines levels in a select). No
+  names, ages, or body data.
 - **Price capture:** vendor, date, and a text box; shows drafts and questions; confirm saves.
 - **Price book:** the household's prices (item, vendor, date, price as written, cost per cup),
   with edit and delete.

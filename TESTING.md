@@ -7,10 +7,10 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 214 |
-| Backend statements measured | 570 | 1,441 |
+| Backend tests | 58 | 235 |
+| Backend statements measured | 570 | 1,501 |
 | Backend coverage | 92% | 96% |
-| Backend suite, local run | 16.4 s | 24.9 s |
+| Backend suite, local run | 16.4 s | 27.1 s |
 | Browser E2E specs | 6 files | 7 files (adds `studies.spec.ts`, 6 tests) |
 
 Local times are single runs on one development machine, not CI. Most of the backend increase is
@@ -66,6 +66,7 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Backend: live smoke check, offline | `backend/tests/agents/test_smoke.py` | 4 | The tool-call probe catches a tool call written as text; the smoke study reports usage and a trace ID that finds its span |
 | Backend: food planner tables | `backend/tests/test_food_models.py` | 33 | Real Postgres, one rolled-back transaction per test: user deletion cascades, CHECK constraints (calorie levels, percentages, dates, closed sets), catalog uniqueness and scope, public-dataset prices, snapshot immutability trigger, seeded region |
 | Backend: seed loaders | `backend/tests/test_seed.py`, fixtures in `backend/tests/fixtures/seed/` | 45 | Real Postgres on one connection rolled back at the end (sessions join with savepoints, so even the command line's commits are undone). Idempotency of every loader, ERS price per cup against every row of both committed ERS files (two swapped pairs checked), crosswalk catalog and stand-ins, coverage report, Prefect flow. Miniature FDC zips are built in the test |
+| Backend: household API | `backend/tests/api/routes/test_household.py`, plus the delete-account test in `test_users.py` | 21 | Created on first access with defaults; budget and members replaced in order; removed members deleted; calorie levels, member count, and budget limits; personal fields refused (`extra_forbidden`), not dropped; users see only their own; the first-access race returns the existing household; deleting the account deletes the household and members |
 | Migrations | `.github/workflows/test-backend.yml` | 1 step | Every migration down to an empty database and back up, then `alembic check` |
 | Backend integration: studies API | `backend/tests/api/routes/test_studies.py` | 12 | Real Postgres, Redis, and Prefect test harness |
 | Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | In-memory exporter that snapshots spans at export time; no Phoenix needed |
@@ -159,6 +160,10 @@ for it.
 | `study.status` missing on success | `test_study_span_is_the_root_of_the_agent_trace` |
 | `study.status` missing for a deleted study | `test_deleted_study_still_ends_its_span` |
 | `study.id` missing | `test_study_span_is_the_root_of_the_agent_trace` |
+| Household update ignores unknown fields instead of refusing them | All three `test_update_rejects_personal_fields` cases |
+| Household update keeps the old members | `test_members_can_be_added_and_removed` and two more |
+| Household members accept any integer | Three `test_update_rejects_invalid_values` calorie cases (the database constraint turns them into a 500) |
+| First-access race not handled | `test_concurrent_first_access_returns_the_existing_household` |
 
 ## Lessons learned
 
@@ -194,3 +199,4 @@ for it.
 | 2026-11-11 | PR #12: food planner core tables (P0-3) with CHECK constraints and a snapshot immutability trigger; migration round trip in CI. Checked the calorie and cascade tests fail with the constraint dropped in Postgres | +33 backend | Test Backend: one more step (migration round trip) |
 | 2026-11-11 | PR #13: seed loaders (P0-4). Tests caught bugs from three put-back defects (no idempotency, no stand-in links, wrong storage preference). Loading the real files found a wrong P0-3 constraint (yield factor capped at 1) and two swapped pairs in ERS's published column. A first version of the flow test committed to the dev database (a default argument captured the real session); fixed, and the stray rows removed | +49 backend | ___ |
 | 2026-11-11 | PR #15: Phase 0 close-out. Crosswalk fingerprint on snapshots (+2 backend; the changed-crosswalk test fails when the lookup ignores the fingerprint). Backend suite passes with the real reference data loaded | +2 backend | End of Phase 0, on `master` at `3e9252f`: Test Backend 1 m 15 s (baseline 46 s; adds the migration round trip and the Prefect test server), Test Docker Compose 1 m 56 s (baseline 1 m 48 s), Playwright 3 m 34 s (baseline 4 m 29 s) |
+| 2026-11-11 | PR #16: household API (P1-2): `GET` and `PUT /household`. Checked that four put-back bugs each fail their tests (table above) | +21 backend | ___ |
