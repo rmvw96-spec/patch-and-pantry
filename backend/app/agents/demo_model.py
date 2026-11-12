@@ -148,3 +148,39 @@ def _demo_capture(messages: list[ModelMessage], info: AgentInfo) -> ModelRespons
 
 def demo_capture_model() -> FunctionModel:
     return FunctionModel(_demo_capture)
+
+
+# ---------- best-buy explanation (P1-6) ----------
+
+_ITEM_HEADER = re.compile(r"^(?P<item>.+) \(needs ")
+_MARKED = re.compile(
+    r"^- MARKED BEST: (?P<label>.+?), .*?(?P<cost>\$\d+\.\d{2}) per usable cup"
+)
+
+
+def _demo_explain(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
+    """Names each item's marked row, quoting its cost exactly as the table shows it."""
+    sentences = []
+    item = None
+    for line in _user_prompt(messages).splitlines():
+        header = _ITEM_HEADER.match(line)
+        if header:
+            item = header.group("item")
+        marked = _MARKED.match(line)
+        if marked and item:
+            label, cost = marked.group("label"), marked.group("cost")
+            if label.startswith("national average"):
+                sentences.append(
+                    f"For {item.lower()} there is no store price yet; the national average "
+                    f"works out to {cost} per usable cup, which is not a store price."
+                )
+            else:
+                sentences.append(
+                    f"For {item.lower()}, {label} is the best buy at {cost} per usable cup."
+                )
+    text = " ".join(sentences) or "There is no priced row to recommend yet."
+    return ModelResponse(parts=[TextPart(text)])
+
+
+def demo_best_buy_model() -> FunctionModel:
+    return FunctionModel(_demo_explain)

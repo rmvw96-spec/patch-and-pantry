@@ -169,6 +169,35 @@
      {
       "DOP_Refrigerate_Metric": "Months"
      }
+    ],
+    [
+     {
+      "ID": 174.0
+     },
+     {
+      "Name": "Leftovers"
+     },
+     {
+      "Name_subtitle": "without meat, fish, poultry, or egg (such as cooked vegetables, rice, or potatoes)"
+     },
+     {
+      "Refrigerate_Min": 3.0
+     },
+     {
+      "Refrigerate_Max": 4.0
+     },
+     {
+      "Refrigerate_Metric": "Days"
+     },
+     {
+      "Freeze_Min": 1.0
+     },
+     {
+      "Freeze_Max": 2.0
+     },
+     {
+      "Freeze_Metric": "Months"
+     }
     ]
    ]
   },

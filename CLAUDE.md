@@ -28,8 +28,8 @@ patterns.
   tools with `bun`/`bunx`. Do not use pip or npm to add dependencies.
 - `backend/app/`: FastAPI app. Studies feature: `api/routes/studies.py`, `study_jobs.py`,
   `agents/` (`study_agent.py`, `simulator.py`, `demo_model.py`). Food planner: deterministic
-  tools in `tools/` (`normalize.py`, `catalog.py`), the capture agent in
-  `agents/capture_agent.py`. Tests that need a known catalog use the fixtures in
+  tools in `tools/` (`normalize.py`, `catalog.py`, `best_buy.py`), agents in
+  `agents/capture_agent.py` and `agents/best_buy_agent.py`. Tests that need a known catalog use the fixtures in
   `tests/catalog_fixtures.py` (`catalog`, `household`, `vendor`; one rolled-back transaction).
 - `frontend/src/`: React 19, TanStack Router (file routes) and Query, Tailwind, shadcn/ui.
   Studies UI is in `components/Studies/`.

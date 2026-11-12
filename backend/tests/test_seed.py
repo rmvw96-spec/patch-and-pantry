@@ -7,6 +7,7 @@ anything in the shared development database.
 
 import csv
 import dataclasses
+import json
 import shutil
 import zipfile
 from collections.abc import Callable, Iterator
@@ -27,6 +28,7 @@ from app.models import (
     DataSnapshot,
     PlantingWindow,
     PriceObservation,
+    StorageReference,
 )
 from app.seed import sources
 from app.seed.crosswalk import (
@@ -52,6 +54,7 @@ from app.seed.loaders import (
     purchased_grams,
     read_ers_csv,
     storage_days_min,
+    storage_range,
 )
 from app.seed.report import coverage_gaps, format_report
 from app.seed.snapshots import LoadResult, register_snapshot
@@ -540,6 +543,66 @@ def test_foodkeeper_sets_storage_minimum_and_location(
         catalog["tomato"].storage_days_min is None
     )  # FoodKeeper: "When Ripe", no number
     assert catalog["zucchini"].storage_snapshot_id == result.snapshot.id
+
+
+def test_foodkeeper_keeps_the_range_and_cooked_leftovers(
+    session: Session, crosswalk: list[CrosswalkRow]
+) -> None:
+    """Phase 1, D4: spoilage uses the range midpoint, and cooked leftovers for freeze extras."""
+    result = load_foodkeeper(session, FIXTURES / "foodkeeper.json", crosswalk=crosswalk)
+    catalog = ensure_catalog(session, crosswalk)
+    zucchini = catalog["zucchini"]
+    assert (zucchini.storage_days_min, zucchini.storage_days_max) == (4, 5)
+    assert catalog["tomato"].storage_days_max is None
+    references = {
+        r.location: (r.days_min, r.days_max)
+        for r in session.exec(
+            select(StorageReference).where(
+                StorageReference.snapshot_id == result.snapshot.id
+            )
+        )
+    }
+    assert references == {"refrigerator": (3, 4), "freezer": (30, 60)}
+
+
+def test_a_new_foodkeeper_loader_version_is_a_new_snapshot(
+    session: Session, crosswalk: list[CrosswalkRow], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reading more from the same file must reload it, even with the same crosswalk."""
+    import app.seed.loaders as loaders
+
+    path = FIXTURES / "foodkeeper.json"
+    first = load_foodkeeper(session, path, crosswalk=crosswalk)
+    monkeypatch.setattr(loaders, "FOODKEEPER_LOADER_VERSION", "3: something more")
+    second = load_foodkeeper(session, path, crosswalk=crosswalk)
+    assert second.created and second.snapshot.id != first.snapshot.id
+
+
+def test_foodkeeper_without_cooked_leftovers_is_an_error(
+    session: Session, crosswalk: list[CrosswalkRow], tmp_path: Path
+) -> None:
+    workbook = json.loads((FIXTURES / "foodkeeper.json").read_text(encoding="utf-8"))
+    product = next(s for s in workbook["sheets"] if s["name"] == "Product")
+    product["data"] = [row for row in product["data"] if row[0].get("ID") != 174.0]
+    path = tmp_path / "foodkeeper.json"
+    path.write_text(json.dumps(workbook), encoding="utf-8")
+    with pytest.raises(ValueError, match="174 \\(cooked leftovers\\) not found"):
+        load_foodkeeper(session, path, crosswalk=crosswalk)
+
+
+@pytest.mark.parametrize(
+    ("product", "expected"),
+    [
+        ({"DOP_Refrigerate_Min": 1, "DOP_Refrigerate_Max": 2, "DOP_Refrigerate_Metric": "Weeks"}, (7, 14)),
+        ({"DOP_Refrigerate_Min": 3, "DOP_Refrigerate_Metric": "Days"}, (3, 3)),
+        ({"Refrigerate_Min": 3, "Refrigerate_Max": 4, "Refrigerate_Metric": "Days"}, (3, 4)),
+        ({"DOP_Refrigerate_Metric": "When Ripe"}, None),
+    ],
+)  # fmt: skip
+def test_storage_range(
+    product: dict[str, Any], expected: tuple[int, int] | None
+) -> None:
+    assert storage_range(product, "refrigerator") == expected
 
 
 def test_foodkeeper_missing_product_is_an_error(session: Session) -> None:

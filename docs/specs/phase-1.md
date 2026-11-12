@@ -241,11 +241,35 @@ Adding raw and cooked days together was rejected: FoodKeeper does not say cookin
 clock, so the numbers would rest on an unsourced food-safety claim. FoodKeeper has no
 cooked-greens entries; entry 174 is its general one for cooked vegetables.
 
+**As built** (`compare_best_buy(session, household, needs, on)` in `app/tools/best_buy.py`;
+`explain_best_buy(table)` in `app/agents/best_buy_agent.py`):
+
+- **The purchase is the price as recorded:** a 3 lb bag is 3 lb, a per-pound price is 1 lb, as in
+  the worked example. Suggesting smaller purchases stays a later exploration (below).
+- **Marking:** the lowest cost per usable cup among the household's rows, or the ERS fallback
+  when there are none; ties go to the newest price, then the name. A reference row is never
+  marked, even when cheaper. Rows without a per-cup figure (no conversion, a missing piece
+  weight or size, an unreadable stored unit) are shown with the reason and never marked.
+- **ERS rows** come from the latest ERS snapshot and use the full-precision price from the
+  row's raw text, not the rounded cents.
+- **Storage:** an item with no FoodKeeper number (tomato: "When Ripe") counts no spoilage and
+  says so. "Cook and freeze extras" falls back to the item's own range if the cooked-leftovers
+  entry is not loaded. The FoodKeeper loader now stores the range maximum and entry 174
+  (`storage_reference`), and a loader version in the snapshot fingerprint makes reloading the
+  same file a new snapshot.
+- **Prices by count** use the price's `size` (new column) or the weight given at capture
+  (`unit_grams`), labeled weighed or estimated.
+- **The explanation** gets the table as text and may quote only numbers it shows: an output
+  validator (`unsupported_numbers`) sends back any explanation with another number (a ratio, a
+  difference, a rounded figure), and fails after two retries; the table stands without it.
+  `SIM_MODEL=demo` explains with a deterministic sentence per marked row.
+
 **Acceptance criteria:**
 
-- [ ] Known-answer tests for the table, the marked row, and spoilage, including an empty price
+- [x] Known-answer tests for the table, the marked row, and spoilage, including an empty price
       book and an item with no conversion.
-- [ ] The agent's explanation quotes only numbers present in the table (trace check).
+- [x] The agent's explanation quotes only numbers present in the table (trace check: enforced in
+      the run by an output validator; the nightly evals check traces again in P1-9).
 
 ## P1-1: Grocery analysis runs replace studies
 

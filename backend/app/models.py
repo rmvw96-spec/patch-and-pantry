@@ -218,6 +218,9 @@ CountUnit = Literal["each", "bunch", "head", "ear", "pint"]
 PortionSize = Literal["small", "medium", "large"]
 # How a user gave the weight of one unit at capture (Phase 1 spec, D3).
 WeightSource = Literal["weighed", "estimated"]
+StorageLocation = Literal["refrigerator", "freezer", "pantry"]
+# General storage facts that belong to no one catalog item.
+StorageReferenceKey = Literal["cooked_leftovers"]
 
 # Dietary Guidelines calorie levels for the USDA food patterns: 1,000 to 3,200 in steps of 200.
 CalorieLevel = Literal[
@@ -421,6 +424,10 @@ class CatalogItem(SQLModel, table=True):
         CheckConstraint(
             "storage_days_min >= 0", name="ck_catalog_item_storage_days_min"
         ),
+        CheckConstraint(
+            "storage_days_max >= storage_days_min",
+            name="ck_catalog_item_storage_days_max",
+        ),
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -438,6 +445,8 @@ class CatalogItem(SQLModel, table=True):
     preparation_yield_factor: float | None = None
     cup_equivalent_lb: float | None = None  # pounds of edible food per cup equivalent
     storage_days_min: int | None = None
+    # FoodKeeper ranges: spoilage uses the midpoint (Phase 1 spec, D4).
+    storage_days_max: int | None = None
     storage_location: str | None = Field(default=None, max_length=40)
     # Storage facts come from a different dataset (FoodKeeper) than conversions (ERS).
     storage_snapshot_id: uuid.UUID | None = Field(
@@ -526,6 +535,53 @@ class Vendor(SQLModel, table=True):
     area: str | None = Field(
         default=None, max_length=100
     )  # city or area; never a street address
+
+
+class StorageReference(SQLModel, table=True):
+    """A FoodKeeper storage range that is not one item's, such as cooked leftovers (entry 174).
+
+    "Cook and freeze extras" (D4) uses the cooked-leftovers freezer range for spoilage, and its
+    refrigerator range for the note on the row.
+    """
+
+    __tablename__ = "storage_reference"
+    __table_args__ = (
+        _literal_check("key", StorageReferenceKey, "ck_storage_reference_key"),
+        _literal_check("location", StorageLocation, "ck_storage_reference_location"),
+        CheckConstraint("days_min >= 0", name="ck_storage_reference_days_min"),
+        CheckConstraint("days_max >= days_min", name="ck_storage_reference_days_max"),
+        UniqueConstraint(
+            "key", "location", "snapshot_id", name="uq_storage_reference_key_location"
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    key: StorageReferenceKey = Field(sa_type=AutoString(length=40))
+    location: StorageLocation = Field(sa_type=AutoString(length=20))
+    days_min: int
+    days_max: int
+    description: str = Field(max_length=300)
+    snapshot_id: uuid.UUID = Field(foreign_key="data_snapshot.id")
+
+
+class HouseholdItemSetting(SQLModel, table=True):
+    """A household's choice for one item. ``freeze_extras``: cook on purchase and freeze (D4)."""
+
+    __tablename__ = "household_item_setting"
+    __table_args__ = (
+        UniqueConstraint(
+            "household_id", "catalog_item_id", name="uq_household_item_setting_item"
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    household_id: uuid.UUID = Field(
+        foreign_key="household.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    catalog_item_id: uuid.UUID = Field(
+        foreign_key="catalog_item.id", nullable=False, ondelete="CASCADE"
+    )
+    freeze_extras: bool = False
 
 
 class HouseholdAlias(SQLModel, table=True):
@@ -617,6 +673,7 @@ class PriceObservation(SQLModel, table=True):
         _literal_check(
             "weight_source", WeightSource, "ck_price_observation_weight_source"
         ),
+        _literal_check("size", PortionSize, "ck_price_observation_size"),
         # A weight given at capture always says whether it was weighed or estimated.
         CheckConstraint(
             "(unit_grams IS NULL) = (weight_source IS NULL)",
@@ -648,6 +705,8 @@ class PriceObservation(SQLModel, table=True):
     weight_source: WeightSource | None = Field(
         default=None, sa_type=AutoString(length=10)
     )
+    # The piece size written on the line ("large tomatoes"), for count units.
+    size: PortionSize | None = Field(default=None, sa_type=AutoString(length=10))
     observed_on: date
     captured_via: CapturedVia = Field(sa_type=AutoString(length=20))
     source_type: PriceSourceType = Field(sa_type=AutoString(length=20))
