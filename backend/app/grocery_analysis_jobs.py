@@ -39,6 +39,8 @@ from app.households import get_or_create_household
 from app.models import GroceryAnalysisRun, RunKind, RunStatus, get_datetime_utc
 from app.tools.best_buy import (
     BestBuyRow,
+    ItemNote,
+    NationalAverage,
     Need,
     ShoppingGroup,
     compare_best_buy,
@@ -102,6 +104,9 @@ class BestBuyResult(BaseModel):
     kind: Literal["best_buy"] = "best_buy"
     on: date
     rows: list[BestBuyRow]
+    # Notes said once per item (storage, stand-ins) and the national averages' source.
+    items: list[ItemNote] = Field(default_factory=list)
+    national_average: NationalAverage | None = None
     shopping_list: list[ShoppingGroup] = Field(default_factory=list)
     # The table stands without an explanation if the model could not write one.
     explanation: str | None = None
@@ -214,7 +219,11 @@ async def _best_buy(
     except ValueError as exc:
         raise RunFailed("invalid_input", str(exc)) from exc
     result = BestBuyResult(
-        on=table.on, rows=table.rows, shopping_list=shopping_list(table)
+        on=table.on,
+        rows=table.rows,
+        items=table.items,
+        national_average=table.national_average,
+        shopping_list=shopping_list(table),
     )
     usage = ModelUsage()
     try:

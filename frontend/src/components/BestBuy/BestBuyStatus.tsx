@@ -1,6 +1,7 @@
 import { Printer, Star } from "lucide-react"
 
 import type { BestBuyResult, BestBuyRow } from "@/client"
+import { FormattedText } from "@/components/Common/FormattedText"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -79,6 +80,47 @@ function TradeOffTable({ rows }: { rows: BestBuyRow[] }) {
         ))}
       </TableBody>
     </Table>
+  )
+}
+
+function TableNotes({ result }: { result: BestBuyResult }) {
+  const items = (result.items ?? []).filter(
+    (item) => item.storage || (item.notes ?? []).length > 0,
+  )
+  const average = result.national_average
+  if (items.length === 0 && !average) return null
+  return (
+    <div
+      className="text-muted-foreground flex flex-col gap-2 text-sm"
+      data-testid="best-buy-notes"
+    >
+      {items.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {items.map((item) => (
+            <li key={item.item_name} data-testid="best-buy-item-note">
+              <span className="text-foreground font-medium">
+                {item.item_name}:
+              </span>{" "}
+              {[item.storage, ...(item.notes ?? [])].filter(Boolean).join(" ")}
+            </li>
+          ))}
+        </ul>
+      )}
+      {average && (
+        <p data-testid="best-buy-national-average">
+          {average.note} Source:{" "}
+          <a
+            href={average.url}
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+          >
+            USDA ERS Fruit and Vegetable Prices
+          </a>
+          .
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -169,7 +211,10 @@ const BestBuyStatus = ({ runId }: { runId: string }) => {
           {result && (
             <>
               {result.explanation && (
-                <p data-testid="best-buy-explanation">{result.explanation}</p>
+                <FormattedText
+                  text={result.explanation}
+                  data-testid="best-buy-explanation"
+                />
               )}
               {result.explanation_error && (
                 <p className="text-muted-foreground text-sm">
@@ -177,6 +222,7 @@ const BestBuyStatus = ({ runId }: { runId: string }) => {
                 </p>
               )}
               <TradeOffTable rows={result.rows} />
+              <TableNotes result={result} />
             </>
           )}
           {run.status === "failed" && (

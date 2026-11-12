@@ -84,6 +84,7 @@ class Storage:
 
     days: float | None
     source: str
+    # One sentence for the notes under the table, shown once per item.
     note: str | None = None
     snapshot_id: uuid.UUID | None = None
 
@@ -131,20 +132,63 @@ class BestBuyRow:
 
 
 @dataclass
+class ItemNote:
+    """What applies to every row of one item, said once under the table."""
+
+    item_name: str
+    storage: str | None = None
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class NationalAverage:
+    """Where the national-average rows come from, for the note under the table."""
+
+    version: str
+    url: str
+    note: str
+
+
+@dataclass
 class BestBuyTable:
     on: date
     rows: list[BestBuyRow] = field(default_factory=list)
+    items: list[ItemNote] = field(default_factory=list)
+    national_average: NationalAverage | None = None
     data_snapshot_ids: set[uuid.UUID] = field(default_factory=set)
 
     def marked(self) -> list[BestBuyRow]:
         return [row for row in self.rows if row.marked]
 
 
-ERS_REFERENCE_NOTE = "A national average for comparison, not a price at any store."
 ERS_FALLBACK_NOTE = (
-    "No store price in the last 30 days, so this uses the national average; "
+    "No store price in the last 30 days, so the national average is used; "
     "the shopping list shows it under 'no store price yet'."
 )
+
+
+def national_average_label(version: str) -> str:
+    return f"National average ({version})"
+
+
+def national_average_note(version: str) -> str:
+    return (
+        f"National averages are USDA ERS average retail prices for {version} "
+        "(Fruit and Vegetable Prices). They are for comparison, not a price at any store, "
+        "and are starred only when there is no store price."
+    )
+
+
+def item_note(
+    item_name: str, facts: CatalogFacts, storage: Storage, rows: list[BestBuyRow]
+) -> ItemNote:
+    """The notes that apply to all of an item's rows. Pure."""
+    note = ItemNote(item_name, storage.note)
+    if facts.stand_in_name:
+        note.notes.append(f"Conversions borrowed from {facts.stand_in_name}.")
+    if any(row.kind == "ers_fallback" for row in rows):
+        note.notes.append(ERS_FALLBACK_NOTE)
+    return note
 
 
 def build_rows(
@@ -187,10 +231,6 @@ def build_rows(
             else (price.raw_text or price.label)
         )
         row.sources["storage"] = storage.source
-        if price.kind == "ers_reference":
-            row.notes.append(ERS_REFERENCE_NOTE)
-        if price.kind == "ers_fallback":
-            row.notes.append(ERS_FALLBACK_NOTE)
         if price.piece_note:
             row.sources["piece"] = price.piece_note
         if price.problem:
@@ -206,8 +246,6 @@ def build_rows(
             rows.append(row)
             continue
         row.sources["conversion"] = normalized.conversion_source
-        if normalized.stand_in_name:
-            row.notes.append(f"Conversions borrowed from {normalized.stand_in_name}.")
         usable, spoiled = spoilage(normalized.cups, need.cups_per_week, storage.days)
         row.cups_bought = normalized.cups
         row.usable_cups = usable
@@ -216,8 +254,6 @@ def build_rows(
         row.cost_per_usable_cup_cents = (
             price.price_cents / usable if usable > 0 else None
         )
-        if storage.note:
-            row.notes.append(storage.note)
         rows.append(row)
 
     # Mark the lowest cost per usable cup among the rows that are priced for buying: the
@@ -273,12 +309,15 @@ def item_storage(session: Session, household: Household, item: CatalogItem) -> S
         freezer = _latest_reference(session, "freezer")
         fridge = _latest_reference(session, "refrigerator")
         if freezer is not None and fridge is not None:
+            days = midpoint(freezer.days_min, freezer.days_max)
+            frozen = _days_text(freezer.days_min, freezer.days_max)
             return Storage(
-                days=midpoint(freezer.days_min, freezer.days_max),
-                source=f"FoodKeeper cooked leftovers, freezer: {_days_text(freezer.days_min, freezer.days_max)}",
+                days=days,
+                source=f"FoodKeeper cooked leftovers, freezer: {frozen}",
                 note=(
-                    "Cook and freeze extras: assumes you freeze what you won't eat in "
-                    f"{_days_text(fridge.days_min, fridge.days_max)}."
+                    f"Cook and freeze extras: cooked leftovers keep {frozen} frozen "
+                    f"(FoodKeeper), counted as {days:g} days. Assumes you freeze what you "
+                    f"won't eat in {_days_text(fridge.days_min, fridge.days_max)}."
                 ),
                 snapshot_id=freezer.snapshot_id,
             )
@@ -293,9 +332,13 @@ def item_storage(session: Session, household: Household, item: CatalogItem) -> S
         if item.storage_days_max is not None
         else item.storage_days_min
     )
+    days = midpoint(item.storage_days_min, item.storage_days_max)
+    where = item.storage_location or "storage"
+    kept = _days_text(item.storage_days_min, high)
     return Storage(
-        days=midpoint(item.storage_days_min, item.storage_days_max),
-        source=f"FoodKeeper, {item.storage_location or 'storage'}: {_days_text(item.storage_days_min, high)}",
+        days=days,
+        source=f"FoodKeeper, {where}: {kept}",
+        note=f"Keeps {kept} in the {where} (FoodKeeper), counted as {days:g} days.",
         snapshot_id=item.storage_snapshot_id,
     )
 
@@ -422,14 +465,22 @@ def compare_best_buy(
         if ers is not None:
             observation, snapshot = ers
             kind: RowKind = "ers_reference" if prices else "ers_fallback"
-            label = f"national average (ERS {snapshot.version}), not a store price"
+            label = national_average_label(snapshot.version)
+            if table.national_average is None:
+                table.national_average = NationalAverage(
+                    snapshot.version,
+                    snapshot.url,
+                    national_average_note(snapshot.version),
+                )
             prices.append(
                 _price_input(
                     session, item, observation, kind, label, table.data_snapshot_ids
                 )
             )
             table.data_snapshot_ids.add(snapshot.id)
-        table.rows.extend(build_rows(item.name, need, facts, storage, prices))
+        rows = build_rows(item.name, need, facts, storage, prices)
+        table.rows.extend(rows)
+        table.items.append(item_note(item.name, facts, storage, rows))
     return table
 
 
@@ -539,15 +590,23 @@ def _row_numbers(row: BestBuyRow) -> Iterable[str]:
             yield text
 
 
-def table_numbers(table: BestBuyTable) -> set[Decimal]:
-    """Every number shown in the table, as the explanation may quote it."""
-    numbers: set[Decimal] = set()
+def _shown_texts(table: BestBuyTable) -> Iterable[str]:
     for row in table.rows:
-        for text in _row_numbers(row):
-            for found in _NUMBER.findall(text):
-                value = _decimal(found)
-                if value is not None:
-                    numbers.add(value.normalize())
+        yield from _row_numbers(row)
+    for note in table.items:
+        yield from (t for t in (note.storage, *note.notes) if t)
+    if table.national_average is not None:
+        yield table.national_average.note
+
+
+def table_numbers(table: BestBuyTable) -> set[Decimal]:
+    """Every number shown in the table and its notes, as the explanation may quote it."""
+    numbers: set[Decimal] = set()
+    for text in _shown_texts(table):
+        for found in _NUMBER.findall(text):
+            value = _decimal(found)
+            if value is not None:
+                numbers.add(value.normalize())
     return numbers
 
 
