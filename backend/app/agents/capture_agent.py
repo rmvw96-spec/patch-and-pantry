@@ -325,7 +325,8 @@ def _process_line(
     piece: float | None = None
     if needs_piece(unit, facts):
         try:
-            choice = portion_grams(session, item, unit, line.size)
+            # A size on the line wins over one an alias implies ("satsuma").
+            choice = portion_grams(session, item, unit, line.size or match.size)
         except NeedsPortion as exc:
             kind: QuestionKind = "needs_size" if exc.sizes else "needs_weight"
             result.questions.append(

@@ -1,4 +1,4 @@
-alias,slug,notes
+alias,slug,notes,size
 russet,potato,
 russet potato,potato,
 red potato,potato,
@@ -81,3 +81,5 @@ dried plum,prunes,
 butter bean,lima-bean,Southern name for lima beans (dogfooding)
 purple hull pea,southern-pea,A southern pea variety (dogfooding)
 cutie,clementine,"A clementine brand (dogfooding: ""Cuties 2 for $1"")"
+tangerine,orange,Owner (2026-11-12): priced as an orange; no size implied,
+satsuma,orange,Owner (2026-11-12): priced as a large orange,large

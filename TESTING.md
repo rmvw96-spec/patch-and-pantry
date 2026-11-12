@@ -7,7 +7,7 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 562 |
+| Backend tests | 58 | 564 |
 | Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
 | Backend suite, local run | 16.4 s | 21.4 s |
@@ -250,3 +250,4 @@ for it.
 | 2026-11-12 | Dogfooding: name matching (word order, possessives, filler in item names, broader names, form words kept). Tests use the owner's market list phrasings. Checked that five put-back bugs each fail a test: no form guard, order-sensitive names, filler always dropped, broader names never stopping at a named item, possessives kept | +16 backend | ___ |
 | 2026-11-12 | Dogfooding: SR28 piece weights for 28 more count-sold items. The committed-map test now requires weights for the fruits priced by count at the market; checked that removing the avocado row fails it. Loaded with the real SR28 zip into a scratch database: 91 rows | No count change (assertions added) | ___ |
 | 2026-11-12 | Owner decision: no size means medium; a size without a weight is ignored. Tests rewritten from "a size is never assumed"; new cases for ignored sizes (price by the pound, single-weight item, unknown size) and items without a medium. Checked that four put-back bugs each fail tests: never assuming medium, an unusable size raising a question, size kept on weight prices, assumed not reported. Checked on the page with real SR28 weights (scratch database) | +1 backend | ___ |
+| 2026-11-12 | Aliases that imply a size (satsuma is a large orange; tangerine is an orange). Checked that three put-back bugs each fail a test: capture ignoring the alias size, the alias size beating the line's, the matcher dropping it | +2 backend | ___ |

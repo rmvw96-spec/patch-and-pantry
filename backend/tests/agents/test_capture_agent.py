@@ -588,3 +588,26 @@ def test_demo_answers_can_wait(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "DEMO_DELAY_SECONDS", 0.0)
     asyncio.run(capture.extract_lines(["onions 1 lb 1.00"], demo_capture_model()))
     assert waits == [1.5]
+
+
+def test_a_size_from_an_alias_is_used_unless_the_line_names_one(
+    capture_run: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Like "satsuma" (a large orange), with the test catalog's sized tomato."""
+    import app.tools.catalog as catalog_tool
+
+    sized = (catalog_tool.AliasRow("beefsteak", "tomato", "", "large"),)
+    monkeypatch.setattr(catalog_tool, "read_aliases", lambda: sized)
+    result = capture_run(
+        "beefsteaks $1 each\nsmall beefsteaks $1 each",
+        {"line": 1, "item_text": "beefsteaks", "quantity": 1, "unit": "each", "price_text": "$1"},
+        {"line": 2, "item_text": "beefsteaks", "quantity": 1, "unit": "each", "size": "small", "price_text": "$1"},
+    )  # fmt: skip
+    from_alias, from_line = result.drafts
+    assert (from_alias.size, from_alias.size_assumed, from_alias.piece_grams) == (
+        "large",
+        False,
+        200.0,
+    )
+    assert from_alias.match_note == "'beefsteaks' is priced as a large tomato"
+    assert (from_line.size, from_line.piece_grams) == ("small", 100.0)

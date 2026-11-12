@@ -179,6 +179,7 @@ def test_the_alias_list_is_valid() -> None:
     assert {row.slug for row in rows} <= produce
     pairs = [(fold(row.alias), row.slug) for row in rows]
     assert len(pairs) == len(set(pairs))
+    assert {row.size for row in rows} <= {"", "small", "medium", "large"}
     names = {fold(row.name) for row in read_crosswalk()}
     repeats = names & {fold(row.alias) for row in rows}
     assert not repeats, f"aliases repeat catalog names: {repeats}"
@@ -300,3 +301,19 @@ def test_a_form_is_never_dropped(db_session: Session) -> None:
     # Without a form word, a frozen item is never the match.
     assert _match(db_session, "lima beans")[:2] == ("exact", "Lima bean")
     assert _match(db_session, "cut okra")[:2] == ("fuzzy", "Okra")
+
+
+def test_an_alias_can_imply_a_size(db_session: Session) -> None:
+    """Owner, 2026-11-12: "satsuma" is priced as a large orange; "tangerine" names no size."""
+    aliases = (
+        AliasRow("beefsteak", "tomato", "", "large"),
+        AliasRow("plum tomato", "tomato", ""),
+    )
+    match = find_catalog_item(db_session, "Beefsteaks", aliases=aliases)
+    assert (match.kind, match.size) == ("exact", "large")
+    assert match.note == "'Beefsteaks' is priced as a large tomato"
+    plain = find_catalog_item(db_session, "plum tomatoes", aliases=aliases)
+    assert (plain.kind, plain.size, plain.note) == ("exact", None, None)
+    assert find_catalog_item(db_session, "tomatoes", aliases=aliases).size is None
+    committed = {row.alias: row.size for row in read_aliases()}
+    assert (committed["satsuma"], committed["tangerine"]) == ("large", "")
