@@ -5,6 +5,140 @@ export type ClientOptions = {
 };
 
 /**
+ * BestBuyRequest
+ *
+ * Compare this week's best buys for the items needed.
+ */
+export type BestBuyRequest = {
+    /**
+     * Kind
+     */
+    kind: 'best_buy';
+    /**
+     * Needs
+     */
+    needs: Array<NeedRequest>;
+    /**
+     * On
+     */
+    on?: string | null;
+};
+
+/**
+ * BestBuyResult
+ */
+export type BestBuyResult = {
+    /**
+     * Kind
+     */
+    kind?: 'best_buy';
+    /**
+     * On
+     */
+    on: string;
+    /**
+     * Rows
+     */
+    rows: Array<BestBuyRow>;
+    /**
+     * Explanation
+     */
+    explanation?: string | null;
+    /**
+     * Explanation Error
+     */
+    explanation_error?: string | null;
+};
+
+/**
+ * BestBuyRow
+ */
+export type BestBuyRow = {
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Kind
+     */
+    kind: 'household' | 'ers_fallback' | 'ers_reference' | 'no_price';
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Cups Per Week
+     */
+    cups_per_week: number;
+    /**
+     * Observed On
+     */
+    observed_on?: string | null;
+    /**
+     * Raw Text
+     */
+    raw_text?: string | null;
+    /**
+     * Price Cents
+     */
+    price_cents?: number | null;
+    /**
+     * Quantity
+     */
+    quantity?: number | null;
+    /**
+     * Unit
+     */
+    unit?: string | null;
+    /**
+     * Cups Bought
+     */
+    cups_bought?: number | null;
+    /**
+     * Usable Cups
+     */
+    usable_cups?: number | null;
+    /**
+     * Spoiled Share
+     */
+    spoiled_share?: number | null;
+    /**
+     * Storage Days
+     */
+    storage_days?: number | null;
+    /**
+     * Cost Per Cup Cents
+     */
+    cost_per_cup_cents?: number | null;
+    /**
+     * Cost Per Usable Cup Cents
+     */
+    cost_per_usable_cup_cents?: number | null;
+    /**
+     * Marked
+     */
+    marked?: boolean;
+    /**
+     * Notes
+     */
+    notes?: Array<string>;
+    /**
+     * Sources
+     */
+    sources?: {
+        [key: string]: string;
+    };
+    /**
+     * Observation Id
+     */
+    observation_id?: string | null;
+    /**
+     * Vendor Id
+     */
+    vendor_id?: string | null;
+};
+
+/**
  * Body_login-login_access_token
  */
 export type Body_login_login_access_token = {
@@ -32,6 +166,195 @@ export type Body_login_login_access_token = {
      * Client Secret
      */
     client_secret?: string | null;
+};
+
+/**
+ * CaptureQuestion
+ */
+export type CaptureQuestion = {
+    /**
+     * Raw Text
+     */
+    raw_text: string;
+    /**
+     * Kind
+     */
+    kind: 'unreadable' | 'no_match' | 'which_item' | 'missing_price' | 'missing_unit' | 'unknown_unit' | 'needs_weight' | 'needs_size';
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Options
+     */
+    options?: Array<string>;
+    draft?: DraftPrice | null;
+};
+
+/**
+ * DraftPrice
+ *
+ * A price ready for the user to confirm. Never saved here.
+ */
+export type DraftPrice = {
+    /**
+     * Raw Text
+     */
+    raw_text: string;
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id: string;
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Match Note
+     */
+    match_note: string | null;
+    /**
+     * Quantity
+     */
+    quantity: number;
+    /**
+     * Unit
+     */
+    unit: string;
+    /**
+     * Size
+     */
+    size: 'small' | 'medium' | 'large' | null;
+    /**
+     * Price Cents
+     */
+    price_cents: number;
+    /**
+     * Vendor Id
+     */
+    vendor_id: string;
+    /**
+     * Observed On
+     */
+    observed_on: string;
+    /**
+     * Piece Grams
+     */
+    piece_grams?: number | null;
+    /**
+     * Piece Source
+     */
+    piece_source?: string | null;
+    /**
+     * Grams Purchased
+     */
+    grams_purchased?: number | null;
+    /**
+     * Grams Edible
+     */
+    grams_edible?: number | null;
+    /**
+     * Cups
+     */
+    cups?: number | null;
+    /**
+     * Cost Per Cup Cents
+     */
+    cost_per_cup_cents?: number | null;
+    /**
+     * Conversion Source
+     */
+    conversion_source?: string | null;
+    /**
+     * Stand In Name
+     */
+    stand_in_name?: string | null;
+    /**
+     * Note
+     */
+    note?: string | null;
+};
+
+/**
+ * GroceryAnalysisRunPublic
+ */
+export type GroceryAnalysisRunPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Owner Id
+     */
+    owner_id: string;
+    /**
+     * Kind
+     */
+    kind: 'price_capture' | 'best_buy';
+    /**
+     * Input
+     */
+    input: ({
+        kind: 'price_capture';
+    } & PriceCaptureRequest) | ({
+        kind: 'best_buy';
+    } & BestBuyRequest);
+    /**
+     * Status
+     */
+    status: 'queued' | 'running' | 'succeeded' | 'failed';
+    /**
+     * Result
+     */
+    result?: ({
+        kind: 'price_capture';
+    } & PriceCaptureResult) | ({
+        kind: 'best_buy';
+    } & BestBuyResult) | null;
+    /**
+     * Tools Used
+     */
+    tools_used: Array<string>;
+    /**
+     * Data Snapshot Ids
+     */
+    data_snapshot_ids: Array<string>;
+    /**
+     * Model
+     */
+    model?: string | null;
+    /**
+     * Input Tokens
+     */
+    input_tokens: number;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+    /**
+     * Requests
+     */
+    requests: number;
+    /**
+     * Error Reason
+     */
+    error_reason?: string | null;
+    /**
+     * Error Message
+     */
+    error_message?: string | null;
+    /**
+     * Created At
+     */
+    created_at?: string | null;
+    /**
+     * Started At
+     */
+    started_at?: string | null;
+    /**
+     * Finished At
+     */
+    finished_at?: string | null;
 };
 
 /**
@@ -186,6 +509,20 @@ export type Message = {
 };
 
 /**
+ * NeedRequest
+ */
+export type NeedRequest = {
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id: string;
+    /**
+     * Cups Per Week
+     */
+    cups_per_week: number;
+};
+
+/**
  * NewPassword
  */
 export type NewPassword = {
@@ -197,6 +534,52 @@ export type NewPassword = {
      * New Password
      */
     new_password: string;
+};
+
+/**
+ * PriceCaptureRequest
+ *
+ * Read a typed list into draft prices for one store and date. Nothing is saved yet.
+ */
+export type PriceCaptureRequest = {
+    /**
+     * Kind
+     */
+    kind: 'price_capture';
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Vendor Id
+     */
+    vendor_id: string;
+    /**
+     * Observed On
+     */
+    observed_on: string;
+};
+
+/**
+ * PriceCaptureResult
+ */
+export type PriceCaptureResult = {
+    /**
+     * Kind
+     */
+    kind?: 'price_capture';
+    /**
+     * Drafts
+     */
+    drafts: Array<DraftPrice>;
+    /**
+     * Questions
+     */
+    questions: Array<CaptureQuestion>;
+    /**
+     * Ignored
+     */
+    ignored: Array<string>;
 };
 
 /**
@@ -219,77 +602,6 @@ export type PrivateUserCreate = {
      * Is Verified
      */
     is_verified?: boolean;
-};
-
-/**
- * StudyCreate
- */
-export type StudyCreate = {
-    /**
-     * Prompt
-     */
-    prompt: string;
-};
-
-/**
- * StudyOutcome
- */
-export type StudyOutcome = {
-    /**
-     * Objective
-     */
-    objective: number;
-    /**
-     * Feasible
-     */
-    feasible: boolean;
-    /**
-     * Review
-     */
-    review?: string | null;
-};
-
-/**
- * StudyPublic
- */
-export type StudyPublic = {
-    /**
-     * Id
-     */
-    id: string;
-    /**
-     * Owner Id
-     */
-    owner_id: string;
-    /**
-     * Prompt
-     */
-    prompt: string;
-    /**
-     * Status
-     */
-    status: 'queued' | 'running' | 'succeeded' | 'failed';
-    result?: StudyOutcome | null;
-    /**
-     * Error Reason
-     */
-    error_reason?: string | null;
-    /**
-     * Error Message
-     */
-    error_message?: string | null;
-    /**
-     * Created At
-     */
-    created_at?: string | null;
-    /**
-     * Started At
-     */
-    started_at?: string | null;
-    /**
-     * Finished At
-     */
-    finished_at?: string | null;
 };
 
 /**
@@ -474,6 +786,48 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * VendorCreate
+ *
+ * A place the household buys produce. Area only, never a street address.
+ */
+export type VendorCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Vendor Type
+     */
+    vendor_type?: 'store' | 'farmers_market' | 'farm_share' | 'local_grower' | 'supplier';
+    /**
+     * Area
+     */
+    area?: string | null;
+};
+
+/**
+ * VendorPublic
+ */
+export type VendorPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Vendor Type
+     */
+    vendor_type: 'store' | 'farmers_market' | 'farm_share' | 'local_grower' | 'supplier';
+    /**
+     * Area
+     */
+    area?: string | null;
 };
 
 export type loginLoginAccessTokenData = {
@@ -1096,8 +1450,58 @@ export type householdUpdateHouseholdResponses = {
 
 export type householdUpdateHouseholdResponse = householdUpdateHouseholdResponses[keyof householdUpdateHouseholdResponses];
 
-export type studiesCreateStudyData = {
-    body: StudyCreate;
+export type vendorsReadVendorsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/vendors/';
+};
+
+export type vendorsReadVendorsResponses = {
+    /**
+     * Response Vendors-Read Vendors
+     *
+     * Successful Response
+     */
+    200: Array<VendorPublic>;
+};
+
+export type vendorsReadVendorsResponse = vendorsReadVendorsResponses[keyof vendorsReadVendorsResponses];
+
+export type vendorsCreateVendorData = {
+    body: VendorCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/vendors/';
+};
+
+export type vendorsCreateVendorErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type vendorsCreateVendorError = vendorsCreateVendorErrors[keyof vendorsCreateVendorErrors];
+
+export type vendorsCreateVendorResponses = {
+    /**
+     * Successful Response
+     */
+    201: VendorPublic;
+};
+
+export type vendorsCreateVendorResponse = vendorsCreateVendorResponses[keyof vendorsCreateVendorResponses];
+
+export type groceryAnalysisRunsCreateGroceryAnalysisRunData = {
+    /**
+     * Run In
+     */
+    body: ({
+        kind: 'price_capture';
+    } & PriceCaptureRequest) | ({
+        kind: 'best_buy';
+    } & BestBuyRequest);
     headers?: {
         /**
          * Idempotency-Key
@@ -1106,28 +1510,28 @@ export type studiesCreateStudyData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/studies/';
+    url: '/api/v1/grocery-analysis-runs/';
 };
 
-export type studiesCreateStudyErrors = {
+export type groceryAnalysisRunsCreateGroceryAnalysisRunErrors = {
     /**
      * Validation Error
      */
     422: HTTPValidationError;
 };
 
-export type studiesCreateStudyError = studiesCreateStudyErrors[keyof studiesCreateStudyErrors];
+export type groceryAnalysisRunsCreateGroceryAnalysisRunError = groceryAnalysisRunsCreateGroceryAnalysisRunErrors[keyof groceryAnalysisRunsCreateGroceryAnalysisRunErrors];
 
-export type studiesCreateStudyResponses = {
+export type groceryAnalysisRunsCreateGroceryAnalysisRunResponses = {
     /**
      * Successful Response
      */
-    202: StudyPublic;
+    202: GroceryAnalysisRunPublic;
 };
 
-export type studiesCreateStudyResponse = studiesCreateStudyResponses[keyof studiesCreateStudyResponses];
+export type groceryAnalysisRunsCreateGroceryAnalysisRunResponse = groceryAnalysisRunsCreateGroceryAnalysisRunResponses[keyof groceryAnalysisRunsCreateGroceryAnalysisRunResponses];
 
-export type studiesReadStudyData = {
+export type groceryAnalysisRunsReadGroceryAnalysisRunData = {
     body?: never;
     path: {
         /**
@@ -1136,26 +1540,26 @@ export type studiesReadStudyData = {
         id: string;
     };
     query?: never;
-    url: '/api/v1/studies/{id}';
+    url: '/api/v1/grocery-analysis-runs/{id}';
 };
 
-export type studiesReadStudyErrors = {
+export type groceryAnalysisRunsReadGroceryAnalysisRunErrors = {
     /**
      * Validation Error
      */
     422: HTTPValidationError;
 };
 
-export type studiesReadStudyError = studiesReadStudyErrors[keyof studiesReadStudyErrors];
+export type groceryAnalysisRunsReadGroceryAnalysisRunError = groceryAnalysisRunsReadGroceryAnalysisRunErrors[keyof groceryAnalysisRunsReadGroceryAnalysisRunErrors];
 
-export type studiesReadStudyResponses = {
+export type groceryAnalysisRunsReadGroceryAnalysisRunResponses = {
     /**
      * Successful Response
      */
-    200: StudyPublic;
+    200: GroceryAnalysisRunPublic;
 };
 
-export type studiesReadStudyResponse = studiesReadStudyResponses[keyof studiesReadStudyResponses];
+export type groceryAnalysisRunsReadGroceryAnalysisRunResponse = groceryAnalysisRunsReadGroceryAnalysisRunResponses[keyof groceryAnalysisRunsReadGroceryAnalysisRunResponses];
 
 export type privateCreateUserData = {
     body: PrivateUserCreate;

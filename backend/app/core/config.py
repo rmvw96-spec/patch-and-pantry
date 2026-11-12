@@ -52,12 +52,7 @@ class Settings(BaseSettings):
     FOUNDRY_ENDPOINT: str | None = None
     FOUNDRY_API_KEY: SecretStr | None = None
 
-    # Toy pipeline simulator used by the study agent (see app/agents/simulator.py).
-    SIM_MAX_INLET_BAR: float = 80.0
-    # Artificial delay per simulation, to imitate long-running jobs in demos and nightly runs.
-    SIM_DELAY_SECONDS: float = 0.0
-
-    # OpenTelemetry tracing for the study agent (see app/core/tracing.py). Unset means tracing is
+    # OpenTelemetry tracing for the agents (see app/core/tracing.py). Unset means tracing is
     # off. For a local Phoenix from compose.override.yml: http://localhost:6006/v1/traces
     PHOENIX_COLLECTOR_ENDPOINT: str | None = None
     # Record prompts, model responses, and tool arguments in spans. Turn off where those may hold

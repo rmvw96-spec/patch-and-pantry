@@ -7,14 +7,14 @@ From backend/, with FOUNDRY_ENDPOINT and FOUNDRY_API_KEY in ../.env.local:
     PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces \\
         uv run python scripts/smoke_foundry.py [foundry:deepseek-v3.2]
 
-Exits non-zero if the model does not make real tool calls or the study fails.
+Exits non-zero if the model does not make real tool calls or cannot read the list.
 """
 
 import asyncio
 import sys
 
 from app.agents.models import build_model
-from app.agents.smoke import ToolCallCheckFailed, check_tool_calls, run_smoke_study
+from app.agents.smoke import ToolCallCheckFailed, check_tool_calls, run_smoke_capture
 from app.core.config import settings
 from app.core.tracing import setup_tracing, shutdown_tracing
 
@@ -25,9 +25,8 @@ async def main(spec: str) -> int:
     if not spec.startswith("foundry:"):
         print(f"Expected a foundry: model spec, got {spec!r}", file=sys.stderr)
         return 2
-    # The reviewer agent builds its model from settings.SIM_MODEL, so point it at the same model.
     settings.SIM_MODEL = spec
-    model = build_model(spec)
+    model = build_model(spec, role="capture")
     if not settings.PHOENIX_COLLECTOR_ENDPOINT:
         print("Tracing is off (PHOENIX_COLLECTOR_ENDPOINT unset): no trace in Phoenix.")
     setup_tracing(
@@ -43,9 +42,10 @@ async def main(spec: str) -> int:
             return 1
         print("    ok: the model made a structured tool call")
 
-        print("2/2 Smoke study ...")
-        report = await run_smoke_study(model)
-        print(f"    result:            {report.result.model_dump()}")
+        print("2/2 Smoke capture (reading a short typed list) ...")
+        report = await run_smoke_capture(model)
+        for line in report.result.lines:
+            print(f"    line {line.line}: {line.model_dump(exclude={'line'})}")
         print(f"    trace ID:          {report.trace_id}")
         print(f"    model requests:    {report.requests}")
         print(f"    input tokens:      {report.input_tokens}")

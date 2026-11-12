@@ -24,6 +24,7 @@ from pydantic_ai.usage import UsageLimits
 from sqlmodel import Session
 
 from app.agents.models import build_model
+from app.agents.usage import ModelUsage
 from app.core.config import settings
 from app.models import CatalogItem, Household, PortionSize, Vendor
 from app.tools.catalog import Match, find_catalog_item
@@ -158,6 +159,7 @@ class CaptureResult:
     questions: list[CaptureQuestion] = field(default_factory=list)
     ignored: list[str] = field(default_factory=list)  # lines that are not prices
     data_snapshot_ids: set[uuid.UUID] = field(default_factory=set)
+    usage: ModelUsage = field(default_factory=ModelUsage)
 
 
 class CaptureFailed(Exception):
@@ -195,7 +197,7 @@ def split_lines(text: str) -> list[str]:
     return [line for line in text.splitlines() if line.strip()]
 
 
-def _numbered(lines: list[str]) -> str:
+def numbered_lines(lines: list[str]) -> str:
     return "\n".join(f"{n}: {line}" for n, line in enumerate(lines, start=1))
 
 
@@ -325,13 +327,13 @@ def _process_line(
 
 async def extract_lines(
     lines: list[str], model: models.Model | str | None = None
-) -> dict[int, ExtractedLine]:
+) -> tuple[dict[int, ExtractedLine], ModelUsage]:
     """Ask the model to read the numbered lines. Returns each line's entry by line number."""
     if model is None:
         model = build_model(settings.SIM_MODEL, role="capture")
     try:
         result = await capture_agent.run(
-            _numbered(lines),
+            numbered_lines(lines),
             model=model,
             usage_limits=UsageLimits(request_limit=MAX_MODEL_REQUESTS),
         )
@@ -350,7 +352,7 @@ async def extract_lines(
         # the line then gets an "unreadable" question instead of someone else's data.
         if 1 <= entry.line <= len(lines) and entry.line not in by_number:
             by_number[entry.line] = entry
-    return by_number
+    return by_number, ModelUsage.of(result.usage)
 
 
 async def capture_typed_list(
@@ -381,7 +383,7 @@ async def capture_typed_list(
     result = CaptureResult()
     if not lines:
         return result
-    extracted = await extract_lines(lines, model)
+    extracted, result.usage = await extract_lines(lines, model)
     for number, raw in enumerate(lines, start=1):
         _process_line(
             session,

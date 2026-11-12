@@ -67,8 +67,8 @@ def get_redis() -> redis.Redis:
 RedisDep = Annotated[redis.Redis, Depends(get_redis)]
 
 
-def get_study_model() -> models.Model | str | None:
-    """Model for the study agent. None means the model built from settings.SIM_MODEL.
+def get_run_model() -> models.Model | str | None:
+    """Model for grocery analysis runs. None means the model built from settings.SIM_MODEL.
 
     Tests replace this dependency (app.dependency_overrides) to inject Pydantic AI's FunctionModel
     or TestModel, so API tests never depend on a live model or on context variables.
@@ -76,4 +76,4 @@ def get_study_model() -> models.Model | str | None:
     return None
 
 
-StudyModelDep = Annotated[models.Model | str | None, Depends(get_study_model)]
+RunModelDep = Annotated[models.Model | str | None, Depends(get_run_model)]

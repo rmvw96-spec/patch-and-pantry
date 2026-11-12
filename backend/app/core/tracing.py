@@ -1,4 +1,4 @@
-"""OpenTelemetry tracing for the study agent, exported to Phoenix.
+"""OpenTelemetry tracing for the agents, exported to Phoenix.
 
 Pydantic AI emits spans for agent runs, model requests, and tool calls once instrumentation is
 turned on. The OpenInference processor adds the attributes Phoenix uses to show those spans as

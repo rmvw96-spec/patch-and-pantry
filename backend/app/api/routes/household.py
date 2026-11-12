@@ -3,14 +3,11 @@
 Each user has one household, created with defaults the first time it is read or updated.
 """
 
-import uuid
-
-from fastapi import APIRouter, HTTPException
-from sqlalchemy.exc import IntegrityError
+from fastapi import APIRouter
 from sqlmodel import Session, col, delete, select
 
 from app.api.deps import CurrentUser, SessionDep
-from app.core.db import NORTH_ALABAMA
+from app.households import get_or_create_household
 from app.models import (
     Household,
     HouseholdMember,
@@ -21,43 +18,6 @@ from app.models import (
 )
 
 router = APIRouter(prefix="/household", tags=["household"])
-
-# The only region for now (design.md): every household starts here.
-DEFAULT_REGION_CODE = NORTH_ALABAMA["code"]
-
-
-def _find_household(session: Session, owner_id: uuid.UUID) -> Household | None:
-    return session.exec(select(Household).where(Household.owner_id == owner_id)).first()
-
-
-def _create_household(session: Session, owner_id: uuid.UUID) -> Household:
-    """Create a household with one member at 2,000 calories, or return the one that exists."""
-    region = session.exec(
-        select(Region).where(Region.code == DEFAULT_REGION_CODE)
-    ).first()
-    if region is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Region data is not loaded yet. Run the database setup and try again.",
-        )
-    household = Household(owner_id=owner_id, region_id=region.id)
-    session.add(household)
-    session.add(HouseholdMember(household_id=household.id))
-    try:
-        session.commit()
-    except IntegrityError:
-        # Two first requests raced and the other created it (owner_id is unique): use that one.
-        session.rollback()
-        existing = _find_household(session, owner_id)
-        if existing is None:
-            raise
-        return existing
-    session.refresh(household)
-    return household
-
-
-def get_or_create_household(session: Session, owner_id: uuid.UUID) -> Household:
-    return _find_household(session, owner_id) or _create_household(session, owner_id)
 
 
 def _public(session: Session, household: Household) -> HouseholdPublic:

@@ -8,8 +8,8 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, func, select
 
 from app import crud
-from app.api.routes.household import _create_household
 from app.core.config import settings
+from app.households import _create_household
 from app.models import Household, HouseholdMember, UserCreate
 from tests.utils.user import create_random_user, user_authentication_headers
 from tests.utils.utils import random_email, random_lower_string

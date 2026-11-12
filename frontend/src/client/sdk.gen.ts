@@ -2,7 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { householdReadHouseholdData, householdReadHouseholdResponses, householdUpdateHouseholdData, householdUpdateHouseholdErrors, householdUpdateHouseholdResponses, itemsCreateItemData, itemsCreateItemErrors, itemsCreateItemResponses, itemsDeleteItemData, itemsDeleteItemErrors, itemsDeleteItemResponses, itemsReadItemData, itemsReadItemErrors, itemsReadItemResponses, itemsReadItemsData, itemsReadItemsErrors, itemsReadItemsResponses, itemsUpdateItemData, itemsUpdateItemErrors, itemsUpdateItemResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, studiesCreateStudyData, studiesCreateStudyErrors, studiesCreateStudyResponses, studiesReadStudyData, studiesReadStudyErrors, studiesReadStudyResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
+import type { groceryAnalysisRunsCreateGroceryAnalysisRunData, groceryAnalysisRunsCreateGroceryAnalysisRunErrors, groceryAnalysisRunsCreateGroceryAnalysisRunResponses, groceryAnalysisRunsReadGroceryAnalysisRunData, groceryAnalysisRunsReadGroceryAnalysisRunErrors, groceryAnalysisRunsReadGroceryAnalysisRunResponses, householdReadHouseholdData, householdReadHouseholdResponses, householdUpdateHouseholdData, householdUpdateHouseholdErrors, householdUpdateHouseholdResponses, itemsCreateItemData, itemsCreateItemErrors, itemsCreateItemResponses, itemsDeleteItemData, itemsDeleteItemErrors, itemsDeleteItemResponses, itemsReadItemData, itemsReadItemErrors, itemsReadItemResponses, itemsReadItemsData, itemsReadItemsErrors, itemsReadItemsResponses, itemsUpdateItemData, itemsUpdateItemErrors, itemsUpdateItemResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses, vendorsCreateVendorData, vendorsCreateVendorErrors, vendorsCreateVendorResponses, vendorsReadVendorsData, vendorsReadVendorsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -400,20 +400,54 @@ export class HouseholdService {
     }
 }
 
-export class StudiesService {
+export class VendorsService {
     /**
-     * Create Study
+     * Read Vendors
      *
-     * Submit a study. Returns immediately with status "queued"; poll GET /studies/{id} for the outcome.
-     *
-     * Send an Idempotency-Key header to make retries safe: repeating a request with the same key
-     * returns the original study instead of starting a duplicate job.
+     * Your stores and markets, by name.
      */
-    public static createStudy<ThrowOnError extends boolean = true>(options: Options<studiesCreateStudyData, ThrowOnError>) {
-        return (options.client ?? client).post<studiesCreateStudyResponses, studiesCreateStudyErrors, ThrowOnError>({
+    public static readVendors<ThrowOnError extends boolean = true>(options?: Options<vendorsReadVendorsData, ThrowOnError>) {
+        return (options?.client ?? client).get<vendorsReadVendorsResponses, unknown, ThrowOnError>({
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
-            url: '/api/v1/studies/',
+            url: '/api/v1/vendors/',
+            ...options
+        });
+    }
+    
+    /**
+     * Create Vendor
+     *
+     * Add a store or market.
+     */
+    public static createVendor<ThrowOnError extends boolean = true>(options: Options<vendorsCreateVendorData, ThrowOnError>) {
+        return (options.client ?? client).post<vendorsCreateVendorResponses, vendorsCreateVendorErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/vendors/',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+}
+
+export class GroceryAnalysisRunsService {
+    /**
+     * Create Grocery Analysis Run
+     *
+     * Start a run. Returns at once with status "queued"; poll GET /grocery-analysis-runs/{id}.
+     *
+     * Send an Idempotency-Key header to make retries safe: repeating a request with the same key
+     * returns the original run instead of starting a duplicate job.
+     */
+    public static analysisRunsCreateGroceryAnalysisRun<ThrowOnError extends boolean = true>(options: Options<groceryAnalysisRunsCreateGroceryAnalysisRunData, ThrowOnError>) {
+        return (options.client ?? client).post<groceryAnalysisRunsCreateGroceryAnalysisRunResponses, groceryAnalysisRunsCreateGroceryAnalysisRunErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/grocery-analysis-runs/',
             ...options,
             headers: {
                 'Content-Type': 'application/json',
@@ -423,15 +457,15 @@ export class StudiesService {
     }
     
     /**
-     * Read Study
+     * Read Grocery Analysis Run
      *
-     * Get a study's status, and its result or error once it has finished.
+     * Get a run's status, and its result or error once it has finished.
      */
-    public static readStudy<ThrowOnError extends boolean = true>(options: Options<studiesReadStudyData, ThrowOnError>) {
-        return (options.client ?? client).get<studiesReadStudyResponses, studiesReadStudyErrors, ThrowOnError>({
+    public static analysisRunsReadGroceryAnalysisRun<ThrowOnError extends boolean = true>(options: Options<groceryAnalysisRunsReadGroceryAnalysisRunData, ThrowOnError>) {
+        return (options.client ?? client).get<groceryAnalysisRunsReadGroceryAnalysisRunResponses, groceryAnalysisRunsReadGroceryAnalysisRunErrors, ThrowOnError>({
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
-            url: '/api/v1/studies/{id}',
+            url: '/api/v1/grocery-analysis-runs/{id}',
             ...options
         });
     }
