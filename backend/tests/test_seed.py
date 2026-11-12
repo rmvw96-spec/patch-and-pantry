@@ -309,8 +309,11 @@ def test_ers_loader_writes_conversions_and_public_prices(
     # Beets are canned only in ERS, so the crosswalk names no ERS row: nothing is borrowed.
     assert catalog["beet"].preparation_yield_factor is None
 
+    # Filter by this load's snapshot: a seeded database already has the real ERS potato price.
     price = session.exec(
-        select(PriceObservation).where(PriceObservation.catalog_item_id == potato.id)
+        select(PriceObservation)
+        .where(PriceObservation.catalog_item_id == potato.id)
+        .where(PriceObservation.snapshot_id == result.snapshot.id)
     ).one()
     assert price.household_id is None
     assert (price.captured_via, price.source_type, price.visibility) == (
