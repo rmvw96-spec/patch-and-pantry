@@ -13,10 +13,11 @@ from typing import cast, get_args
 
 from sqlmodel import Session, select
 
-from app.models import CatalogItem, CatalogKind
+from app.models import CatalogItem, CatalogKind, CountUnit, PortionSize
 
 SEED_DATA = Path(__file__).resolve().parents[1] / "seed_data"
 CROSSWALK_PATH = SEED_DATA / "catalog_crosswalk.csv"
+PORTIONS_PATH = SEED_DATA / "catalog_portions.csv"
 
 
 @dataclass(frozen=True)
@@ -68,16 +69,78 @@ def read_crosswalk(path: Path = CROSSWALK_PATH) -> list[CrosswalkRow]:
     return rows
 
 
-def crosswalk_fingerprint(crosswalk: list[CrosswalkRow]) -> str:
-    """SHA-256 of the crosswalk rows used for a load, independent of row order.
+def crosswalk_fingerprint(
+    crosswalk: list[CrosswalkRow], portions: list[PortionMapRow] | None = None
+) -> str:
+    """SHA-256 of the mapping rows used for a load, independent of row order.
 
-    Stored on each snapshot, so loading a file again through a changed crosswalk is a new
-    snapshot that applies the new mapping, while loading it again unchanged is a no-op.
+    Stored on each snapshot, so loading a file again through a changed crosswalk (or portion map)
+    is a new snapshot that applies the new mapping, while loading it again unchanged is a no-op.
     """
-    canonical = json.dumps(
-        sorted(astuple(row) for row in crosswalk), ensure_ascii=False
-    )
+    rows = sorted(astuple(row) for row in crosswalk)
+    if portions is not None:
+        rows += sorted(astuple(row) for row in portions)
+    canonical = json.dumps(rows, ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class PortionMapRow:
+    """One count unit of a catalog item and the SR28 household-measure row that weighs it.
+
+    A row without an SR28 reference marks an item sold by count that has no published weight;
+    the coverage report lists it.
+    """
+
+    slug: str
+    unit: str
+    size: str
+    sr28_ndb: str
+    sr28_seq: str
+    notes: str
+
+    @property
+    def has_source(self) -> bool:
+        return bool(self.sr28_ndb)
+
+    @property
+    def count_unit(self) -> CountUnit:
+        return cast(CountUnit, self.unit)  # checked in read_portion_map
+
+    @property
+    def portion_size(self) -> PortionSize | None:
+        return cast(PortionSize, self.size) if self.size else None
+
+
+def read_portion_map(
+    path: Path = PORTIONS_PATH, crosswalk: list[CrosswalkRow] | None = None
+) -> list[PortionMapRow]:
+    """Read ``catalog_portions.csv`` (owner-reviewed), rejecting anything a loader would misuse."""
+    with path.open(newline="", encoding="utf-8") as f:
+        rows = [PortionMapRow(**raw) for raw in csv.DictReader(f)]
+    slugs = {
+        row.slug for row in (crosswalk if crosswalk is not None else read_crosswalk())
+    }
+    problems = []
+    seen: set[tuple[str, str, str]] = set()
+    for row in rows:
+        key = (row.slug, row.unit, row.size)
+        if row.slug not in slugs:
+            problems.append(f"{row.slug}: not in the crosswalk")
+        if row.unit not in get_args(CountUnit):
+            problems.append(f"{row.slug}: unknown unit {row.unit!r}")
+        if row.size and row.size not in get_args(PortionSize):
+            problems.append(f"{row.slug}: unknown size {row.size!r}")
+        if bool(row.sr28_ndb) != bool(row.sr28_seq):
+            problems.append(f"{row.slug}: give both sr28_ndb and sr28_seq, or neither")
+        if key in seen:
+            problems.append(
+                f"{row.slug}: {row.unit} {row.size or '(no size)'} is listed twice"
+            )
+        seen.add(key)
+    if problems:
+        raise ValueError(f"{path.name}: " + "; ".join(problems))
+    return rows
 
 
 def _initial_conversion_source(row: CrosswalkRow) -> str:

@@ -18,6 +18,7 @@ from sqlmodel import Session, SQLModel, func, select
 from app.core.db import NORTH_ALABAMA, engine
 from app.models import (
     CatalogItem,
+    CatalogPortion,
     DataSnapshot,
     Household,
     HouseholdMember,
@@ -352,3 +353,127 @@ def test_same_source_and_hash_is_one_snapshot(session: Session) -> None:
     duplicate = _snapshot()
     duplicate.sha256 = first.sha256
     _rejects(session, duplicate, "uq_data_snapshot_source_sha256")
+
+
+# ---------- portions and capture weights (Phase 1, P1-3) ----------
+
+
+def _portion(item_id: uuid.UUID, **fields: Any) -> CatalogPortion:
+    values: dict[str, Any] = {
+        "catalog_item_id": item_id,
+        "unit": "bunch",
+        "grams": 450.0,
+        "description": "bunch, rubber-banded",
+        "source": "owner measurement",
+    }
+    return CatalogPortion(**(values | fields))
+
+
+@pytest.fixture
+def item(session: Session) -> CatalogItem:
+    item = _produce()
+    session.add(item)
+    session.flush()
+    return item
+
+
+def test_owner_measured_portion_records_its_date(
+    session: Session, item: CatalogItem
+) -> None:
+    """A portion someone weighed needs no snapshot, but must say when it was weighed."""
+    session.add(_portion(item.id, measured_on=date(2026, 11, 14)))
+    session.flush()
+    _rejects(session, _portion(item.id), "ck_catalog_portion_provenance")
+
+
+def test_loaded_portion_keeps_edible_weight_and_refuse(
+    session: Session, item: CatalogItem
+) -> None:
+    snapshot = DataSnapshot(
+        source="usda_sr28",
+        version="SR28 (2015)",
+        retrieved_at=datetime(2026, 11, 11, tzinfo=UTC),
+        url="https://example.com/sr28asc.zip",
+        sha256="a" * 64,
+        row_count=1,
+    )
+    session.add(snapshot)
+    session.flush()
+    session.add(
+        _portion(item.id, snapshot_id=snapshot.id, edible_grams=123.0, refuse_pct=9)
+    )
+    session.flush()
+    _rejects(
+        session,
+        _portion(item.id, snapshot_id=snapshot.id),
+        "ck_catalog_portion_loaded_has_refuse",
+    )
+
+
+@pytest.mark.parametrize(
+    ("fields", "constraint"),
+    [
+        ({"unit": "dozen"}, "ck_catalog_portion_unit"),
+        ({"size": "huge"}, "ck_catalog_portion_size"),
+        ({"grams": 0}, "ck_catalog_portion_grams"),
+        ({"edible_grams": -1}, "ck_catalog_portion_edible_grams"),
+        ({"refuse_pct": 100}, "ck_catalog_portion_refuse_pct"),
+    ],
+)
+def test_portion_values_are_checked(
+    session: Session, item: CatalogItem, fields: dict[str, Any], constraint: str
+) -> None:
+    _rejects(
+        session, _portion(item.id, measured_on=date(2026, 11, 14), **fields), constraint
+    )
+
+
+def test_deleting_an_item_deletes_its_portions(
+    session: Session, item: CatalogItem
+) -> None:
+    session.add(_portion(item.id, measured_on=date(2026, 11, 14)))
+    session.flush()
+    session.delete(item)
+    session.flush()
+    assert _count(session, CatalogPortion, catalog_item_id=item.id) == 0
+
+
+@pytest.mark.parametrize("weight_source", ["weighed", "estimated"])
+def test_a_capture_weight_says_how_it_was_given(
+    session: Session, region: Region, item: CatalogItem, weight_source: str
+) -> None:
+    household = _household(session, region)
+    session.add(
+        _price(
+            catalog_item_id=item.id,
+            household_id=household.id,
+            unit="bunch",
+            unit_grams=280.0,
+            weight_source=weight_source,
+        )
+    )
+    session.flush()
+
+
+@pytest.mark.parametrize(
+    ("fields", "constraint"),
+    [
+        ({"unit_grams": 280.0}, "ck_price_observation_unit_grams_source"),
+        ({"weight_source": "estimated"}, "ck_price_observation_unit_grams_source"),
+        ({"unit_grams": 280.0, "weight_source": "guessed"}, "ck_price_observation_weight_source"),
+        ({"unit_grams": 0.0, "weight_source": "weighed"}, "ck_price_observation_unit_grams"),
+    ],
+)  # fmt: skip
+def test_capture_weights_are_checked(
+    session: Session,
+    region: Region,
+    item: CatalogItem,
+    fields: dict[str, Any],
+    constraint: str,
+) -> None:
+    household = _household(session, region)
+    _rejects(
+        session,
+        _price(catalog_item_id=item.id, household_id=household.id, **fields),
+        constraint,
+    )

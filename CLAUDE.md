@@ -48,7 +48,7 @@ uv run bash scripts/agent-test.sh           # agent tests only (root conftest st
 uv run pytest tests/api/routes/test_studies.py -k idempotency   # single test
 uv run bash scripts/lint.sh                 # mypy (strict), ty, ruff check, ruff format --check
 uv run python scripts/smoke_foundry.py      # LIVE DeepSeek call (costs money; needs .env.local)
-uv run python -m app.seed all <FDC zips>     # load reference data (see app/seed_data/README.md)
+uv run python -m app.seed all <FDC zips> <sr28asc.zip>   # load reference data (see app/seed_data/README.md)
 uv run python -m app.seed report            # first-crop-set gaps
 uv run bash scripts/format.sh
 
@@ -111,7 +111,8 @@ These come from `docs/design.md`; follow them in every change.
   `DELETE` on `data_snapshot`); every run and plan records the snapshot versions it used. Raw
   downloads in `data/sources/` are kept byte for byte (`.gitattributes`, pre-commit excludes):
   never re-save or reformat them. Loaders match source rows only through
-  `backend/app/seed_data/catalog_crosswalk.csv`, which the owner reviews. Every catalog fact has a source, including "stand-in" when it
+  `backend/app/seed_data/catalog_crosswalk.csv` (and piece weights through `catalog_portions.csv`),
+  which the owner reviews. Every catalog fact has a source, including "stand-in" when it
   borrows another item's.
 - **Derived North Alabama planting dates are unverified** (`verified=False`); never use them as
   golden answers until checked against Extension's ANR-1165 table.

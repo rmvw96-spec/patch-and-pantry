@@ -199,6 +199,7 @@ SnapshotSource = Literal[
     "ams_retail",
     "dga",
     "fda_daily_values",
+    "usda_sr28",
 ]
 UserSetting = Literal["store_only", "plus_local", "plus_growing"]
 CatalogKind = Literal["produce", "supply"]
@@ -212,6 +213,11 @@ PriceSourceType = Literal[
     "store", "farmers_market", "farm_share", "local_grower", "public_data"
 ]
 Visibility = Literal["private", "shared"]
+# Units sold by count: priced per piece, so they need the weight of one piece (catalog_portion).
+CountUnit = Literal["each", "bunch", "head", "ear", "pint"]
+PortionSize = Literal["small", "medium", "large"]
+# How a user gave the weight of one unit at capture (Phase 1 spec, D3).
+WeightSource = Literal["weighed", "estimated"]
 
 # Dietary Guidelines calorie levels for the USDA food patterns: 1,000 to 3,200 in steps of 200.
 CalorieLevel = Literal[
@@ -522,6 +528,53 @@ class Vendor(SQLModel, table=True):
     )  # city or area; never a street address
 
 
+class CatalogPortion(SQLModel, table=True):
+    """The weight of one purchased unit of an item ("1 medium onion"), for prices by count.
+
+    ``grams`` is the weight as purchased, which normalize_price multiplies by the item's
+    preparation yield like any other weight. USDA's household measures give edible weight
+    ("without refuse", SR28 documentation), so a loaded portion keeps that edible weight and the
+    refuse percentage it was divided by: grams = edible_grams / (1 - refuse_pct / 100).
+    """
+
+    __tablename__ = "catalog_portion"
+    __table_args__ = (
+        _literal_check("unit", CountUnit, "ck_catalog_portion_unit"),
+        _literal_check("size", PortionSize, "ck_catalog_portion_size"),
+        CheckConstraint("grams > 0", name="ck_catalog_portion_grams"),
+        CheckConstraint("edible_grams > 0", name="ck_catalog_portion_edible_grams"),
+        CheckConstraint(
+            "refuse_pct >= 0 AND refuse_pct < 100", name="ck_catalog_portion_refuse_pct"
+        ),
+        # Every portion has a source: a data snapshot, or the date someone weighed it.
+        CheckConstraint(
+            "snapshot_id IS NOT NULL OR measured_on IS NOT NULL",
+            name="ck_catalog_portion_provenance",
+        ),
+        # A loaded portion shows its arithmetic: the edible weight and refuse it came from.
+        CheckConstraint(
+            "snapshot_id IS NULL OR (edible_grams IS NOT NULL AND refuse_pct IS NOT NULL)",
+            name="ck_catalog_portion_loaded_has_refuse",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    catalog_item_id: uuid.UUID = Field(
+        foreign_key="catalog_item.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    unit: CountUnit = Field(sa_type=AutoString(length=10))
+    size: PortionSize | None = Field(default=None, sa_type=AutoString(length=10))
+    grams: float
+    edible_grams: float | None = None
+    refuse_pct: int | None = None
+    # The measure as the source words it, for example 'medium (2-1/2" dia)'.
+    description: str = Field(max_length=200)
+    source: str = Field(max_length=300)
+    snapshot_id: uuid.UUID | None = Field(default=None, foreign_key="data_snapshot.id")
+    measured_on: date | None = None
+    created_at: datetime | None = _tz_now()
+
+
 class PriceObservation(SQLModel, table=True):
     """A price as written. Private by default; public datasets have no household."""
 
@@ -537,6 +590,15 @@ class PriceObservation(SQLModel, table=True):
         CheckConstraint("price_cents >= 0", name="ck_price_observation_price_cents"),
         CheckConstraint("quantity > 0", name="ck_price_observation_quantity"),
         CheckConstraint("grams_edible > 0", name="ck_price_observation_grams_edible"),
+        CheckConstraint("unit_grams > 0", name="ck_price_observation_unit_grams"),
+        _literal_check(
+            "weight_source", WeightSource, "ck_price_observation_weight_source"
+        ),
+        # A weight given at capture always says whether it was weighed or estimated.
+        CheckConstraint(
+            "(unit_grams IS NULL) = (weight_source IS NULL)",
+            name="ck_price_observation_unit_grams_source",
+        ),
         # A household's own capture, or a public dataset row with no household: never both.
         CheckConstraint(
             "(household_id IS NULL) = (captured_via = 'public_dataset')",
@@ -558,6 +620,11 @@ class PriceObservation(SQLModel, table=True):
     quantity: float
     unit: str = Field(max_length=50)  # as written, for example "3 lb bag"
     grams_edible: float | None = None  # filled by normalize_price (Phase 1)
+    # Weight of one unit as purchased, when the user gave it at capture ("the bunch was 0.6 lb").
+    unit_grams: float | None = None
+    weight_source: WeightSource | None = Field(
+        default=None, sa_type=AutoString(length=10)
+    )
     observed_on: date
     captured_via: CapturedVia = Field(sa_type=AutoString(length=20))
     source_type: PriceSourceType = Field(sa_type=AutoString(length=20))

@@ -4,7 +4,7 @@
 From backend/:
 
     uv run python -m app.seed ers_prices ../data/sources/usda-ers/all-vegetables-average-prices.csv
-    uv run python -m app.seed all /path/to/FoodData_Central_*.zip    # every committed source + FDC
+    uv run python -m app.seed all ~/Downloads/FoodData_Central_*.zip ~/Downloads/sr28asc.zip
     uv run python -m app.seed report
 
 Each file is loaded inside a Prefect flow and committed on its own; loading the same file again
@@ -27,6 +27,8 @@ from app.seed.loaders import (
     load_foodkeeper,
     load_garden_yields,
     load_planting_calendar,
+    load_sr28_portions,
+    load_usda_zip,
 )
 from app.seed.report import coverage_gaps, format_report
 from app.seed.snapshots import LoadResult
@@ -39,11 +41,14 @@ LOADERS: dict[str, Loader] = {
     "garden_yields": load_garden_yields,
     "foodkeeper": load_foodkeeper,
     "fdc": load_fdc_subset,
+    "sr28_portions": load_sr28_portions,
+    # Either of the two above, chosen by what the zip contains.
+    "usda_zip": load_usda_zip,
 }
 
 REPO = Path(__file__).resolve().parents[3]
 SOURCES = REPO / "data" / "sources"
-# Files committed to the repository, in load order. FoodData Central zips are not committed.
+# Files committed to the repository, in load order. USDA zips (FDC, SR28) are not committed.
 COMMITTED: list[tuple[str, Path]] = [
     ("ers_prices", SOURCES / "usda-ers" / "all-vegetables-average-prices.csv"),
     ("ers_prices", SOURCES / "usda-ers" / "all-fruits-average-prices.csv"),
@@ -86,9 +91,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         command = commands.add_parser(name, help=f"load {name} from local files")
         command.add_argument("paths", nargs="+", type=Path)
     everything = commands.add_parser(
-        "all", help="load every committed source, then FDC zips"
+        "all", help="load every committed source, then USDA zips (FDC and SR28)"
     )
-    everything.add_argument("fdc_zips", nargs="*", type=Path)
+    everything.add_argument("zips", nargs="*", type=Path)
     commands.add_parser("report", help="list first-crop-set items with gaps")
     args = parser.parse_args(argv)
 
@@ -97,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(format_report(coverage_gaps(session)))
         return 0
     if args.command == "all":
-        jobs = COMMITTED + [("fdc", path) for path in args.fdc_zips]
+        jobs = COMMITTED + [("usda_zip", path) for path in args.zips]
     else:
         jobs = [(args.command, path) for path in args.paths]
     for summary in seed_flow(jobs):

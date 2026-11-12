@@ -36,6 +36,19 @@ so the published column is the likely error. The app computes from the inputs:
 | Artichoke (Fresh) | 2.579 | 2.080 |
 | Artichoke (Canned) | 2.080 | 2.579 |
 
+## Weight of one piece (SR28, P1-3)
+
+Purchased grams = edible grams / (1 - refuse / 100). Source: USDA SR28 `WEIGHT.txt` and
+`FOOD_DES.txt`.
+
+| Piece | Edible grams | Refuse | Purchased grams | Check |
+| --- | --- | --- | --- | --- |
+| Green bell pepper, large | 164 | 18% | 200.0 | SR28: "2-1/4 per lb" = 201.6 g |
+| Eggplant, peeled weight | 458 | 19% | 565.4 | SR28: "yield from 1-1/4 lb" = 567.0 g |
+| Sweet corn, medium ear | 102 (kernels) | 64% | 283.3 | Husk, silk, and cob |
+| Tomato, medium | 123 | 9% | 135.2 | |
+| Okra, 1 pod (SR28 gives 8 pods = 95 g) | 11.875 | 14% | 13.81 | Divide by the amount first |
+
 ## Garden supplies: unit price and quantities
 
 | Case | Expected |
