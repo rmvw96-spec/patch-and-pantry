@@ -74,18 +74,19 @@ section**, which moves to Phase 1.
 
 The first useful release: type in prices from any store and get the cheapest way to buy this
 week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/phase-1.md)
-(draft for owner review).
+(reviewed 2026-11-11).
 
-- [ ] Generalize the study job into an agent **run** (question, kind, tools used, result, data
-      versions, model) and retire the pipeline simulator, its tests, and the Studies page.
-- [ ] Household setup: produce budget per week, number of people, optional calorie levels; region
-      fixed to North Alabama.
+- [x] Household setup: produce budget per week, number of people, optional calorie levels; region
+      fixed to North Alabama (API; the settings page is built with the other pages).
 - [ ] Count-unit conversion source decided and loaded (see `design.md`, Open questions).
 - [ ] Typed-list capture: the agent turns "onions 3 lb bag 2.99" into a price observation and asks
       when a unit is unclear instead of guessing.
 - [ ] Tool `normalize_price`: any unit to grams of the edible part, then to cups.
 - [ ] Tool `compare_best_buy`: cost per cup across stores, with spoilage from FoodKeeper range midpoints, and a per-item "cook and freeze extras" setting.
-- [ ] Pages: price capture, price book, best-buy comparison with its trade-off table, printable
+- [ ] Generalize the study job into a `grocery_analysis_run` (question, kind, tools used, result,
+      data versions, model) and retire the pipeline simulator, its tests, and the Studies page.
+      Done after the best-buy tool (P1-1, moved 2026-11-11).
+- [ ] Pages: household settings, price capture, price book, best-buy comparison with its trade-off table, printable
       shopping list.
 - [ ] iPhone home-screen icon: replace the stopgap `apple-touch-icon.png` (the app icon with its
       corners squared off, so iOS does not show them black) with a purpose-made 180 px full-bleed
@@ -193,3 +194,5 @@ match hand calculations.
 | 2026-11-11 | Repository secrets for the nightly evals added by the owner. Phases stay undated (no hours per week needed). |
 | 2026-11-11 | Spoilage decided (Phase 1 D4: midpoint plus cook-and-freeze setting). Added a note to explore suggesting smaller purchases later in Phase 1. |
 | 2026-11-11 | Phase 1 spec reviewed: all decisions settled (D1 to D7). |
+| 2026-11-11 | Replacing Studies (P1-1) moved after the best-buy tool (P1-6), so runs, demo scripts, and the replacement page are built once, against the real agents. |
+| 2026-11-11 | Household API done (P1-2). Its settings page moved to the Pages task (P1-7), with the other frontend work. |

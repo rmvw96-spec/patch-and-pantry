@@ -2,7 +2,8 @@ import uuid
 from datetime import UTC, date, datetime
 from typing import Any, Literal, get_args
 
-from pydantic import EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import Field as PydanticField
 from sqlalchemy import JSON, CheckConstraint, DateTime, UniqueConstraint
 from sqlmodel import AutoString, Field, Relationship, SQLModel
 
@@ -213,7 +214,10 @@ PriceSourceType = Literal[
 Visibility = Literal["private", "shared"]
 
 # Dietary Guidelines calorie levels for the USDA food patterns: 1,000 to 3,200 in steps of 200.
-CALORIE_LEVELS: tuple[int, ...] = tuple(range(1000, 3201, 200))
+CalorieLevel = Literal[
+    1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3200
+]
+CALORIE_LEVELS: tuple[int, ...] = get_args(CalorieLevel)
 
 # Month and day without a year ("04-03"), for frost dates and planting windows.
 MONTH_DAY_PATTERN = r"^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
@@ -335,6 +339,44 @@ class HouseholdMember(SQLModel, table=True):
     )
     calorie_level: int = 2000
     created_at: datetime | None = _tz_now()
+
+
+# The most people a household can list, and the largest weekly budget (10,000 dollars). The cap
+# keeps a typo from overflowing the integer column; it is not a judgment about anyone's spending.
+MAX_HOUSEHOLD_MEMBERS = 20
+MAX_PRODUCE_BUDGET_CENTS_PER_WEEK = 1_000_000
+
+
+class HouseholdMemberPublic(SQLModel):
+    id: uuid.UUID
+    calorie_level: int
+
+
+class HouseholdPublic(SQLModel):
+    id: uuid.UUID
+    region_code: str
+    region_name: str
+    user_setting: UserSetting
+    produce_budget_cents_per_week: int | None
+    members: list[HouseholdMemberPublic]
+
+
+class HouseholdUpdate(BaseModel):
+    """Replaces the household's budget and members. Members are calorie levels and nothing else.
+
+    Unknown fields are rejected (extra="forbid") rather than ignored, so a client cannot send
+    names, ages, or body data and believe they were stored (design.md, minimal personal data).
+    """
+
+    # A plain Pydantic model: SQLModel's config type does not accept extra="forbid".
+    model_config = ConfigDict(extra="forbid")
+
+    produce_budget_cents_per_week: int | None = PydanticField(
+        default=None, ge=0, le=MAX_PRODUCE_BUDGET_CENTS_PER_WEEK
+    )
+    members: list[CalorieLevel] = PydanticField(
+        min_length=1, max_length=MAX_HOUSEHOLD_MEMBERS
+    )
 
 
 class CatalogItem(SQLModel, table=True):

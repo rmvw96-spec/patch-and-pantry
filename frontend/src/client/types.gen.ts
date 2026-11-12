@@ -45,6 +45,69 @@ export type HTTPValidationError = {
 };
 
 /**
+ * HouseholdMemberPublic
+ */
+export type HouseholdMemberPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Calorie Level
+     */
+    calorie_level: number;
+};
+
+/**
+ * HouseholdPublic
+ */
+export type HouseholdPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Region Code
+     */
+    region_code: string;
+    /**
+     * Region Name
+     */
+    region_name: string;
+    /**
+     * User Setting
+     */
+    user_setting: 'store_only' | 'plus_local' | 'plus_growing';
+    /**
+     * Produce Budget Cents Per Week
+     */
+    produce_budget_cents_per_week: number | null;
+    /**
+     * Members
+     */
+    members: Array<HouseholdMemberPublic>;
+};
+
+/**
+ * HouseholdUpdate
+ *
+ * Replaces the household's budget and members. Members are calorie levels and nothing else.
+ *
+ * Unknown fields are rejected (extra="forbid") rather than ignored, so a client cannot send
+ * names, ages, or body data and believe they were stored (design.md, minimal personal data).
+ */
+export type HouseholdUpdate = {
+    /**
+     * Produce Budget Cents Per Week
+     */
+    produce_budget_cents_per_week?: number | null;
+    /**
+     * Members
+     */
+    members: Array<1000 | 1200 | 1400 | 1600 | 1800 | 2000 | 2200 | 2400 | 2600 | 2800 | 3000 | 3200>;
+};
+
+/**
  * ItemCreate
  */
 export type ItemCreate = {
@@ -991,6 +1054,47 @@ export type itemsUpdateItemResponses = {
 };
 
 export type itemsUpdateItemResponse = itemsUpdateItemResponses[keyof itemsUpdateItemResponses];
+
+export type householdReadHouseholdData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/household/';
+};
+
+export type householdReadHouseholdResponses = {
+    /**
+     * Successful Response
+     */
+    200: HouseholdPublic;
+};
+
+export type householdReadHouseholdResponse = householdReadHouseholdResponses[keyof householdReadHouseholdResponses];
+
+export type householdUpdateHouseholdData = {
+    body: HouseholdUpdate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/household/';
+};
+
+export type householdUpdateHouseholdErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type householdUpdateHouseholdError = householdUpdateHouseholdErrors[keyof householdUpdateHouseholdErrors];
+
+export type householdUpdateHouseholdResponses = {
+    /**
+     * Successful Response
+     */
+    200: HouseholdPublic;
+};
+
+export type householdUpdateHouseholdResponse = householdUpdateHouseholdResponses[keyof householdUpdateHouseholdResponses];
 
 export type studiesCreateStudyData = {
     body: StudyCreate;

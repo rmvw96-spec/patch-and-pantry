@@ -25,51 +25,22 @@ vision model), growing (Phase 3), independence progress (Phase 4), presets other
       workflow (repository settings; never in a file).
 - [x] Answers to the decisions at the end of this spec (all decided 2026-11-11).
 
-## P1-1: Grocery analysis runs replace studies
-
-**Where:** `backend/app/models.py`, `backend/app/api/routes/grocery_analysis_runs.py`,
-`backend/app/grocery_analysis_jobs.py`, `backend/app/agents/`, one Alembic revision; frontend
-`components/GroceryAnalysis/` only if a page needs it.
-
-- New table `grocery_analysis_run` (D1): `id`, `owner_id` (cascade), `kind` (Literal: `price_capture`,
-  `best_buy`), `input` (text), `status` (`queued`, `running`, `succeeded`, `failed`), `result`
-  (JSON), `tools_used` (JSON list of tool names in call order), `data_snapshot_ids` (JSON list:
-  every snapshot a tool read), `model` (the `SIM_MODEL` spec used), `input_tokens`,
-  `output_tokens`, `requests`, `error_reason`, `error_message`, `created_at`, `started_at`,
-  `finished_at`.
-- `POST /grocery-analysis-runs` (202, Redis idempotency key as for studies) and
-  `GET /grocery-analysis-runs/{id}`; users read only their own runs. Every exit path leaves a
-  run `succeeded` or `failed` and sets `grocery_analysis_run.status` on the
-  `grocery_analysis_run` span (the rule `CLAUDE.md` states for studies).
-- Retire the Studies feature in the same pull request: `study` table (migration drops it),
-  routes, `study_jobs.py`, `study_agent.py`, `simulator.py`, `demo_model.py`'s study script, the
-  Studies page, and their tests. Their patterns move to the run equivalents first, so coverage
-  of idempotency, terminal states, tracing, and the live-call safety switch is kept, not lost.
-- The `demo` model spec scripts the new agents (deterministic capture and best-buy answers), so
-  Playwright keeps running without a model.
-
-**Acceptance criteria:**
-
-- [ ] The run API tests cover what the studies tests covered: idempotency per user, terminal
-      states on every exit path, users reading only their own runs, tracing attributes.
-- [ ] A run records the snapshots and the model it used.
-- [ ] No reference to the simulator or studies remains (`git grep -i "study\|simulat"` finds only
-      history in docs).
-
 ## P1-2: Household setup
 
-**Where:** `backend/app/api/routes/household.py`; settings page section.
+**Where:** `backend/app/api/routes/household.py`. The settings page moved to P1-7 (owner,
+2026-11-11: no frontend changes until the agents and tools exist).
 
 - `GET /household` creates the user's household on first access (region `north-al`,
-  `user_setting=store_only`). `PUT /household` sets `produce_budget_cents_per_week` and the
-  members: a list of calorie levels (default 2,000), nothing else.
-- The page asks for the weekly produce budget and the number of people, with an optional calorie
-  level per person (the 12 Dietary Guidelines levels in a select). No names, ages, or body data.
+  `user_setting=store_only`, one member at 2,000 calories). `PUT /household` replaces
+  `produce_budget_cents_per_week` (null for none; at most 1,000,000 cents, so a typo cannot
+  overflow the column) and the members: a list of 1 to 20 calorie levels, nothing else.
+  Unknown fields are refused with a 422 (`extra_forbidden`) rather than dropped, so a client
+  cannot send a name or age and believe it was stored.
 
 **Acceptance criteria:**
 
-- [ ] Members can be added and removed; each is only a calorie level.
-- [ ] Deleting the account deletes the household (existing cascade test extended).
+- [x] Members can be added and removed; each is only a calorie level.
+- [x] Deleting the account deletes the household (existing cascade test extended).
 
 ## P1-3: Count units
 
@@ -209,8 +180,49 @@ cooked-greens entries; entry 174 is its general one for cooked vegetables.
       book and an item with no conversion.
 - [ ] The agent's explanation quotes only numbers present in the table (trace check).
 
+## P1-1: Grocery analysis runs replace studies
+
+**Order:** done after P1-6 (owner, 2026-11-11). The ID is kept so references stay valid. Doing
+the swap once the capture agent and `compare_best_buy` exist means the runs, the `demo` model
+scripts, and the replacement for the Studies page (with its Playwright test) are built against
+the real agents instead of placeholders that would need rework. Until then the Studies feature and
+its E2E test stay as they are, and P1-2 to P1-6 are tested directly (scripted models, no runs or
+pages).
+
+**Where:** `backend/app/models.py`, `backend/app/api/routes/grocery_analysis_runs.py`,
+`backend/app/grocery_analysis_jobs.py`, `backend/app/agents/`, one Alembic revision; frontend
+`components/GroceryAnalysis/` only if a page needs it.
+
+- New table `grocery_analysis_run` (D1): `id`, `owner_id` (cascade), `kind` (Literal: `price_capture`,
+  `best_buy`), `input` (text), `status` (`queued`, `running`, `succeeded`, `failed`), `result`
+  (JSON), `tools_used` (JSON list of tool names in call order), `data_snapshot_ids` (JSON list:
+  every snapshot a tool read), `model` (the `SIM_MODEL` spec used), `input_tokens`,
+  `output_tokens`, `requests`, `error_reason`, `error_message`, `created_at`, `started_at`,
+  `finished_at`.
+- `POST /grocery-analysis-runs` (202, Redis idempotency key as for studies) and
+  `GET /grocery-analysis-runs/{id}`; users read only their own runs. Every exit path leaves a
+  run `succeeded` or `failed` and sets `grocery_analysis_run.status` on the
+  `grocery_analysis_run` span (the rule `CLAUDE.md` states for studies).
+- Retire the Studies feature in the same pull request: `study` table (migration drops it),
+  routes, `study_jobs.py`, `study_agent.py`, `simulator.py`, `demo_model.py`'s study script, the
+  Studies page, and their tests. Their patterns move to the run equivalents first, so coverage
+  of idempotency, terminal states, tracing, and the live-call safety switch is kept, not lost.
+- The `demo` model spec scripts the new agents (deterministic capture and best-buy answers), so
+  Playwright keeps running without a model.
+
+**Acceptance criteria:**
+
+- [ ] The run API tests cover what the studies tests covered: idempotency per user, terminal
+      states on every exit path, users reading only their own runs, tracing attributes.
+- [ ] A run records the snapshots and the model it used.
+- [ ] No reference to the simulator or studies remains (`git grep -i "study\|simulat"` finds only
+      history in docs).
+
 ## P1-7: Pages and shopping list
 
+- **Household settings** (moved from P1-2): the weekly produce budget and the number of people,
+  with an optional calorie level per person (the 12 Dietary Guidelines levels in a select). No
+  names, ages, or body data.
 - **Price capture:** vendor, date, and a text box; shows drafts and questions; confirm saves.
 - **Price book:** the household's prices (item, vendor, date, price as written, cost per cup),
   with edit and delete.
