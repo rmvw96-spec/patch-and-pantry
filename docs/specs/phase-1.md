@@ -25,37 +25,6 @@ vision model), growing (Phase 3), independence progress (Phase 4), presets other
       workflow (repository settings; never in a file).
 - [x] Answers to the decisions at the end of this spec (all decided 2026-11-11).
 
-## P1-1: Grocery analysis runs replace studies
-
-**Where:** `backend/app/models.py`, `backend/app/api/routes/grocery_analysis_runs.py`,
-`backend/app/grocery_analysis_jobs.py`, `backend/app/agents/`, one Alembic revision; frontend
-`components/GroceryAnalysis/` only if a page needs it.
-
-- New table `grocery_analysis_run` (D1): `id`, `owner_id` (cascade), `kind` (Literal: `price_capture`,
-  `best_buy`), `input` (text), `status` (`queued`, `running`, `succeeded`, `failed`), `result`
-  (JSON), `tools_used` (JSON list of tool names in call order), `data_snapshot_ids` (JSON list:
-  every snapshot a tool read), `model` (the `SIM_MODEL` spec used), `input_tokens`,
-  `output_tokens`, `requests`, `error_reason`, `error_message`, `created_at`, `started_at`,
-  `finished_at`.
-- `POST /grocery-analysis-runs` (202, Redis idempotency key as for studies) and
-  `GET /grocery-analysis-runs/{id}`; users read only their own runs. Every exit path leaves a
-  run `succeeded` or `failed` and sets `grocery_analysis_run.status` on the
-  `grocery_analysis_run` span (the rule `CLAUDE.md` states for studies).
-- Retire the Studies feature in the same pull request: `study` table (migration drops it),
-  routes, `study_jobs.py`, `study_agent.py`, `simulator.py`, `demo_model.py`'s study script, the
-  Studies page, and their tests. Their patterns move to the run equivalents first, so coverage
-  of idempotency, terminal states, tracing, and the live-call safety switch is kept, not lost.
-- The `demo` model spec scripts the new agents (deterministic capture and best-buy answers), so
-  Playwright keeps running without a model.
-
-**Acceptance criteria:**
-
-- [ ] The run API tests cover what the studies tests covered: idempotency per user, terminal
-      states on every exit path, users reading only their own runs, tracing attributes.
-- [ ] A run records the snapshots and the model it used.
-- [ ] No reference to the simulator or studies remains (`git grep -i "study\|simulat"` finds only
-      history in docs).
-
 ## P1-2: Household setup
 
 **Where:** `backend/app/api/routes/household.py`; settings page section.
@@ -208,6 +177,44 @@ cooked-greens entries; entry 174 is its general one for cooked vegetables.
 - [ ] Known-answer tests for the table, the marked row, and spoilage, including an empty price
       book and an item with no conversion.
 - [ ] The agent's explanation quotes only numbers present in the table (trace check).
+
+## P1-1: Grocery analysis runs replace studies
+
+**Order:** done after P1-6 (owner, 2026-11-11). The ID is kept so references stay valid. Doing
+the swap once the capture agent and `compare_best_buy` exist means the runs, the `demo` model
+scripts, and the replacement for the Studies page (with its Playwright test) are built against
+the real agents instead of placeholders that would need rework. Until then the Studies feature and
+its E2E test stay as they are, and P1-2 to P1-6 are tested directly (scripted models, no runs or
+pages).
+
+**Where:** `backend/app/models.py`, `backend/app/api/routes/grocery_analysis_runs.py`,
+`backend/app/grocery_analysis_jobs.py`, `backend/app/agents/`, one Alembic revision; frontend
+`components/GroceryAnalysis/` only if a page needs it.
+
+- New table `grocery_analysis_run` (D1): `id`, `owner_id` (cascade), `kind` (Literal: `price_capture`,
+  `best_buy`), `input` (text), `status` (`queued`, `running`, `succeeded`, `failed`), `result`
+  (JSON), `tools_used` (JSON list of tool names in call order), `data_snapshot_ids` (JSON list:
+  every snapshot a tool read), `model` (the `SIM_MODEL` spec used), `input_tokens`,
+  `output_tokens`, `requests`, `error_reason`, `error_message`, `created_at`, `started_at`,
+  `finished_at`.
+- `POST /grocery-analysis-runs` (202, Redis idempotency key as for studies) and
+  `GET /grocery-analysis-runs/{id}`; users read only their own runs. Every exit path leaves a
+  run `succeeded` or `failed` and sets `grocery_analysis_run.status` on the
+  `grocery_analysis_run` span (the rule `CLAUDE.md` states for studies).
+- Retire the Studies feature in the same pull request: `study` table (migration drops it),
+  routes, `study_jobs.py`, `study_agent.py`, `simulator.py`, `demo_model.py`'s study script, the
+  Studies page, and their tests. Their patterns move to the run equivalents first, so coverage
+  of idempotency, terminal states, tracing, and the live-call safety switch is kept, not lost.
+- The `demo` model spec scripts the new agents (deterministic capture and best-buy answers), so
+  Playwright keeps running without a model.
+
+**Acceptance criteria:**
+
+- [ ] The run API tests cover what the studies tests covered: idempotency per user, terminal
+      states on every exit path, users reading only their own runs, tracing attributes.
+- [ ] A run records the snapshots and the model it used.
+- [ ] No reference to the simulator or studies remains (`git grep -i "study\|simulat"` finds only
+      history in docs).
 
 ## P1-7: Pages and shopping list
 

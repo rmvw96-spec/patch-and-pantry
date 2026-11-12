@@ -74,10 +74,8 @@ section**, which moves to Phase 1.
 
 The first useful release: type in prices from any store and get the cheapest way to buy this
 week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/phase-1.md)
-(draft for owner review).
+(reviewed 2026-11-11).
 
-- [ ] Generalize the study job into an agent **run** (question, kind, tools used, result, data
-      versions, model) and retire the pipeline simulator, its tests, and the Studies page.
 - [ ] Household setup: produce budget per week, number of people, optional calorie levels; region
       fixed to North Alabama.
 - [ ] Count-unit conversion source decided and loaded (see `design.md`, Open questions).
@@ -85,6 +83,9 @@ week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/
       when a unit is unclear instead of guessing.
 - [ ] Tool `normalize_price`: any unit to grams of the edible part, then to cups.
 - [ ] Tool `compare_best_buy`: cost per cup across stores, with spoilage from FoodKeeper range midpoints, and a per-item "cook and freeze extras" setting.
+- [ ] Generalize the study job into a `grocery_analysis_run` (question, kind, tools used, result,
+      data versions, model) and retire the pipeline simulator, its tests, and the Studies page.
+      Done after the best-buy tool (P1-1, moved 2026-11-11).
 - [ ] Pages: price capture, price book, best-buy comparison with its trade-off table, printable
       shopping list.
 - [ ] iPhone home-screen icon: replace the stopgap `apple-touch-icon.png` (the app icon with its
@@ -193,3 +194,4 @@ match hand calculations.
 | 2026-11-11 | Repository secrets for the nightly evals added by the owner. Phases stay undated (no hours per week needed). |
 | 2026-11-11 | Spoilage decided (Phase 1 D4: midpoint plus cook-and-freeze setting). Added a note to explore suggesting smaller purchases later in Phase 1. |
 | 2026-11-11 | Phase 1 spec reviewed: all decisions settled (D1 to D7). |
+| 2026-11-11 | Replacing Studies (P1-1) moved after the best-buy tool (P1-6), so runs, demo scripts, and the replacement page are built once, against the real agents. |
