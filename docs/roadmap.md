@@ -57,7 +57,7 @@ Lay the food domain's foundations without disturbing the working Studies feature
       the existing demo and scripted models; temperature never set.
 - [x] Phoenix tracing with OpenTelemetry (PR #7).
 - [ ] Measure tokens per run with tracing on; update `design.md`'s budget section.
-- [ ] Core tables: household with anonymous members, region, catalog item (produce and garden
+- [x] Core tables: household with anonymous members, region, catalog item (produce and garden
       supplies), vendor, price observation, data snapshot.
 - [ ] Versioned seed snapshots through Prefect flows (run by hand at first): ERS prices and
       conversions, the North Alabama planting calendar (unverified dates flagged), Minnesota
@@ -183,3 +183,4 @@ match hand calculations.
 | 2026-11-11 | Added the iPhone home-screen icon task to Phase 1. Removed the template's release and maintenance automation (release notes, release workflows, workflows that run only in the `fastapi` organization). |
 | 2026-11-11 | Model changed to DeepSeek-V3.2 on Foundry (Claude needs an enterprise Azure subscription). Phase 0 budget and deployment ticked. Model comparison deferred; photo capture and the Phase 4 judge check need a second model. |
 | 2026-11-11 | Model factory done (P0-1); live smoke run and token measurement (P0-2) next. |
+| 2026-11-11 | Smoke run done by the owner (P0-1 and the first P0-2 step); token measurement and prices wait for more Azure cost data. Core tables done (P0-3). |

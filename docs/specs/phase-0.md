@@ -77,15 +77,15 @@ in CI.
 - [x] A test asserts `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY` in the environment are
       ignored: the provider uses the values from `Settings`.
 - [x] The full suite passes with no Foundry variables set.
-- [ ] `backend/scripts/smoke_foundry.py` (manual, never in CI) runs one tiny study through
+- [x] `backend/scripts/smoke_foundry.py` (manual, never in CI) runs one tiny study through
       DeepSeek-V3.2 with tracing on and prints the trace ID and token usage. It first checks that
       the model returns a real tool call, not tool-call text in a message (a reported Foundry
-      issue), and fails clearly if not. *Written and tested offline with scripted models; the
-      first live run is the owner's, in P0-2.*
+      issue), and fails clearly if not. *First live run by the owner on 2026-11-11: tool calls
+      structured, study succeeded, trace visible in Phoenix.*
 
 ## P0-2: Measure tokens
 
-- [ ] With `docker compose up -d phoenix` and `PHOENIX_COLLECTOR_ENDPOINT` set, run the smoke
+- [x] With `docker compose up -d phoenix` and `PHOENIX_COLLECTOR_ENDPOINT` set, run the smoke
       script.
 - [ ] Record input, output, and cache tokens per run, plus the run's request count, in
       `design.md`'s budget section; replace the assumed 7,500 / 600 figures. Add a change-log row.
@@ -114,13 +114,27 @@ Alembic revision. Money is **integer cents** (proposed; confirm in review).
 | `vendor` | `id`, `household_id` (cascade), `name`, `vendor_type` (Literal: `store`, `farmers_market`, `farm_share`, `local_grower`, `supplier`), `region_id`, `area` (city or area; **never a street address**) | Private to the household |
 | `price_observation` | `id`, `household_id` (nullable = public dataset; cascade), `catalog_item_id`, `vendor_id` (nullable), `price_cents`, `quantity`, `unit` (as written, e.g. `3 lb bag`), `grams_edible` (nullable; filled by `normalize_price` in Phase 1), `observed_on`, `captured_via` (Literal: `typed`, `photo`, `receipt`, `public_dataset`), `source_type` (Literal: `store`, `farmers_market`, `farm_share`, `local_grower`, `public_data`), `region_id` (nullable for national data), `visibility` (Literal: `private`, `shared`; default `private`), `is_sale_price` (default `False`), `raw_text` (the typed line; never an image), `snapshot_id` (nullable), `created_at` | |
 
+**Implementation notes** (decided while building, 2026-11-11; not in the table above):
+
+- Table models skip Pydantic validation, so every closed set, calorie level, percentage, and
+  `MM-DD` date is also a Postgres CHECK constraint.
+- `data_snapshot` rows are protected by a trigger that rejects `UPDATE` and `DELETE`.
+- `catalog_item`'s unique key uses `NULLS NOT DISTINCT`; otherwise national rows (both owner
+  columns `NULL`) could repeat a slug. A CHECK ties `scope` to the owner column it requires.
+- `price_observation`: a row has no household exactly when `captured_via = 'public_dataset'`.
+  Deleting a vendor keeps its prices (`vendor_id` set to `NULL`).
+- Produce facts on `catalog_item` (yield factor, cup weight, storage days) are nullable, because
+  supplies have none. `vendor.region_id` is nullable (an online supplier has no region).
+- The region row is seeded by `init_db` (run by `prestart.sh`), which inserts it only if missing.
+- Test Backend runs every migration down to an empty database and back up, then `alembic check`.
+
 **Acceptance criteria:**
 
-- [ ] Migration upgrades and downgrades cleanly (round trip).
-- [ ] Deleting a user deletes their household, members, vendors, household-scoped catalog items,
+- [x] Migration upgrades and downgrades cleanly (round trip; now a CI step).
+- [x] Deleting a user deletes their household, members, vendors, household-scoped catalog items,
       and prices (test).
-- [ ] Invalid calorie levels and percentages are rejected (test).
-- [ ] The North Alabama region row exists after `prestart.sh`.
+- [x] Invalid calorie levels and percentages are rejected (test).
+- [x] The North Alabama region row exists after `prestart.sh`.
 
 ## P0-4: Seed loaders
 
