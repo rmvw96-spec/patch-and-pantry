@@ -36,5 +36,7 @@ uv run python -m app.seed report                                    # first-crop
 ```
 
 Each file loads in its own transaction inside a Prefect flow. Loading the same file again changes
-nothing. Not yet here: NOAA freeze dates for the Muscle Shoals 2 N station (the region row uses
+nothing, unless the crosswalk changed: each snapshot records a fingerprint of the crosswalk rows
+it used, so a changed mapping loads as a new snapshot (the latest snapshot of a source is the
+current one). Snapshots loaded before fingerprints existed (2026-11-11, PR #13) stay as history. Not yet here: NOAA freeze dates for the Muscle Shoals 2 N station (the region row uses
 the values in `docs/design.md`).

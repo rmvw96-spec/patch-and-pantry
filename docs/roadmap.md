@@ -29,8 +29,8 @@ flowchart LR
 - **Each later phase adds one user setting,** and Phase 4 ties them together.
 - **Phase 5 is the design's scaling list,** deliberately after the core works for one household.
 
-**A gate is a pass/fail check that ends a phase,** not a date. Phases get dates once the owner
-sets weekly hours (see [Decisions to settle](#decisions-to-settle)).
+**A gate is a pass/fail check that ends a phase,** not a date. Phases have no dates: the owner is
+not working to a deadline.
 
 ## How to work a phase (for Claude Code)
 
@@ -56,7 +56,9 @@ Lay the food domain's foundations without disturbing the working Studies feature
 - [x] Model factory: DeepSeek-V3.2 through `AzureProvider` with an explicit profile, alongside
       the existing demo and scripted models; temperature never set.
 - [x] Phoenix tracing with OpenTelemetry (PR #7).
-- [ ] Measure tokens per run with tracing on; update `design.md`'s budget section.
+- [ ] Measure tokens per run with tracing on; update `design.md`'s budget section. *Moved to
+      Phase 1 (P1-9): the smoke run measured the old study agent, and Azure's cost data is too
+      small to derive prices.*
 - [x] Core tables: household with anonymous members, region, catalog item (produce and garden
       supplies), vendor, price observation, data snapshot.
 - [x] Versioned seed snapshots through Prefect flows (run by hand at first): ERS prices and
@@ -65,12 +67,14 @@ Lay the food domain's foundations without disturbing the working Studies feature
 
 **Gate:** migrations round-trip; seed loads are repeatable and versioned (loading twice creates no
 duplicate snapshot); CI is green with scripted models; one live Foundry call appears in Phoenix
-with token counts, and the budget section is updated.
+with token counts, and the budget section is updated. **Met on 2026-11-11 except the budget
+section**, which moves to Phase 1.
 
 ## Phase 1: Store-only best buy
 
 The first useful release: type in prices from any store and get the cheapest way to buy this
-week's produce, per cup, with a shopping list.
+week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/phase-1.md)
+(draft for owner review).
 
 - [ ] Generalize the study job into an agent **run** (question, kind, tools used, result, data
       versions, model) and retire the pipeline simulator, its tests, and the Studies page.
@@ -80,7 +84,7 @@ week's produce, per cup, with a shopping list.
 - [ ] Typed-list capture: the agent turns "onions 3 lb bag 2.99" into a price observation and asks
       when a unit is unclear instead of guessing.
 - [ ] Tool `normalize_price`: any unit to grams of the edible part, then to cups.
-- [ ] Tool `compare_best_buy`: cost per cup across stores, with spoilage from FoodKeeper minimums.
+- [ ] Tool `compare_best_buy`: cost per cup across stores, with spoilage from FoodKeeper range midpoints, and a per-item "cook and freeze extras" setting.
 - [ ] Pages: price capture, price book, best-buy comparison with its trade-off table, printable
       shopping list.
 - [ ] iPhone home-screen icon: replace the stopgap `apple-touch-icon.png` (the app icon with its
@@ -166,13 +170,13 @@ match hand calculations.
 
 | Decision | Proposed default | Settle by |
 | --- | --- | --- |
-| Name of the job record | "Run" instead of "Study" | Start of Phase 1 |
-| Money representation | Integer cents | Phase 0 spec review |
-| Eval pass threshold | Exact answers: every case passes 3 of 3 runs; extraction: at least 95% of fields correct | End of Phase 0 |
+| Name of the job record | **Decided 2026-11-11:** `grocery_analysis_run` (Phase 1 spec, D1) | Settled |
+| Money representation | **Decided:** integer cents (P0-3, PR #12) | Settled |
+| Eval pass threshold | **Decided 2026-11-11:** exact answers 3 of 3 runs; extraction at least 95% of fields; lowered only on measured results (Phase 1 spec, D2) | Settled; revisit after the first nightly runs |
 | Model for each task | **Decided 2026-11-11:** DeepSeek-V3.2 for every text task; judging and comparisons wait for a second model | Settled for text; photo model before Phase 2 |
-| Hours per week for building | Needed before phases get dates | Start of Phase 0 |
+| Hours per week for building | **Decided 2026-11-11:** not needed; phases have no dates | Settled |
 | App name | **Decided 2026-11-11:** Patch & Pantry; domain [patchandpantry.app](https://patchandpantry.app) | Settled |
-| Repository name | Rename `sim-agent` to `patch-and-pantry` on GitHub. Every file already uses the new name; the Compose project name is pinned to `patch-and-pantry` in `compose.yml`, so it does not depend on the folder name | Right after PR #9 merges |
+| Repository name | **Done:** renamed to `patch-and-pantry` after PR #9 | Settled |
 
 ## Change log
 
@@ -185,3 +189,7 @@ match hand calculations.
 | 2026-11-11 | Model factory done (P0-1); live smoke run and token measurement (P0-2) next. |
 | 2026-11-11 | Smoke run done by the owner (P0-1 and the first P0-2 step); token measurement and prices wait for more Azure cost data. Core tables done (P0-3). |
 | 2026-11-11 | Seed loaders done (P0-4), with an owner-reviewed catalog crosswalk. |
+| 2026-11-11 | Phase 0 closed out (P0-5): gate met except the budget section, moved to Phase 1. Phase 1 spec drafted for review. Decisions table updated: money and repository name settled; the job record name and eval threshold move to the Phase 1 spec. |
+| 2026-11-11 | Repository secrets for the nightly evals added by the owner. Phases stay undated (no hours per week needed). |
+| 2026-11-11 | Spoilage decided (Phase 1 D4: midpoint plus cook-and-freeze setting). Added a note to explore suggesting smaller purchases later in Phase 1. |
+| 2026-11-11 | Phase 1 spec reviewed: all decisions settled (D1 to D7). |

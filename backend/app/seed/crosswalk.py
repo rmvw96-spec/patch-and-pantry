@@ -5,7 +5,9 @@ a source row is used only when the crosswalk names it.
 """
 
 import csv
-from dataclasses import dataclass
+import hashlib
+import json
+from dataclasses import astuple, dataclass
 from pathlib import Path
 from typing import cast, get_args
 
@@ -64,6 +66,18 @@ def read_crosswalk(path: Path = CROSSWALK_PATH) -> list[CrosswalkRow]:
     if unknown:
         raise ValueError(f"stand-ins name unknown slugs: {sorted(unknown)}")
     return rows
+
+
+def crosswalk_fingerprint(crosswalk: list[CrosswalkRow]) -> str:
+    """SHA-256 of the crosswalk rows used for a load, independent of row order.
+
+    Stored on each snapshot, so loading a file again through a changed crosswalk is a new
+    snapshot that applies the new mapping, while loading it again unchanged is a no-op.
+    """
+    canonical = json.dumps(
+        sorted(astuple(row) for row in crosswalk), ensure_ascii=False
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _initial_conversion_source(row: CrosswalkRow) -> str:

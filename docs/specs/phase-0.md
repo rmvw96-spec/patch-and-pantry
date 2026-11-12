@@ -1,6 +1,6 @@
 # Phase 0 spec: Foundations
 
-Status: **draft for owner review** (2026-11-11). Roadmap: [`../roadmap.md`](../roadmap.md).
+Status: **done** (2026-11-11), except the budget item moved to Phase 1 (see Gate). Roadmap: [`../roadmap.md`](../roadmap.md).
 Design: [`../design.md`](../design.md). Known answers for tests: [`known-answers.md`](known-answers.md).
 
 ## Goal
@@ -182,6 +182,10 @@ Alembic revision. Money is **integer cents** (proposed; confirm in review).
 - Raw ERS and FoodKeeper files are committed under `data/sources/`, byte for byte; FDC zips are
   not (about 10 MB), and their URLs and hashes are in the seed-data README.
 - Each file is loaded in its own transaction inside a Prefect flow (`python -m app.seed`).
+- Added in P0-5: each snapshot records a fingerprint of the crosswalk rows used
+  (`crosswalk_sha256`) and its `loaded_at` time. Loading a file again through a changed
+  crosswalk is a new snapshot that applies the new mapping; the latest snapshot of a source is the
+  current one. Snapshots loaded before this have no fingerprint and stay as history.
 
 **Acceptance criteria:**
 
@@ -198,9 +202,9 @@ Alembic revision. Money is **integer cents** (proposed; confirm in review).
 
 ## P0-5: Close out
 
-- [ ] Tick the Phase 0 tasks in `roadmap.md`; update `design.md` and its change log.
-- [ ] `TESTING.md`: new test files and a change-log row with CI timings.
-- [ ] Write `docs/specs/phase-1.md` for owner review.
+- [x] Tick the Phase 0 tasks in `roadmap.md`; update `design.md` and its change log.
+- [x] `TESTING.md`: new test files and a change-log row with CI timings.
+- [x] Write `docs/specs/phase-1.md` for owner review.
 
 ## Gate
 
@@ -208,11 +212,17 @@ Migrations round-trip; seed loads are repeatable and versioned; CI is green with
 and no Foundry settings; one live Foundry run appears in Phoenix with token counts, and
 `design.md`'s budget section uses measured numbers.
 
+**Status (2026-11-11):** met except the last clause. Migrations round-trip in CI; loading twice is
+a no-op (tests, and the real data on the dev database); CI is green with no Foundry settings; the
+owner's smoke run is in Phoenix with token counts. The budget section still uses assumptions: the
+smoke run's tokens came from the old study agent, and the Azure cost data is too small to derive
+prices. Both move to Phase 1 (P1-9), where the nightly evals produce enough real usage.
+
 ## Decisions for the owner's review
 
-| Decision | Default in this spec |
-| --- | --- |
-| Money representation | Integer cents |
-| `SIM_MODEL` default | `demo` (live models only when set explicitly) |
-| National data rows | `region_id` nullable rather than a "national" region row |
-| Crosswalk review | The owner approves `catalog_crosswalk.csv` before loaders depend on it |
+| Decision | Default in this spec | Outcome |
+| --- | --- | --- |
+| Money representation | Integer cents | Implemented in P0-3 (PR #12, merged by the owner) |
+| `SIM_MODEL` default | `demo` (live models only when set explicitly) | Implemented in P0-1 (PR #11) |
+| National data rows | `region_id` nullable rather than a "national" region row | Implemented in P0-3 |
+| Crosswalk review | The owner approves `catalog_crosswalk.csv` before loaders depend on it | Approved 2026-11-11 |
