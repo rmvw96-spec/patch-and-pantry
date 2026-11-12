@@ -48,6 +48,7 @@ Purchased grams = edible grams / (1 - refuse / 100). Source: USDA SR28 `WEIGHT.t
 | Sweet corn, medium ear | 102 (kernels) | 64% | 283.3 | Husk, silk, and cob |
 | Tomato, medium | 123 | 9% | 135.2 | |
 | Okra, 1 pod (SR28 gives 8 pods = 95 g) | 11.875 | 14% | 13.81 | Divide by the amount first |
+| Potato, medium (flesh and skin) | 213 | 10% (owner; SR28 gives 25%) | 236.7 | Owner override, 2026-11-11 |
 
 ## Garden supplies: unit price and quantities
 

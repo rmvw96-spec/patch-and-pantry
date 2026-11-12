@@ -444,7 +444,8 @@ def load_sr28_portions(
     """Weight of one purchased unit for each portion-map row (the SR28 ASCII zip as downloaded).
 
     SR28 gives household measures as edible weight; the weight as purchased divides out the food's
-    refuse percentage. The source text records the measure and the arithmetic.
+    refuse percentage (SR28's, or the portion map's override). The source text records the
+    measure and the arithmetic.
     """
     crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     portions = (
@@ -487,7 +488,15 @@ def load_sr28_portions(
             (row.sr28_ndb, row.sr28_seq)
         ]
         edible = float(gram_weight) / float(amount)
-        refuse_pct = int(refuse[row.sr28_ndb])
+        sr28_refuse = int(refuse[row.sr28_ndb])
+        refuse_pct = (
+            row.refuse_override if row.refuse_override is not None else sr28_refuse
+        )
+        refuse_text = (
+            f"{refuse_pct}% refuse"
+            if refuse_pct == sr28_refuse
+            else f"{refuse_pct}% refuse (owner override; SR28 gives {sr28_refuse}%)"
+        )
         session.add(
             CatalogPortion(
                 catalog_item_id=catalog[row.slug].id,
@@ -499,7 +508,7 @@ def load_sr28_portions(
                 description=description,
                 source=(
                     f"USDA SR28 NDB {row.sr28_ndb}, weight {row.sr28_seq}: {amount} "
-                    f"{description} = {gram_weight} g edible; {refuse_pct}% refuse"
+                    f"{description} = {gram_weight} g edible; {refuse_text}"
                 ),
                 snapshot_id=snapshot.id,
             )

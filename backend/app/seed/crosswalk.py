@@ -89,7 +89,8 @@ class PortionMapRow:
     """One count unit of a catalog item and the SR28 household-measure row that weighs it.
 
     A row without an SR28 reference marks an item sold by count that has no published weight;
-    the coverage report lists it.
+    the coverage report lists it. ``refuse_pct_override`` replaces SR28's refuse percentage when
+    the owner has judged it wrong for the item as sold (the notes say why).
     """
 
     slug: str
@@ -97,7 +98,12 @@ class PortionMapRow:
     size: str
     sr28_ndb: str
     sr28_seq: str
+    refuse_pct_override: str
     notes: str
+
+    @property
+    def refuse_override(self) -> int | None:
+        return int(self.refuse_pct_override) if self.refuse_pct_override else None
 
     @property
     def has_source(self) -> bool:
@@ -133,6 +139,13 @@ def read_portion_map(
             problems.append(f"{row.slug}: unknown size {row.size!r}")
         if bool(row.sr28_ndb) != bool(row.sr28_seq):
             problems.append(f"{row.slug}: give both sr28_ndb and sr28_seq, or neither")
+        override = row.refuse_pct_override
+        if override and not (override.isdigit() and int(override) < 100):
+            problems.append(
+                f"{row.slug}: refuse_pct_override must be 0 to 99, not {override!r}"
+            )
+        if override and not row.has_source:
+            problems.append(f"{row.slug}: refuse_pct_override needs an SR28 weight")
         if key in seen:
             problems.append(
                 f"{row.slug}: {row.unit} {row.size or '(no size)'} is listed twice"

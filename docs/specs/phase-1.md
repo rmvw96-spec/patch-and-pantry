@@ -80,7 +80,8 @@ vision model), growing (Phase 3), independence progress (Phase 4), presets other
 - [x] Every first-crop-set item sold by count has a portion (`each`, `head`, `ear`, or `bunch`),
       or appears in the coverage report as missing one (butternut squash).
 - [x] Owner-measured portions record their source and date (`ck_catalog_portion_provenance`).
-- [ ] Owner review of `catalog_portions.csv`, especially the potato rows (see its notes).
+- [x] Owner review of `catalog_portions.csv` (2026-11-11): approved, with potato refuse set to
+      10% instead of SR28's 25% (`refuse_pct_override`; the source text records both).
 
 ## P1-4: Tool `normalize_price`
 

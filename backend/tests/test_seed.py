@@ -176,15 +176,17 @@ def _sr28_zip(
     return path
 
 
-def _portion(slug: str, unit: str, size: str, ndb: str, seq: str) -> PortionMapRow:
-    return PortionMapRow(slug, unit, size, ndb, seq, "")
+def _portion(
+    slug: str, unit: str, size: str, ndb: str, seq: str, refuse: str = ""
+) -> PortionMapRow:
+    return PortionMapRow(slug, unit, size, ndb, seq, refuse, "")
 
 
 @pytest.fixture
 def portions() -> list[PortionMapRow]:
     return [
         _portion("tomato", "each", "medium", "11529", "6"),
-        _portion("zucchini", "each", "medium", "11477", "4"),
+        _portion("zucchini", "each", "medium", "11477", "4", refuse="10"),
         _portion(
             "beet", "each", "", "11278", "2"
         ),  # borrows okra's 8-pod row: amount > 1
@@ -784,6 +786,11 @@ def test_sr28_portions_store_purchased_weight_with_their_arithmetic(
     # A measure for several pieces ("8 pods = 95 g") is divided down to one piece.
     assert loaded["beet"].edible_grams == pytest.approx(95 / 8)
     assert loaded["beet"].grams == pytest.approx(95 / 8 / 0.86)
+    # The owner's refuse replaces SR28's (5% in the fixture), and the source says so.
+    zucchini = loaded["zucchini"]
+    assert zucchini.refuse_pct == 10
+    assert zucchini.grams == pytest.approx(196 / 0.9)
+    assert "10% refuse (owner override; SR28 gives 5%)" in zucchini.source
     assert "butternut-squash" not in loaded
     assert result.snapshot.source == "usda_sr28"
 
@@ -864,24 +871,29 @@ def test_the_committed_portion_map_is_valid() -> None:
     rows = read_portion_map()
     assert {row.unit for row in rows} <= {"each", "bunch", "head", "ear", "pint"}
     assert [row.slug for row in rows if not row.has_source] == ["butternut-squash"]
+    # Owner decision (2026-11-11): potatoes use 10% refuse, not SR28's 25%.
+    assert {row.refuse_override for row in rows if row.slug == "potato"} == {10}
+    assert {row.slug for row in rows if row.refuse_override is not None} == {"potato"}
 
 
 @pytest.mark.parametrize(
     ("line", "message"),
     [
-        ("kumquat,each,,11529,6,", "not in the crosswalk"),
-        ("tomato,dozen,,11529,6,", "unknown unit 'dozen'"),
-        ("tomato,each,huge,11529,6,", "unknown size 'huge'"),
-        ("tomato,each,,11529,,", "give both sr28_ndb and sr28_seq"),
-        ("tomato,each,medium,11529,9,", "listed twice"),
+        ("kumquat,each,,11529,6,,", "not in the crosswalk"),
+        ("tomato,dozen,,11529,6,,", "unknown unit 'dozen'"),
+        ("tomato,each,huge,11529,6,,", "unknown size 'huge'"),
+        ("tomato,each,,11529,,,", "give both sr28_ndb and sr28_seq"),
+        ("tomato,each,medium,11529,9,,", "listed twice"),
+        ("tomato,each,large,11529,5,100,", "must be 0 to 99"),
+        ("tomato,each,large,11529,5,ten,", "must be 0 to 99"),
+        ("tomato,each,large,,,10,", "needs an SR28 weight"),
     ],
 )
 def test_portion_map_rejects_bad_rows(tmp_path: Path, line: str, message: str) -> None:
     path = tmp_path / "catalog_portions.csv"
     path.write_text(
-        "slug,unit,size,sr28_ndb,sr28_seq,notes\ntomato,each,medium,11529,6,\n"
-        + line
-        + "\n",
+        "slug,unit,size,sr28_ndb,sr28_seq,refuse_pct_override,notes\n"
+        "tomato,each,medium,11529,6,,\n" + line + "\n",
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match=message):
