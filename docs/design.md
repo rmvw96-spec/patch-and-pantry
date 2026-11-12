@@ -234,9 +234,13 @@ pounds; it matches the published column within 0.001 USD (the CSV rounds its inp
 | Hot peppers | No | Sweet peppers as a stand-in for conversions |
 | Peanuts, field corn for meal | No | Captured prices; FoodData Central for nutrients |
 | Eggplant, Swiss chard, turnip roots, fresh southern peas | No | Captured prices; FoodData Central for nutrients |
+| Garden peas | Canned or frozen only | Captured fresh prices; FoodData Central for nutrients |
 
 Every catalog item records where its price and conversion factors came from, including
-"stand-in" when it borrows another item's. USDA's Food Patterns Equivalents Database is a
+"stand-in" when it borrows another item's. The crosswalk (`backend/app/seed_data/catalog_crosswalk.csv`)
+names the exact ERS row used for each crop. ERS's published price-per-cup column is swapped for
+two pairs of rows (artichoke, lima beans); the app computes price per cup from each row's inputs
+(see `specs/known-answers.md`). USDA's Food Patterns Equivalents Database is a
 candidate source (unverified) for cup sizes ERS lacks.
 
 ### AMS retail report
@@ -466,3 +470,4 @@ Specification gaps to close in phase specs:
 | 2026-11-11 | Model changed to DeepSeek-V3.2 on Foundry (sold by Azure) for all text tasks: Claude on Foundry needs an Enterprise Agreement or MCA-E subscription, and the owner's is pay-as-you-go. LLM-as-judge checks and model comparisons deferred until a second model; photo-capture model added to open questions. Claude prices and cost table removed until DeepSeek prices are recorded. |
 | 2026-11-11 | Model factory built (P0-1). Corrected the profile note: the partial `AzureProvider.model_profile` profile does not override a custom deployment name's generic profile, so the factory pins the default name's full profile. Secrets moved to a gitignored `.env.local`. |
 | 2026-11-11 | Core tables built (P0-3). The database enforces the closed sets, calorie levels, percentages, and dates with CHECK constraints, and a trigger keeps data snapshots from being changed. Details in the Phase 0 spec. |
+| 2026-11-11 | Seed loaders built (P0-4). Garden peas added to the ERS coverage gaps; ERS's published price per cup found swapped for artichoke and lima beans. The P0-3 cap of 1 on the preparation yield factor was wrong (dried beans 2.47, collard greens 1.16) and is removed. Catalog items carry a separate snapshot for storage facts (FoodKeeper). |

@@ -346,8 +346,10 @@ class CatalogItem(SQLModel, table=True):
             " OR (scope = 'household' AND household_id IS NOT NULL)",
             name="ck_catalog_item_scope_owner",
         ),
+        # Above 1 is normal for foods that absorb water when cooked: dried beans (about 2.5),
+        # collard greens (1.16). ERS's preparation yield is cooked or edible weight per purchased.
         CheckConstraint(
-            "preparation_yield_factor > 0 AND preparation_yield_factor <= 1",
+            "preparation_yield_factor > 0",
             name="ck_catalog_item_preparation_yield_factor",
         ),
         CheckConstraint(
@@ -369,18 +371,22 @@ class CatalogItem(SQLModel, table=True):
         default=None, foreign_key="household.id", ondelete="CASCADE"
     )
     # Produce facts; empty for supplies.
-    preparation_yield_factor: float | None = (
-        None  # edible share of the purchased weight
-    )
+    # Edible (or cooked) weight per purchased weight; ERS's preparation yield factor.
+    preparation_yield_factor: float | None = None
     cup_equivalent_lb: float | None = None  # pounds of edible food per cup equivalent
     storage_days_min: int | None = None
     storage_location: str | None = Field(default=None, max_length=40)
+    # Storage facts come from a different dataset (FoodKeeper) than conversions (ERS).
+    storage_snapshot_id: uuid.UUID | None = Field(
+        default=None, foreign_key="data_snapshot.id"
+    )
     # The item whose facts this one borrows, when it has none of its own.
     stand_in_for_id: uuid.UUID | None = Field(
         default=None, foreign_key="catalog_item.id", ondelete="SET NULL"
     )
     # Every catalog fact has a source, including "stand-in" when borrowed.
     conversion_source: str = Field(min_length=1, max_length=500)
+    # The snapshot the conversion facts (yield factor, cup weight) came from.
     snapshot_id: uuid.UUID | None = Field(default=None, foreign_key="data_snapshot.id")
 
 

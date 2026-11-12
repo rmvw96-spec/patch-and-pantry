@@ -10,6 +10,31 @@ caching, and versioning"). Never edit a file here in place without recording why
 | `minnesota_home_garden_yields.csv` | Measured harvest per square foot for 26 crops in real home gardens | University of Minnesota Extension, [Home Garden Productivity Project](https://www.ramseymastergardeners.org/post/home-garden-productivity-study-results) (2018-2022, 89 Master Gardeners) | 2026-11-11 | Minnesota has one short season; North Alabama has spring and fall seasons. "Servings" are MyPlate servings as reported by the study. |
 | `dga_2025_2030_produce_cups.csv` | Daily vegetable and fruit cups at 12 calorie levels (1,000 to 3,200) | [Dietary Guidelines for Americans 2025-2030, Daily Servings by Calorie Level](https://www.cacfp.org/assets/pdf/Dietary+Guidelines+for+Americans%2C+2025%E2%80%932030_+Daily+Servings+by+Calorie+Level/) | 2026-11-10 | A produce serving is 1 cup raw or cooked, 2 cups leafy greens, or 1/2 cup dried fruit. Used for independence targets only (Phase 4). |
 
-Not yet here (Phase 0 loads them as snapshots): USDA ERS fruit and vegetable prices, USDA
-FoodKeeper storage times, a USDA FoodData Central subset for the first crop set, NOAA freeze
-dates for the Muscle Shoals 2 N station. Sources and refresh rules are in `docs/design.md`.
+| `catalog_crosswalk.csv` | Each catalog slug (38 first-crop-set produce items, 6 garden supplies) and its exact name in every source: ERS item and form, FDC id and dataset, FoodKeeper product id and storage location, Minnesota crop, planting-chart crops (`;`-separated), stand-in | Built by hand from the sources below | 2026-11-11 | **Owner-reviewed** (2026-11-11). Loaders match only the names given here; no fuzzy matching. The notes column explains each judgment call. |
+
+## Raw source downloads
+
+Stored byte for byte (see `.gitattributes`): a file's SHA-256 identifies its data snapshot, so a
+changed byte would be a new snapshot. Download a new version, put it next to the old one, update
+`app/seed/sources.py`, and add a row here.
+
+| File | Source | Retrieved | SHA-256 (first 12) | Notes |
+| --- | --- | --- | --- | --- |
+| `data/sources/usda-ers/all-vegetables-average-prices.csv` | [USDA ERS](https://www.ers.usda.gov/media/6240/all-vegetables-average-prices-csv-format.csv?v=47411) | 2026-11-11 | `7228c4bccd6a` | Data year 2023. Byte-order mark, CRLF line endings, and a trailing space in one header. ERS's published price-per-cup column is swapped for Artichoke (Fresh, Canned) and Lima beans (Frozen, Dried); see `docs/specs/known-answers.md`. |
+| `data/sources/usda-ers/all-fruits-average-prices.csv` | [USDA ERS](https://www.ers.usda.gov/media/6210/all-fruits-average-prices-csv-format.csv?v=97997) | 2026-11-11 | `b7fc0b4a9c11` | Data year 2023. Juices are priced per pint. |
+| `data/sources/usda-fsis/foodkeeper.json` | [USDA FSIS FoodKeeper](https://catalog.data.gov/dataset/fsis-foodkeeper-data) (`FMA-Data-v128`) | 2026-11-11 | `037df0d30112` | **Download by hand in a browser**: FSIS blocks automated downloads. |
+| *Not committed*: `FoodData_Central_foundation_food_csv_2026-04-30.zip` | [USDA FDC](https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_csv_2026-04-30.zip) | 2026-11-11 | `70457ee9d934` | 3.8 MB. The 2026-10-29 release was skipped: its zip lacks `food.csv` and `food_nutrient.csv`. |
+| *Not committed*: `FoodData_Central_sr_legacy_food_csv_2018-04.zip` | [USDA FDC](https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip) | 2026-11-11 | `b80817294b88` | 6.1 MB. SR Legacy is final (2018). |
+
+## Loading
+
+From `backend/`, with the database migrated (`scripts/prestart.sh`):
+
+```bash
+uv run python -m app.seed all ~/Downloads/FoodData_Central_*.zip   # every source above
+uv run python -m app.seed report                                    # first-crop-set gaps
+```
+
+Each file loads in its own transaction inside a Prefect flow. Loading the same file again changes
+nothing. Not yet here: NOAA freeze dates for the Muscle Shoals 2 N station (the region row uses
+the values in `docs/design.md`).

@@ -1,2 +1,5 @@
 * text=auto
 *.sh text eol=lf
+# Raw source downloads are stored byte for byte: their SHA-256 hashes identify data snapshots.
+data/sources/** -text
+backend/tests/fixtures/seed/** -text

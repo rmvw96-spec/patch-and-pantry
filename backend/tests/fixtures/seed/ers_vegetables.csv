@@ -1,0 +1,11 @@
+﻿Vegetable,Form,AverageRetailPrice,AverageRetailPriceUnitOfMeasure,PreparationYieldFactor,SizeOfACupEquivalent ,CupEquivalentUnitOfMeasure,AveragePricePerCupEquivalent
+Avocados,Fresh,2.262402684,per pound,0.7408,0.3197,pounds,0.976334492
+Beets,Canned,1.257920081,per pound,0.65,0.3748,pounds,0.725308679
+Black beans,Canned,1.306312699,per pound,0.65,0.3858,pounds,0.775364834
+Black beans,Dried,1.658510355,per pound,2.4692,0.3858,pounds,0.259142243
+Collard greens,Fresh,2.483338628,per pound,1.16,0.2866,pounds,0.613558
+Collard greens,Canned,1.416270591,per pound,0.65,0.3638,pounds,0.792594554
+Collard greens,Frozen,2.723966393,per pound,0.8818,0.3638,pounds,1.123636137
+Potatoes,Fresh,0.921544199,per pound,0.8113,0.2646,pounds,0.300503543
+Potatoes,Canned,1.103743481,per pound,0.65,0.3417,pounds,0.580257486
+Zucchini,Fresh,1.639076186,per pound,0.7695,0.3968,pounds,0.845273553

@@ -1,0 +1,180 @@
+{
+ "fileName": "FMA-Data-test.xlsx",
+ "sheets": [
+  {
+   "name": "Product",
+   "data": [
+    [
+     {
+      "ID": 302.0
+     },
+     {
+      "Name": "Squash"
+     },
+     {
+      "Name_subtitle": "summer and zucchini"
+     },
+     {
+      "DOP_Pantry_Min": 1.0
+     },
+     {
+      "DOP_Pantry_Metric": null
+     },
+     {
+      "DOP_Refrigerate_Min": 4.0
+     },
+     {
+      "DOP_Refrigerate_Max": 5.0
+     },
+     {
+      "DOP_Refrigerate_Metric": "Days"
+     }
+    ],
+    [
+     {
+      "ID": 306.0
+     },
+     {
+      "Name": "Tomatoes"
+     },
+     {
+      "Name_subtitle": null
+     },
+     {
+      "Pantry_Min": null
+     },
+     {
+      "Pantry_Metric": "When Ripe"
+     }
+    ],
+    [
+     {
+      "ID": 333.0
+     },
+     {
+      "Name": "Beans"
+     },
+     {
+      "Name_subtitle": "dried"
+     },
+     {
+      "DOP_Pantry_Min": 1.0
+     },
+     {
+      "DOP_Pantry_Max": 2.0
+     },
+     {
+      "DOP_Pantry_Metric": "Years"
+     }
+    ],
+    [
+     {
+      "ID": 287.0
+     },
+     {
+      "Name": "Greens"
+     },
+     {
+      "Name_subtitle": null
+     },
+     {
+      "DOP_Refrigerate_Min": 1.0
+     },
+     {
+      "DOP_Refrigerate_Max": 4.0
+     },
+     {
+      "DOP_Refrigerate_Metric": "Days"
+     }
+    ],
+    [
+     {
+      "ID": 274.0
+     },
+     {
+      "Name": "Beets"
+     },
+     {
+      "Name_subtitle": null
+     },
+     {
+      "DOP_Refrigerate_Min": 1.0
+     },
+     {
+      "DOP_Refrigerate_Max": 2.0
+     },
+     {
+      "DOP_Refrigerate_Metric": "Weeks"
+     }
+    ],
+    [
+     {
+      "ID": 297.0
+     },
+     {
+      "Name": "Potatoes"
+     },
+     {
+      "Name_subtitle": null
+     },
+     {
+      "DOP_Pantry_Min": 1.0
+     },
+     {
+      "DOP_Pantry_Metric": "Months"
+     }
+    ],
+    [
+     {
+      "ID": 307.0
+     },
+     {
+      "Name": "Turnips"
+     },
+     {
+      "Name_subtitle": null
+     },
+     {
+      "DOP_Refrigerate_Min": 2.0
+     },
+     {
+      "DOP_Refrigerate_Max": 2.0
+     },
+     {
+      "DOP_Refrigerate_Metric": "Weeks"
+     }
+    ],
+    [
+     {
+      "ID": 303.0
+     },
+     {
+      "Name": "Squash"
+     },
+     {
+      "Name_subtitle": "winter"
+     },
+     {
+      "DOP_Pantry_Min": 2.0
+     },
+     {
+      "DOP_Pantry_Metric": "Weeks"
+     },
+     {
+      "DOP_Refrigerate_Min": 1.0
+     },
+     {
+      "DOP_Refrigerate_Max": 3.0
+     },
+     {
+      "DOP_Refrigerate_Metric": "Months"
+     }
+    ]
+   ]
+  },
+  {
+   "name": "Category",
+   "data": []
+  }
+ ]
+}
