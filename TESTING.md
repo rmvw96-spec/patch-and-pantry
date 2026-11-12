@@ -7,11 +7,11 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 484 |
-| Backend statements measured | 570 | 2,423 |
+| Backend tests | 58 | 510 |
+| Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
-| Backend suite, local run | 16.4 s | 20.2 s |
-| Browser E2E specs | 6 files | 7 files (adds `prices.spec.ts`, 6 tests) |
+| Backend suite, local run | 16.4 s | 21.4 s |
+| Browser E2E specs | 6 files | 10 files (adds `prices.spec.ts` 10, `price-book.spec.ts` 2, `best-buy.spec.ts` 3, `household.spec.ts` 3) |
 
 Local times are single runs on one development machine, not CI. Most of the backend increase is
 the food planner's tests; the Prefect test server no longer starts for the run tests (the
@@ -71,12 +71,14 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Backend: matcher `find_catalog_item` | `backend/tests/tools/test_catalog.py` | 42 | Folding, exact names and aliases, misspellings with a note, shared aliases as questions, the margin, suggestion floor, household aliases (own household only), household-scoped items, supplies never matched, the alias file's validity |
 | Backend: typed-list capture, scripted models | `backend/tests/agents/test_capture_agent.py`, fixtures in `backend/tests/catalog_fixtures.py` | 54 | The known-answers behavioral cases; raw text kept and nothing saved; dollars to cents in code; every unclear line a question; skipped, repeated, or invented line numbers; limits; unusable and runaway model output; the demo reader end to end |
 | Backend: tool `compare_best_buy` and its explanation | `backend/tests/tools/test_best_buy.py` | 49 | Spoilage and the spec's worked example; marking (lowest usable cost, spoilage changing the pick, reference never marked, fallback marked, ties); no-price and no-conversion rows; the 30-day window and the household's own prices; latest ERS snapshot at full precision; cook and freeze extras; prices by count; the explanation's numbers check (sent back, fails after retries, runaway stopped, demo) |
+| Backend: price book, catalog, aliases, item settings | `backend/tests/api/routes/test_prices.py` | 23 | Confirming drafts (units spelled one way, weight answers converted, sizes, no-conversion items, refusals, all or none, fuzzy matches remembered), own stores and visible items only, the book newest first, edit (a bunch keeps its weight) and delete, others refused, catalog visibility, aliases, item settings |
 | Migrations | `.github/workflows/test-backend.yml` | 1 step | Every migration down to an empty database and back up, then `alembic check` |
 | Backend integration: grocery analysis runs and vendors | `backend/tests/api/routes/test_grocery_analysis_runs.py` | 28 | Real Postgres and Redis: 202 then polling, both run kinds, requests checked before they queue, idempotency per user, failure states, access control, the vendor API |
 | Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | Capture and best-buy agents with an in-memory exporter; an explanation sent back once; no Phoenix needed |
 | Backend: run job and its tracing | `backend/tests/test_grocery_analysis_job_tracing.py` | 10 | `execute_run` against real Postgres: the run span as the trace root, failures and crashes on the span, deleted runs, job-side failures, the recorded model name, cascade on user deletion |
 | Backend: template API and CRUD | `backend/tests/api/routes/`, `backend/tests/crud/` | 58 | Items, login, users, private routes, user CRUD |
-| Browser E2E: Prices page | `frontend/tests/prices.spec.ts` | 6 | Full stack in demo mode with reference data loaded and a 1 s demo delay: add a store, read a list, drafts with cost per cup, questions, set-aside lines, refresh |
+| Browser E2E: Prices page | `frontend/tests/prices.spec.ts` | 10 | Full stack in demo mode with reference data loaded and a 1 s demo delay: add a store, read a list, drafts with cost per cup, questions, set-aside lines, refresh, answering a weight question, skipping a draft, choosing an item then reading again, saved prices in the book |
+| Browser E2E: Price book, Best buy, Household | `frontend/tests/price-book.spec.ts`, `best-buy.spec.ts`, `household.spec.ts`; steps in `tests/utils/prices.ts` | 8 | Edit and delete a price (cost per cup recomputed); compare with a starred store price, the ERS reference, explanation, and shopping list; the national-average fallback; budget and people saved and refused |
 | Browser E2E: template | `frontend/tests/*.spec.ts` | 6 files | Admin, items, login, reset password, sign-up, user settings |
 | Stack smoke check | `.github/workflows/test-docker-compose.yml` | 2 HTTP checks | Health endpoint and served frontend |
 
@@ -190,6 +192,12 @@ for it.
 | Explanation numbers not checked | Three explanation tests |
 | FoodKeeper loader version left out of the fingerprint | `test_a_new_foodkeeper_loader_version_is_a_new_snapshot` |
 | Cooked leftovers not stored | `test_foodkeeper_keeps_the_range_and_cooked_leftovers` |
+| Weight answer saved without converting its unit | `test_a_weight_answer_is_converted_by_the_tool` |
+| Confirmed fuzzy match not remembered | `test_a_confirmed_fuzzy_match_becomes_a_household_alias` |
+| Another household's store accepted when saving prices | `test_only_your_own_stores_and_visible_items` |
+| Editing a bunch drops its capture weight | `test_editing_a_bunch_keeps_its_weight` |
+| Shopping list includes rows that are not starred | `test_the_shopping_list_groups_marked_rows_by_store` and one more |
+| Another household can edit or delete a price | `test_others_cannot_edit_or_delete_your_prices` |
 | Portion map accepts a duplicate unit and size | `test_portion_map_rejects_bad_rows` (listed twice) |
 | `ck_catalog_portion_provenance` dropped in Postgres | `test_owner_measured_portion_records_its_date` |
 
@@ -233,3 +241,4 @@ for it.
 | 2026-11-11 | PR #19: typed-list capture (P1-5): `find_catalog_item`, `catalog_aliases.csv`, `household_alias`, the capture agent and its demo reader. Eight put-back bugs each caught (table above) | +96 backend | ___ |
 | 2026-11-11 | PR #20: `compare_best_buy` and its explanation (P1-6); FoodKeeper range maximum and cooked leftovers; item settings; price sizes. Ten put-back bugs each caught (table above) | +63 backend | ___ |
 | 2026-11-12 | PR #21: grocery analysis runs replace Studies (P1-1). Studies, the simulator, and their tests deleted; run, vendor, and job-tracing tests carry over idempotency, terminal states, ownership, and tracing. Prices page E2E with seeded reference data and a 1 s demo delay. Fourteen put-back bugs each caught (table above) | -2 backend (484), E2E spec replaced (6 tests) | Playwright: one more step (load reference data) |
+| 2026-11-12 | PR #22: pages and shopping list (P1-7): confirming drafts, price book, best buy with a printable shopping list, household settings; price, catalog, alias, and item-setting APIs. Six put-back bugs each caught (table above). One local Playwright failure on a cold dev server was not reproduced in four more runs | +26 backend, +12 E2E | ___ |

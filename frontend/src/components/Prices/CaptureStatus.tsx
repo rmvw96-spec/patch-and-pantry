@@ -1,12 +1,20 @@
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { Save } from "lucide-react"
+import { useState } from "react"
 
 import {
+  type CaptureQuestion,
+  CatalogService,
   type DraftPrice,
-  type GroceryAnalysisRunPublic,
-  GroceryAnalysisRunsService,
+  HouseholdService,
+  type PriceCaptureRequest,
   type PriceCaptureResult,
+  type PriceEntry,
+  PricesService,
 } from "@/client"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -14,6 +22,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { LoadingButton } from "@/components/ui/loading-button"
 import {
   Table,
   TableBody,
@@ -22,40 +32,198 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import useCustomToast from "@/hooks/useCustomToast"
+import { isFinished, money, RUN_BADGE, useRun } from "@/hooks/useRun"
+import { handleError } from "@/utils"
 
-type RunState = GroceryAnalysisRunPublic["status"]
+const selectClass =
+  "border-input bg-transparent dark:bg-input/30 rounded-md border px-2 py-1 text-sm"
 
-const FINISHED: RunState[] = ["succeeded", "failed"]
-const POLL_INTERVAL_MS = 1000
+type WeightUnit = "lb" | "oz" | "g"
+type WeightSource = "weighed" | "estimated"
+type Size = "small" | "medium" | "large"
 
-const BADGE_VARIANT: Record<RunState, "default" | "secondary" | "destructive"> =
-  {
-    queued: "secondary",
-    running: "secondary",
-    succeeded: "default",
-    failed: "destructive",
+interface WeightAnswer {
+  amount: string
+  unit: WeightUnit
+  source: WeightSource
+}
+
+function amount(draft: DraftPrice, size?: Size | null): string {
+  const shown = size ?? draft.size
+  return `${draft.quantity}${shown ? ` ${shown}` : ""} ${draft.unit}`
+}
+
+function toEntry(
+  draft: DraftPrice,
+  extra: Partial<PriceEntry> = {},
+): PriceEntry {
+  return {
+    raw_text: draft.raw_text,
+    catalog_item_id: draft.catalog_item_id,
+    quantity: draft.quantity,
+    unit: draft.unit,
+    size: draft.size ?? null,
+    price_cents: draft.price_cents,
+    // A misspelling the user confirms becomes their own name for the item.
+    remember_text: draft.match_kind === "fuzzy" ? draft.item_text : null,
+    ...extra,
+  }
+}
+
+function WeightQuestion({
+  question,
+  answer,
+  onChange,
+}: {
+  question: CaptureQuestion
+  answer: WeightAnswer
+  onChange: (answer: WeightAnswer) => void
+}) {
+  const label = question.raw_text
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Input
+        className="w-24"
+        inputMode="decimal"
+        aria-label={`Weight of one piece for ${label}`}
+        value={answer.amount}
+        onChange={(e) => onChange({ ...answer, amount: e.target.value })}
+      />
+      <select
+        className={selectClass}
+        aria-label={`Weight unit for ${label}`}
+        value={answer.unit}
+        onChange={(e) =>
+          onChange({ ...answer, unit: e.target.value as WeightUnit })
+        }
+      >
+        <option value="lb">lb</option>
+        <option value="oz">oz</option>
+        <option value="g">g</option>
+      </select>
+      <select
+        className={selectClass}
+        aria-label={`Weighed or estimated for ${label}`}
+        value={answer.source}
+        onChange={(e) =>
+          onChange({ ...answer, source: e.target.value as WeightSource })
+        }
+      >
+        <option value="estimated">estimated</option>
+        <option value="weighed">weighed</option>
+      </select>
+    </div>
+  )
+}
+
+function CaptureReview({
+  input,
+  result,
+  onReread,
+}: {
+  input: PriceCaptureRequest
+  result: PriceCaptureResult
+  onReread?: () => void
+}) {
+  const { showSuccessToast, showErrorToast } = useCustomToast()
+  const queryClient = useQueryClient()
+  const [skipped, setSkipped] = useState<Record<string, boolean>>({})
+  const [weights, setWeights] = useState<Record<string, WeightAnswer>>({})
+  const [sizes, setSizes] = useState<Record<string, Size>>({})
+  const [choices, setChoices] = useState<Record<string, string>>({})
+  const [remembered, setRemembered] = useState(false)
+  const [saved, setSaved] = useState<number | null>(null)
+
+  const catalog = useQuery({
+    queryKey: ["catalog"],
+    queryFn: async () => (await CatalogService.readCatalog()).data,
+  })
+
+  const entries: PriceEntry[] = [
+    ...result.drafts
+      .filter((draft) => !skipped[draft.raw_text])
+      .map((draft) => toEntry(draft)),
+    ...result.questions.flatMap((question) => {
+      const draft = question.draft
+      if (!draft) return []
+      if (question.kind === "needs_size" && sizes[question.raw_text]) {
+        return [toEntry(draft, { size: sizes[question.raw_text] })]
+      }
+      const weight = weights[question.raw_text]
+      const grams = weight ? Number(weight.amount) : Number.NaN
+      if (question.kind === "needs_weight" && grams > 0) {
+        return [
+          toEntry(draft, {
+            piece_weight: {
+              amount: grams,
+              unit: weight.unit,
+              source: weight.source,
+            },
+          }),
+        ]
+      }
+      return []
+    }),
+  ]
+
+  const save = useMutation({
+    mutationFn: async () =>
+      (
+        await PricesService.createPrices({
+          body: {
+            vendor_id: input.vendor_id,
+            observed_on: input.observed_on,
+            entries,
+          },
+        })
+      ).data,
+    onSuccess: (prices) => {
+      setSaved(prices.length)
+      queryClient.invalidateQueries({ queryKey: ["prices"] })
+      showSuccessToast(`Saved ${prices.length} prices`)
+    },
+    onError: handleError.bind(showErrorToast),
+  })
+
+  const remember = useMutation({
+    mutationFn: async (question: CaptureQuestion) =>
+      (
+        await HouseholdService.createAlias({
+          body: {
+            text: question.item_text ?? question.raw_text,
+            catalog_item_id: choices[question.raw_text],
+          },
+        })
+      ).data,
+    onSuccess: () => {
+      setRemembered(true)
+      showSuccessToast("Saved. Read the list again to use it.")
+    },
+    onError: handleError.bind(showErrorToast),
+  })
+
+  if (saved !== null) {
+    return (
+      <p data-testid="capture-saved">
+        Saved {saved} {saved === 1 ? "price" : "prices"} to your{" "}
+        <Link to="/price-book" className="underline">
+          price book
+        </Link>
+        .
+      </p>
+    )
   }
 
-function isFinished(run: GroceryAnalysisRunPublic | undefined): boolean {
-  return run !== undefined && FINISHED.includes(run.status)
-}
+  const items = catalog.data ?? []
 
-function money(cents: number | null | undefined): string {
-  return cents == null ? "-" : `$${(cents / 100).toFixed(2)}`
-}
-
-function amount(draft: DraftPrice): string {
-  const size = draft.size ? ` ${draft.size}` : ""
-  return `${draft.quantity}${size} ${draft.unit}`
-}
-
-function Drafts({ result }: { result: PriceCaptureResult }) {
   return (
     <div className="flex flex-col gap-6">
       {result.drafts.length > 0 && (
         <Table data-testid="capture-drafts">
           <TableHeader>
             <TableRow>
+              <TableHead>Save</TableHead>
               <TableHead>As typed</TableHead>
               <TableHead>Item</TableHead>
               <TableHead>Amount</TableHead>
@@ -66,6 +234,19 @@ function Drafts({ result }: { result: PriceCaptureResult }) {
           <TableBody>
             {result.drafts.map((draft) => (
               <TableRow key={draft.raw_text} data-testid="capture-draft">
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    aria-label={`Save ${draft.raw_text}`}
+                    checked={!skipped[draft.raw_text]}
+                    onChange={(e) =>
+                      setSkipped({
+                        ...skipped,
+                        [draft.raw_text]: !e.target.checked,
+                      })
+                    }
+                  />
+                </TableCell>
                 <TableCell>{draft.raw_text}</TableCell>
                 <TableCell>
                   {draft.item_name}
@@ -89,15 +270,98 @@ function Drafts({ result }: { result: PriceCaptureResult }) {
       )}
 
       {result.questions.length > 0 && (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <h3 className="font-medium">Questions</h3>
-          <ul className="flex flex-col gap-2" data-testid="capture-questions">
+          <ul className="flex flex-col gap-4" data-testid="capture-questions">
             {result.questions.map((question) => (
-              <li key={question.raw_text} data-testid="capture-question">
-                <span className="text-muted-foreground">
-                  {question.raw_text}:
-                </span>{" "}
-                {question.message}
+              <li
+                key={question.raw_text}
+                className="flex flex-col gap-2"
+                data-testid="capture-question"
+              >
+                <p>
+                  <span className="text-muted-foreground">
+                    {question.raw_text}:
+                  </span>{" "}
+                  {question.message}
+                </p>
+                {question.kind === "needs_weight" && question.draft && (
+                  <WeightQuestion
+                    question={question}
+                    answer={
+                      weights[question.raw_text] ?? {
+                        amount: "",
+                        unit: "lb",
+                        source: "estimated",
+                      }
+                    }
+                    onChange={(answer) =>
+                      setWeights({ ...weights, [question.raw_text]: answer })
+                    }
+                  />
+                )}
+                {question.kind === "needs_size" && question.draft && (
+                  <select
+                    className={selectClass}
+                    aria-label={`Size for ${question.raw_text}`}
+                    value={sizes[question.raw_text] ?? ""}
+                    onChange={(e) =>
+                      setSizes({
+                        ...sizes,
+                        [question.raw_text]: e.target.value as Size,
+                      })
+                    }
+                  >
+                    <option value="">Choose a size</option>
+                    {(question.options ?? []).map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {(question.kind === "which_item" ||
+                  question.kind === "no_match") && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      className={selectClass}
+                      aria-label={`Item for ${question.raw_text}`}
+                      value={choices[question.raw_text] ?? ""}
+                      onChange={(e) =>
+                        setChoices({
+                          ...choices,
+                          [question.raw_text]: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="">Choose an item</option>
+                      {/* The question's candidates first, then the whole catalog. */}
+                      {[
+                        ...items.filter((i) =>
+                          question.options?.includes(i.name),
+                        ),
+                        ...items.filter(
+                          (i) => !question.options?.includes(i.name),
+                        ),
+                      ].map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        !choices[question.raw_text] || remember.isPending
+                      }
+                      onClick={() => remember.mutate(question)}
+                    >
+                      Use this item
+                    </Button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -112,23 +376,35 @@ function Drafts({ result }: { result: PriceCaptureResult }) {
           Not prices: {result.ignored.join(", ")}
         </p>
       )}
+
+      <div className="flex flex-wrap gap-2">
+        <LoadingButton
+          type="button"
+          loading={save.isPending}
+          disabled={entries.length === 0}
+          onClick={() => save.mutate()}
+        >
+          <Save className="mr-2" />
+          Save {entries.length} {entries.length === 1 ? "price" : "prices"}
+        </LoadingButton>
+        {remembered && onReread && (
+          <Button type="button" variant="outline" onClick={onReread}>
+            Read the list again
+          </Button>
+        )}
+      </div>
     </div>
   )
 }
 
-const CaptureStatus = ({ runId }: { runId: string }) => {
-  const { data: run, isError } = useQuery({
-    queryKey: ["grocery-analysis-run", runId],
-    queryFn: async () =>
-      (
-        await GroceryAnalysisRunsService.readGroceryAnalysisRun({
-          path: { id: runId },
-        })
-      ).data,
-    // Poll while the job is queued or running; stop as soon as it reaches a final state.
-    refetchInterval: (query) =>
-      isFinished(query.state.data) ? false : POLL_INTERVAL_MS,
-  })
+const CaptureStatus = ({
+  runId,
+  onReread,
+}: {
+  runId: string
+  onReread?: (input: PriceCaptureRequest) => void
+}) => {
+  const { data: run, isError } = useRun(runId)
 
   if (isError) {
     return (
@@ -142,7 +418,7 @@ const CaptureStatus = ({ runId }: { runId: string }) => {
     return null
   }
 
-  const text = run.input.kind === "price_capture" ? run.input.text : ""
+  const input = run.input.kind === "price_capture" ? run.input : null
 
   return (
     <Card>
@@ -151,7 +427,7 @@ const CaptureStatus = ({ runId }: { runId: string }) => {
           What was read
           {/* aria-live announces status changes to screen readers as polling updates them */}
           <span aria-live="polite">
-            <Badge variant={BADGE_VARIANT[run.status]} data-testid="run-status">
+            <Badge variant={RUN_BADGE[run.status]} data-testid="run-status">
               {run.status}
             </Badge>
           </span>
@@ -160,7 +436,7 @@ const CaptureStatus = ({ runId }: { runId: string }) => {
           className="whitespace-pre-line"
           data-testid="run-input"
         >
-          {text}
+          {input?.text}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -171,8 +447,14 @@ const CaptureStatus = ({ runId }: { runId: string }) => {
         )}
 
         {run.status === "succeeded" &&
-          run.result &&
-          run.result.kind === "price_capture" && <Drafts result={run.result} />}
+          input &&
+          run.result?.kind === "price_capture" && (
+            <CaptureReview
+              input={input}
+              result={run.result}
+              onReread={onReread ? () => onReread(input) : undefined}
+            />
+          )}
 
         {run.status === "failed" && (
           <p className="text-destructive" data-testid="run-error">

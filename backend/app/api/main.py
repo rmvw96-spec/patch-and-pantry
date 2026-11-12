@@ -1,10 +1,12 @@
 from fastapi import APIRouter
 
 from app.api.routes import (
+    catalog,
     grocery_analysis_runs,
     household,
     items,
     login,
+    prices,
     private,
     users,
     utils,
@@ -19,6 +21,8 @@ api_router.include_router(utils.router)
 api_router.include_router(items.router)
 api_router.include_router(household.router)
 api_router.include_router(vendors.router)
+api_router.include_router(catalog.router)
+api_router.include_router(prices.router)
 api_router.include_router(grocery_analysis_runs.router)
 
 

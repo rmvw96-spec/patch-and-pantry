@@ -120,6 +120,10 @@ class DraftPrice:
     price_cents: int  # for the whole quantity
     vendor_id: uuid.UUID
     observed_on: date
+    # The item words read from the line, and how they matched (exact, alias, fuzzy...). A fuzzy
+    # match the user confirms is saved as a household alias.
+    item_text: str = ""
+    match_kind: str = "exact"
     piece_grams: float | None = None  # one piece as purchased, for count units
     piece_source: str | None = None
     grams_purchased: float | None = None
@@ -151,6 +155,8 @@ class CaptureQuestion:
     options: list[str] = field(default_factory=list)
     # What was read so far, when the item is known: answering completes this draft.
     draft: DraftPrice | None = None
+    # The item words the question is about ("greens"), for saving the user's choice as an alias.
+    item_text: str | None = None
 
 
 @dataclass
@@ -204,17 +210,13 @@ def numbered_lines(lines: list[str]) -> str:
 def _question_for_match(raw: str, match: Match) -> CaptureQuestion:
     names = [c.name for c in match.candidates]
     if match.kind == "ambiguous":
-        return CaptureQuestion(
-            raw,
-            "which_item",
-            f"Which item is '{match.text}': {', '.join(names)}?",
-            names,
-        )
+        message = f"Which item is '{match.text}': {', '.join(names)}?"
+        return CaptureQuestion(raw, "which_item", message, names, item_text=match.text)
     if names:
         message = f"Which item is '{match.text}'? Closest: {', '.join(names)}."
     else:
         message = f"Which item is '{match.text}'? It is not in the catalog."
-    return CaptureQuestion(raw, "no_match", message, names)
+    return CaptureQuestion(raw, "no_match", message, names, item_text=match.text)
 
 
 def _process_line(
@@ -283,6 +285,8 @@ def _process_line(
         catalog_item_id=item.id,
         item_name=item.name,
         match_note=match.note,
+        item_text=line.item_text,
+        match_kind=match.kind,
         quantity=quantity,
         unit=unit,
         size=line.size,

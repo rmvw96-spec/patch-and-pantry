@@ -5,6 +5,36 @@ export type ClientOptions = {
 };
 
 /**
+ * AliasCreate
+ *
+ * Your name for a catalog item, saved when you choose the item a line meant (D7).
+ */
+export type AliasCreate = {
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id: string;
+};
+
+/**
+ * AliasPublic
+ */
+export type AliasPublic = {
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id: string;
+};
+
+/**
  * BestBuyRequest
  *
  * Compare this week's best buys for the items needed.
@@ -40,6 +70,10 @@ export type BestBuyResult = {
      * Rows
      */
     rows: Array<BestBuyRow>;
+    /**
+     * Shopping List
+     */
+    shopping_list?: Array<ShoppingGroup>;
     /**
      * Explanation
      */
@@ -189,6 +223,32 @@ export type CaptureQuestion = {
      */
     options?: Array<string>;
     draft?: DraftPrice | null;
+    /**
+     * Item Text
+     */
+    item_text?: string | null;
+};
+
+/**
+ * CatalogItemPublic
+ */
+export type CatalogItemPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Category
+     */
+    category: string;
 };
 
 /**
@@ -237,6 +297,14 @@ export type DraftPrice = {
      * Observed On
      */
     observed_on: string;
+    /**
+     * Item Text
+     */
+    item_text?: string;
+    /**
+     * Match Kind
+     */
+    match_kind?: string;
     /**
      * Piece Grams
      */
@@ -471,6 +539,30 @@ export type ItemPublic = {
 };
 
 /**
+ * ItemSettingPublic
+ */
+export type ItemSettingPublic = {
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id: string;
+    /**
+     * Freeze Extras
+     */
+    freeze_extras: boolean;
+};
+
+/**
+ * ItemSettingUpdate
+ */
+export type ItemSettingUpdate = {
+    /**
+     * Freeze Extras
+     */
+    freeze_extras: boolean;
+};
+
+/**
  * ItemUpdate
  */
 export type ItemUpdate = {
@@ -537,6 +629,26 @@ export type NewPassword = {
 };
 
 /**
+ * PieceWeight
+ *
+ * The answer to "How much does one bunch weigh?": an amount in a weight unit.
+ */
+export type PieceWeight = {
+    /**
+     * Amount
+     */
+    amount: number;
+    /**
+     * Unit
+     */
+    unit: 'lb' | 'oz' | 'kg' | 'g';
+    /**
+     * Source
+     */
+    source: 'weighed' | 'estimated';
+};
+
+/**
  * PriceCaptureRequest
  *
  * Read a typed list into draft prices for one store and date. Nothing is saved yet.
@@ -583,6 +695,160 @@ export type PriceCaptureResult = {
 };
 
 /**
+ * PriceEntry
+ *
+ * One confirmed line: what the draft read, plus the user's answers.
+ */
+export type PriceEntry = {
+    /**
+     * Raw Text
+     */
+    raw_text: string;
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id: string;
+    /**
+     * Quantity
+     */
+    quantity: number;
+    /**
+     * Unit
+     */
+    unit: string;
+    /**
+     * Size
+     */
+    size?: 'small' | 'medium' | 'large' | null;
+    /**
+     * Price Cents
+     */
+    price_cents: number;
+    piece_weight?: PieceWeight | null;
+    /**
+     * Remember Text
+     */
+    remember_text?: string | null;
+};
+
+/**
+ * PricePublic
+ */
+export type PricePublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id: string;
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Vendor Id
+     */
+    vendor_id: string | null;
+    /**
+     * Vendor Name
+     */
+    vendor_name: string | null;
+    /**
+     * Observed On
+     */
+    observed_on: string;
+    /**
+     * Raw Text
+     */
+    raw_text: string | null;
+    /**
+     * Quantity
+     */
+    quantity: number;
+    /**
+     * Unit
+     */
+    unit: string;
+    /**
+     * Size
+     */
+    size: 'small' | 'medium' | 'large' | null;
+    /**
+     * Price Cents
+     */
+    price_cents: number;
+    /**
+     * Unit Grams
+     */
+    unit_grams: number | null;
+    /**
+     * Weight Source
+     */
+    weight_source: 'weighed' | 'estimated' | null;
+    /**
+     * Cost Per Cup Cents
+     */
+    cost_per_cup_cents: number | null;
+    /**
+     * Note
+     */
+    note: string | null;
+};
+
+/**
+ * PriceUpdate
+ *
+ * Edit a saved price. The item and the line as typed stay; the rest can change.
+ */
+export type PriceUpdate = {
+    /**
+     * Vendor Id
+     */
+    vendor_id: string;
+    /**
+     * Observed On
+     */
+    observed_on: string;
+    /**
+     * Quantity
+     */
+    quantity: number;
+    /**
+     * Unit
+     */
+    unit: string;
+    /**
+     * Size
+     */
+    size?: 'small' | 'medium' | 'large' | null;
+    /**
+     * Price Cents
+     */
+    price_cents: number;
+    piece_weight?: PieceWeight | null;
+};
+
+/**
+ * PricesCreate
+ */
+export type PricesCreate = {
+    /**
+     * Vendor Id
+     */
+    vendor_id: string;
+    /**
+     * Observed On
+     */
+    observed_on: string;
+    /**
+     * Entries
+     */
+    entries: Array<PriceEntry>;
+};
+
+/**
  * PrivateUserCreate
  */
 export type PrivateUserCreate = {
@@ -602,6 +868,56 @@ export type PrivateUserCreate = {
      * Is Verified
      */
     is_verified?: boolean;
+};
+
+/**
+ * ShoppingGroup
+ *
+ * One stop on the trip: a store, or the items still without a store price.
+ */
+export type ShoppingGroup = {
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Vendor Id
+     */
+    vendor_id: string | null;
+    /**
+     * Lines
+     */
+    lines?: Array<ShoppingLine>;
+};
+
+/**
+ * ShoppingLine
+ */
+export type ShoppingLine = {
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Purchase
+     */
+    purchase: string;
+    /**
+     * Price Cents
+     */
+    price_cents: number | null;
+    /**
+     * Cups Per Week
+     */
+    cups_per_week: number;
+    /**
+     * Usable Cups
+     */
+    usable_cups: number | null;
+    /**
+     * Note
+     */
+    note?: string | null;
 };
 
 /**
@@ -1450,6 +1766,79 @@ export type householdUpdateHouseholdResponses = {
 
 export type householdUpdateHouseholdResponse = householdUpdateHouseholdResponses[keyof householdUpdateHouseholdResponses];
 
+export type householdCreateAliasData = {
+    body: AliasCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/household/aliases';
+};
+
+export type householdCreateAliasErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type householdCreateAliasError = householdCreateAliasErrors[keyof householdCreateAliasErrors];
+
+export type householdCreateAliasResponses = {
+    /**
+     * Successful Response
+     */
+    201: AliasPublic;
+};
+
+export type householdCreateAliasResponse = householdCreateAliasResponses[keyof householdCreateAliasResponses];
+
+export type householdReadItemSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/household/item-settings';
+};
+
+export type householdReadItemSettingsResponses = {
+    /**
+     * Response Household-Read Item Settings
+     *
+     * Successful Response
+     */
+    200: Array<ItemSettingPublic>;
+};
+
+export type householdReadItemSettingsResponse = householdReadItemSettingsResponses[keyof householdReadItemSettingsResponses];
+
+export type householdUpdateItemSettingData = {
+    body: ItemSettingUpdate;
+    path: {
+        /**
+         * Catalog Item Id
+         */
+        catalog_item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/household/item-settings/{catalog_item_id}';
+};
+
+export type householdUpdateItemSettingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type householdUpdateItemSettingError = householdUpdateItemSettingErrors[keyof householdUpdateItemSettingErrors];
+
+export type householdUpdateItemSettingResponses = {
+    /**
+     * Successful Response
+     */
+    200: ItemSettingPublic;
+};
+
+export type householdUpdateItemSettingResponse = householdUpdateItemSettingResponses[keyof householdUpdateItemSettingResponses];
+
 export type vendorsReadVendorsData = {
     body?: never;
     path?: never;
@@ -1492,6 +1881,129 @@ export type vendorsCreateVendorResponses = {
 };
 
 export type vendorsCreateVendorResponse = vendorsCreateVendorResponses[keyof vendorsCreateVendorResponses];
+
+export type catalogReadCatalogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/';
+};
+
+export type catalogReadCatalogResponses = {
+    /**
+     * Response Catalog-Read Catalog
+     *
+     * Successful Response
+     */
+    200: Array<CatalogItemPublic>;
+};
+
+export type catalogReadCatalogResponse = catalogReadCatalogResponses[keyof catalogReadCatalogResponses];
+
+export type pricesReadPricesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/prices/';
+};
+
+export type pricesReadPricesResponses = {
+    /**
+     * Response Prices-Read Prices
+     *
+     * Successful Response
+     */
+    200: Array<PricePublic>;
+};
+
+export type pricesReadPricesResponse = pricesReadPricesResponses[keyof pricesReadPricesResponses];
+
+export type pricesCreatePricesData = {
+    body: PricesCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/prices/';
+};
+
+export type pricesCreatePricesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type pricesCreatePricesError = pricesCreatePricesErrors[keyof pricesCreatePricesErrors];
+
+export type pricesCreatePricesResponses = {
+    /**
+     * Response Prices-Create Prices
+     *
+     * Successful Response
+     */
+    201: Array<PricePublic>;
+};
+
+export type pricesCreatePricesResponse = pricesCreatePricesResponses[keyof pricesCreatePricesResponses];
+
+export type pricesDeletePriceData = {
+    body?: never;
+    path: {
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/prices/{id}';
+};
+
+export type pricesDeletePriceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type pricesDeletePriceError = pricesDeletePriceErrors[keyof pricesDeletePriceErrors];
+
+export type pricesDeletePriceResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type pricesDeletePriceResponse = pricesDeletePriceResponses[keyof pricesDeletePriceResponses];
+
+export type pricesUpdateOnePriceData = {
+    body: PriceUpdate;
+    path: {
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/prices/{id}';
+};
+
+export type pricesUpdateOnePriceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type pricesUpdateOnePriceError = pricesUpdateOnePriceErrors[keyof pricesUpdateOnePriceErrors];
+
+export type pricesUpdateOnePriceResponses = {
+    /**
+     * Successful Response
+     */
+    200: PricePublic;
+};
+
+export type pricesUpdateOnePriceResponse = pricesUpdateOnePriceResponses[keyof pricesUpdateOnePriceResponses];
 
 export type groceryAnalysisRunsCreateGroceryAnalysisRunData = {
     /**

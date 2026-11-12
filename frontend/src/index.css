@@ -128,3 +128,11 @@
     cursor: pointer;
   }
 }
+
+/* Printing a page (the shopping list) leaves out the app's chrome: sidebar, header, footer. */
+@media print {
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"] {
+    display: none;
+  }
+}

@@ -16,7 +16,10 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
+import { Route as LayoutBestBuyRouteImport } from './routes/_layout/best-buy'
+import { Route as LayoutHouseholdRouteImport } from './routes/_layout/household'
 import { Route as LayoutItemsRouteImport } from './routes/_layout/items'
+import { Route as LayoutPriceBookRouteImport } from './routes/_layout/price-book'
 import { Route as LayoutPricesRouteImport } from './routes/_layout/prices'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 
@@ -54,9 +57,24 @@ const LayoutAdminRoute = LayoutAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutBestBuyRoute = LayoutBestBuyRouteImport.update({
+  id: '/best-buy',
+  path: '/best-buy',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutHouseholdRoute = LayoutHouseholdRouteImport.update({
+  id: '/household',
+  path: '/household',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutItemsRoute = LayoutItemsRouteImport.update({
   id: '/items',
   path: '/items',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutPriceBookRoute = LayoutPriceBookRouteImport.update({
+  id: '/price-book',
+  path: '/price-book',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutPricesRoute = LayoutPricesRouteImport.update({
@@ -77,7 +95,10 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
+  '/best-buy': typeof LayoutBestBuyRoute
+  '/household': typeof LayoutHouseholdRoute
   '/items': typeof LayoutItemsRoute
+  '/price-book': typeof LayoutPriceBookRoute
   '/prices': typeof LayoutPricesRoute
   '/settings': typeof LayoutSettingsRoute
 }
@@ -87,7 +108,10 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
+  '/best-buy': typeof LayoutBestBuyRoute
+  '/household': typeof LayoutHouseholdRoute
   '/items': typeof LayoutItemsRoute
+  '/price-book': typeof LayoutPriceBookRoute
   '/prices': typeof LayoutPricesRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
@@ -100,7 +124,10 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/_layout/admin': typeof LayoutAdminRoute
+  '/_layout/best-buy': typeof LayoutBestBuyRoute
+  '/_layout/household': typeof LayoutHouseholdRoute
   '/_layout/items': typeof LayoutItemsRoute
+  '/_layout/price-book': typeof LayoutPriceBookRoute
   '/_layout/prices': typeof LayoutPricesRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
@@ -114,7 +141,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin'
+    | '/best-buy'
+    | '/household'
     | '/items'
+    | '/price-book'
     | '/prices'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
@@ -124,7 +154,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin'
+    | '/best-buy'
+    | '/household'
     | '/items'
+    | '/price-book'
     | '/prices'
     | '/settings'
     | '/'
@@ -136,7 +169,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/_layout/admin'
+    | '/_layout/best-buy'
+    | '/_layout/household'
     | '/_layout/items'
+    | '/_layout/price-book'
     | '/_layout/prices'
     | '/_layout/settings'
     | '/_layout/'
@@ -201,11 +237,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/best-buy': {
+      id: '/_layout/best-buy'
+      path: '/best-buy'
+      fullPath: '/best-buy'
+      preLoaderRoute: typeof LayoutBestBuyRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/household': {
+      id: '/_layout/household'
+      path: '/household'
+      fullPath: '/household'
+      preLoaderRoute: typeof LayoutHouseholdRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/items': {
       id: '/_layout/items'
       path: '/items'
       fullPath: '/items'
       preLoaderRoute: typeof LayoutItemsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/price-book': {
+      id: '/_layout/price-book'
+      path: '/price-book'
+      fullPath: '/price-book'
+      preLoaderRoute: typeof LayoutPriceBookRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/prices': {
@@ -227,7 +284,10 @@ declare module '@tanstack/react-router' {
 
 interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRoute
+  LayoutBestBuyRoute: typeof LayoutBestBuyRoute
+  LayoutHouseholdRoute: typeof LayoutHouseholdRoute
   LayoutItemsRoute: typeof LayoutItemsRoute
+  LayoutPriceBookRoute: typeof LayoutPriceBookRoute
   LayoutPricesRoute: typeof LayoutPricesRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
@@ -235,7 +295,10 @@ interface LayoutRouteChildren {
 
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminRoute: LayoutAdminRoute,
+  LayoutBestBuyRoute: LayoutBestBuyRoute,
+  LayoutHouseholdRoute: LayoutHouseholdRoute,
   LayoutItemsRoute: LayoutItemsRoute,
+  LayoutPriceBookRoute: LayoutPriceBookRoute,
   LayoutPricesRoute: LayoutPricesRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,

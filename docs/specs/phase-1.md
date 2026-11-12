@@ -344,6 +344,31 @@ pages).
   a print layout (useful offline, per the design's principles).
 - One Playwright path per page, in demo mode.
 
+**As built:**
+
+- **Confirming** (`POST /prices`): the user answers weight questions with an amount and a unit
+  ("0.5 lb", weighed or estimated) and size questions with a size; the server converts the weight
+  with normalize's units, and saves all entries or none. A confirmed fuzzy match saves its typed
+  words as a household alias. For "which item" questions the user chooses an item, which saves an
+  alias at once (`POST /household/aliases`), then reads the list again, so the line matches
+  exactly. Other questions (an unreadable price or unit) are fixed by editing the list.
+- **Price book** (`GET`, `PUT`, `DELETE /prices`): cost per cup is computed when read, with the
+  current reference data; editing a bunch keeps the weight given at capture.
+- **Best buy:** "cook and freeze extras" is a checkbox per item (`PUT
+  /household/item-settings/{item}`). The shopping list is built by the server
+  (`shopping_list`): each item's starred row, grouped by store name, then "No store price yet"
+  (national averages), then "Not compared yet" (no price, or no cup conversion). A line is one
+  purchase as the price was recorded. Printing hides the app's sidebar, header, and footer.
+- **Catalog** (`GET /catalog`): the produce the household can see, for choosing items.
+- Pages: `/prices`, `/price-book`, `/best-buy`, `/household`, each with a Playwright spec
+  (`tests/utils/prices.ts` holds the shared steps).
+
+**Acceptance criteria:**
+
+- [x] Each page works end to end in demo mode, with a Playwright path (19 tests across four
+      specs, including the login setup).
+- [x] Drafts are saved only when confirmed, and weight answers are converted by the tool.
+
 ## P1-8: Agent instructions and tone guide
 
 **Where:** `docs/agent-guide.md` (owner reviews), loaded into the agents' instructions.

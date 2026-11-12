@@ -433,6 +433,69 @@ def compare_best_buy(
     return table
 
 
+# ---------- the shopping list ----------
+
+NO_STORE_PRICE = "No store price yet"
+NOT_COMPARED = "Not compared yet"
+
+
+@dataclass
+class ShoppingLine:
+    item_name: str
+    purchase: str  # the price as written, or "1 lb" for a national average; "" if none
+    price_cents: float | None
+    cups_per_week: float
+    usable_cups: float | None
+    note: str | None = None
+
+
+@dataclass
+class ShoppingGroup:
+    """One stop on the trip: a store, or the items still without a store price."""
+
+    label: str
+    vendor_id: uuid.UUID | None
+    lines: list[ShoppingLine] = field(default_factory=list)
+
+
+def shopping_list(table: BestBuyTable) -> list[ShoppingGroup]:
+    """Each item's marked row, grouped by store (by name); then the items with no store price
+    (bought wherever, priced at the national average), then items the table could not compare.
+
+    A line is one purchase as the store sells it: the amount the price was recorded for.
+    """
+    stores: dict[str, ShoppingGroup] = {}
+    fallback = ShoppingGroup(NO_STORE_PRICE, None)
+    not_compared = ShoppingGroup(NOT_COMPARED, None)
+    items: dict[str, list[BestBuyRow]] = {}
+    for row in table.rows:
+        items.setdefault(row.item_name, []).append(row)
+    for name, rows in items.items():
+        best = next((row for row in rows if row.marked), None)
+        if best is None:
+            reason = "no price yet" if rows[0].kind == "no_price" else "no cost per cup"
+            not_compared.lines.append(
+                ShoppingLine(name, "", None, rows[0].cups_per_week, None, reason)
+            )
+            continue
+        purchase = (
+            best.raw_text
+            if best.kind == "household" and best.raw_text
+            else f"{best.quantity:g} {best.unit}"
+        )
+        line = ShoppingLine(
+            name, purchase, best.price_cents, best.cups_per_week, best.usable_cups
+        )
+        if best.kind == "ers_fallback":
+            fallback.lines.append(line)
+        else:
+            stores.setdefault(
+                best.label, ShoppingGroup(best.label, best.vendor_id)
+            ).lines.append(line)
+    groups = [stores[label] for label in sorted(stores)]
+    return groups + [g for g in (fallback, not_compared) if g.lines]
+
+
 # ---------- the explanation may quote only the table's numbers ----------
 
 _NUMBER = re.compile(r"\d+(?:,\d{3})*(?:\.\d+)?")
