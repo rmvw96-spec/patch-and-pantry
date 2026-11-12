@@ -1,9 +1,8 @@
 # Phase 1 spec: Store-only best buy
 
-Status: **draft for owner review** (2026-11-11). Roadmap: [`../roadmap.md`](../roadmap.md).
+Status: **reviewed** (2026-11-11; decisions D1 to D7 settled). Roadmap: [`../roadmap.md`](../roadmap.md).
 Design: [`../design.md`](../design.md). Known answers: [`known-answers.md`](known-answers.md).
-Decisions with proposed defaults are collected at the end; the owner's answers go into
-`design.md`.
+The owner's decisions are collected at the end and recorded in `design.md`.
 
 ## Goal
 
@@ -20,25 +19,28 @@ vision model), growing (Phase 3), independence progress (Phase 4), presets other
 - [ ] **Real typed lists** for golden evals: at least 3 lists (about 30 lines) from real trips to
       at least 2 stores, as typed on a phone, with the expected item, quantity, unit, and price
       for each line. These become the extraction cases; they are the owner's own data, so they
-      can be committed (no names or addresses).
+      can be committed (no names or addresses). Needed by P1-9; one list by P1-5 helps set the
+      alias list and the fuzzy-match cutoff.
 - [x] **GitHub Actions secrets** `FOUNDRY_ENDPOINT` and `FOUNDRY_API_KEY` for the nightly eval
       workflow (repository settings; never in a file).
-- [ ] Answers to the decisions at the end of this spec (D4, spoilage, is decided).
+- [x] Answers to the decisions at the end of this spec (all decided 2026-11-11).
 
-## P1-1: Agent runs replace studies
+## P1-1: Grocery analysis runs replace studies
 
-**Where:** `backend/app/models.py`, `backend/app/api/routes/runs.py`, `backend/app/run_jobs.py`,
-`backend/app/agents/`, one Alembic revision; frontend `components/Runs/` only if a page needs it.
+**Where:** `backend/app/models.py`, `backend/app/api/routes/grocery_analysis_runs.py`,
+`backend/app/grocery_analysis_jobs.py`, `backend/app/agents/`, one Alembic revision; frontend
+`components/GroceryAnalysis/` only if a page needs it.
 
-- New table `agent_run`: `id`, `owner_id` (cascade), `kind` (Literal: `price_capture`,
+- New table `grocery_analysis_run` (D1): `id`, `owner_id` (cascade), `kind` (Literal: `price_capture`,
   `best_buy`), `input` (text), `status` (`queued`, `running`, `succeeded`, `failed`), `result`
   (JSON), `tools_used` (JSON list of tool names in call order), `data_snapshot_ids` (JSON list:
   every snapshot a tool read), `model` (the `SIM_MODEL` spec used), `input_tokens`,
   `output_tokens`, `requests`, `error_reason`, `error_message`, `created_at`, `started_at`,
   `finished_at`.
-- `POST /runs` (202, Redis idempotency key as for studies) and `GET /runs/{id}`; users read only
-  their own runs. Every exit path leaves a run `succeeded` or `failed` and sets `run.status` on
-  the `run` span (the rule `CLAUDE.md` states for studies).
+- `POST /grocery-analysis-runs` (202, Redis idempotency key as for studies) and
+  `GET /grocery-analysis-runs/{id}`; users read only their own runs. Every exit path leaves a
+  run `succeeded` or `failed` and sets `grocery_analysis_run.status` on the
+  `grocery_analysis_run` span (the rule `CLAUDE.md` states for studies).
 - Retire the Studies feature in the same pull request: `study` table (migration drops it),
   routes, `study_jobs.py`, `study_agent.py`, `simulator.py`, `demo_model.py`'s study script, the
   Studies page, and their tests. Their patterns move to the run equivalents first, so coverage
@@ -79,8 +81,12 @@ vision model), growing (Phase 3), independence progress (Phase 4), presets other
 - Loaded from FoodData Central SR Legacy household measures (`food_portion.csv`) for the first
   crop set, through a crosswalk column naming the portion rows to use. Example: tomato, 1 medium
   whole (2-3/5" dia) = 123 g; okra, 8 pods (3" long) = 95 g.
-- FDC has **no bunch weights** (greens are given as chopped cups). A bunch therefore needs either
-  a weight the owner measures (`source = "owner measurement"`) or a question to the user (D3).
+- FDC has **no bunch weights** (greens are given as chopped cups). A bunch is asked about at
+  capture (D3): the question suggests weighing the bunch if the user can, and otherwise giving an
+  estimate. The answer goes on that price observation, with `weight_source` (`weighed` or
+  `estimated`; new column, CHECK constraint), and the table labels estimated rows. No bunch
+  portions are measured in advance; a household that keeps weighing the same bunch can later save
+  it as a portion (household scope).
 
 **Acceptance criteria:**
 
@@ -129,10 +135,22 @@ def normalize_price(
 - The agent extracts item text, quantity, unit, and price exactly as written ("3 for $5" is
   quantity 3, unit `each`, 500 cents for the lot). It does **no arithmetic**: per-pound or
   per-cup figures come only from `normalize_price`.
-- Tool `find_catalog_item(text)`: exact match against catalog names and a reviewed alias list
-  (`catalog_aliases.csv`: "yellow onions", "russets", "greens"...). No fuzzy matching; no match
-  becomes a question, not a guess.
-- Questions are required when a unit has no portion ("kale bunch 2.50"), an item has no match, or
+- Tool `find_catalog_item(text)` (D7): deterministic matching in three steps, so users never
+  need to know catalog names, and photo and receipt capture (Phase 2) can reuse it.
+  1. Exact match (case and plural folded) against catalog names, the reviewed alias list
+     (`catalog_aliases.csv`: "russets", "yellow onions", "collard greens"...), and the
+     household's confirmed aliases.
+  2. Fuzzy match against the same names, with Python's standard `difflib` (no new dependency;
+     revisit if the evals show misses). Returns up to 5 candidates with scores.
+  3. One candidate above the cutoff and clearly ahead of the next becomes the draft's item,
+     shown as "matched 'yellow onoins' to Onion"; anything else becomes a question listing the
+     candidates ("greens": collards, turnip greens, mustard greens...).
+  Every match is visible on the draft, and nothing is saved until the user confirms. A confirmed
+  fuzzy or chosen match is saved as a household alias (`household_alias`: household, text,
+  catalog item), so the same text matches exactly next time. Spelling cannot map "russets" to
+  Potato; the alias list covers names like that. The model chooses nothing: it passes the tool's
+  result through. The cutoff is set from the owner's real lists and checked by the evals.
+- Questions are required when a unit has no portion ("kale bunch 2.50"), an item has no clear match, or
   the price or quantity is unreadable. Never a silent guess (`known-answers.md`, behavioral cases).
 
 **Acceptance criteria:**
@@ -149,8 +167,12 @@ def normalize_price(
   the date. Output: the trade-off table: one row per (item, vendor, price observation) with price,
   cups bought, usable cups, spoilage %, cost per usable cup, and the source of each factor; the
   lowest cost per usable cup per item is marked (the Lowest cost preset).
-- Prices count when they are the household's own and observed within the last 30 days (D5).
-  ERS averages appear as a separate, labeled reference row: a national average, not a store.
+- Prices (D5): the household's own prices from the last 30 days come first. An item with none
+  falls back to the ERS average, which becomes its priced row, labeled "national average (ERS
+  2023), not a store price"; the shopping list then shows it under "no store price yet" rather
+  than a vendor. The ERS average also appears on every item as a labeled reference row, for
+  comparison with the household's prices. An item with neither (for example mustard greens) has
+  a "no price" row.
 - **Spoilage** (design: "storage life and how fast the household uses the item"): usable cups =
   min(cups bought, cups used per day x storage days). Storage days are the **midpoint** of the
   item's FoodKeeper range (D4). The loader stores the range maximum next to the minimum
@@ -251,10 +273,10 @@ uses measured token counts and derived prices.
 
 | # | Decision | Default in this spec |
 | --- | --- | --- |
-| D1 | Name of the job record | `agent_run` ("run") |
-| D2 | Eval pass threshold | Exact answers 3 of 3 runs; extraction at least 95% of fields |
-| D3 | A bunch with no measured weight | The agent asks; the owner may record measured bunch weights as catalog portions |
+| D1 | Name of the job record | **Decided:** `grocery_analysis_run` |
+| D2 | Eval pass threshold | **Decided:** exact answers 3 of 3 runs; extraction at least 95% of fields. Start here and lower it only if DeepSeek-V3.2's measured results justify it |
+| D3 | A bunch with no measured weight | **Decided:** the agent asks, suggesting the user weigh it or estimate; estimates are labeled. No bunch weights measured in advance. See P1-3 |
 | D4 | Storage days for spoilage | **Decided 2026-11-11:** FoodKeeper range **midpoint**, plus a per-item "cook and freeze extras" household setting that uses the cooked-leftovers freezer midpoint (45 days). See P1-6 |
-| D5 | Which prices count | The household's own, from the last 30 days; ERS averages shown as a labeled reference row only |
-| D6 | Retiring Studies | Delete the code (git history keeps it), after the run equivalents of its tests pass |
-| D7 | Matching typed item names | Catalog names plus a reviewed alias list; no fuzzy matching |
+| D5 | Which prices count | **Decided:** the household's own from the last 30 days first; otherwise the ERS average, labeled; ERS always shown as a reference row. See P1-6 |
+| D6 | Retiring Studies | **Decided:** delete the code (git history keeps it) once the `grocery_analysis_run` equivalents of its tests pass |
+| D7 | Matching typed item names | **Decided:** exact match on names and aliases, then fuzzy candidates; a clear match is shown on the draft, anything else is a question; confirmed matches become household aliases. See P1-5 |

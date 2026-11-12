@@ -82,7 +82,9 @@ are unverified as agronomy and must not be golden answers for recommendations.
 | Input | Expected behavior |
 | --- | --- |
 | Typed line `onions 3 lb bag 2.99` | One price observation: item onion, quantity 3, unit `lb`, price_cents 299, captured_via `typed`, raw_text kept |
-| Typed line `kale bunch 2.50` | Asks for the bunch weight, or uses a catalog default and labels it an assumption; never silently guesses |
+| Typed line `kale bunch 2.50` | Asks for the bunch weight, suggesting the user weigh it or estimate; an estimate is labeled as one; never silently guesses |
+| Typed line `yellow onoins 3 lb 2.99` | Draft matched to onion, shown as a match for the user to confirm |
+| Typed line `greens 2.48` | Asks which greens, listing the candidates (collards, turnip greens, mustard greens...) |
 | Typed line `tomatoes 3 for $5` | Quantity 3, count unit, price_cents 500 for the lot; needs grams per tomato before cost per cup |
 | A question citing the vendor's "0.4 yards for a 4x8 bed, 12 in deep" | The answer uses the tool's 1.19 yards and does not repeat the vendor's figure as fact |
 | An AMS report price shown to the user | Labeled as a typical sale price, never as the shelf price |

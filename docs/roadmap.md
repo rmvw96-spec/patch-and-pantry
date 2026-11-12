@@ -170,9 +170,9 @@ match hand calculations.
 
 | Decision | Proposed default | Settle by |
 | --- | --- | --- |
-| Name of the job record | "Run" instead of "Study" (Phase 1 spec, D1) | Phase 1 spec review |
+| Name of the job record | **Decided 2026-11-11:** `grocery_analysis_run` (Phase 1 spec, D1) | Settled |
 | Money representation | **Decided:** integer cents (P0-3, PR #12) | Settled |
-| Eval pass threshold | Exact answers: every case passes 3 of 3 runs; extraction: at least 95% of fields correct (Phase 1 spec, D2) | Phase 1 spec review |
+| Eval pass threshold | **Decided 2026-11-11:** exact answers 3 of 3 runs; extraction at least 95% of fields; lowered only on measured results (Phase 1 spec, D2) | Settled; revisit after the first nightly runs |
 | Model for each task | **Decided 2026-11-11:** DeepSeek-V3.2 for every text task; judging and comparisons wait for a second model | Settled for text; photo model before Phase 2 |
 | Hours per week for building | **Decided 2026-11-11:** not needed; phases have no dates | Settled |
 | App name | **Decided 2026-11-11:** Patch & Pantry; domain [patchandpantry.app](https://patchandpantry.app) | Settled |
@@ -192,3 +192,4 @@ match hand calculations.
 | 2026-11-11 | Phase 0 closed out (P0-5): gate met except the budget section, moved to Phase 1. Phase 1 spec drafted for review. Decisions table updated: money and repository name settled; the job record name and eval threshold move to the Phase 1 spec. |
 | 2026-11-11 | Repository secrets for the nightly evals added by the owner. Phases stay undated (no hours per week needed). |
 | 2026-11-11 | Spoilage decided (Phase 1 D4: midpoint plus cook-and-freeze setting). Added a note to explore suggesting smaller purchases later in Phase 1. |
+| 2026-11-11 | Phase 1 spec reviewed: all decisions settled (D1 to D7). |
