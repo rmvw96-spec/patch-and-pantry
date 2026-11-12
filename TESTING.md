@@ -7,14 +7,15 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 486 |
-| Backend statements measured | 570 | 2,381 |
+| Backend tests | 58 | 484 |
+| Backend statements measured | 570 | 2,423 |
 | Backend coverage | 92% | 97% |
-| Backend suite, local run | 16.4 s | 29.4 s |
-| Browser E2E specs | 6 files | 7 files (adds `studies.spec.ts`, 6 tests) |
+| Backend suite, local run | 16.4 s | 20.2 s |
+| Browser E2E specs | 6 files | 7 files (adds `prices.spec.ts`, 6 tests) |
 
 Local times are single runs on one development machine, not CI. Most of the backend increase is
-the Prefect test server starting once for the studies API tests.
+the food planner's tests; the Prefect test server no longer starts for the run tests (the
+simulator flow is gone), which is why the suite got faster in P1-1.
 
 ## CI timings
 
@@ -60,10 +61,9 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Layer | Location | Size | Notes |
 | --- | --- | --- | --- |
 | Static checks | `.pre-commit-config.yaml` | 14 hooks | Ruff, strict mypy and `ty` on `backend/app`, Biome, typos, `zizmor`, client generation |
-| Backend unit: simulator | `backend/tests/agents/test_simulator.py` | 9 | Known answers plus physics invariants |
-| Backend: agent logic, no live LLM | `backend/tests/agents/test_study_agent.py`, `test_demo_model.py` | 16 | `TestModel` / `FunctionModel`; live model calls blocked globally |
+
 | Backend: model factory | `backend/tests/agents/test_models.py` | 20 | Spec parsing, the pinned DeepSeek profile under a custom deployment name, settings over `AZURE_OPENAI_*` variables, v1-endpoint check, no sampling settings, imports without Foundry settings (subprocess), `.env.local` gitignored |
-| Backend: live smoke check, offline | `backend/tests/agents/test_smoke.py` | 4 | The tool-call probe catches a tool call written as text; the smoke study reports usage and a trace ID that finds its span |
+| Backend: live smoke check, offline | `backend/tests/agents/test_smoke.py` | 4 | The tool-call probe catches a tool call written as text; the smoke capture reports usage and a trace ID that finds its span |
 | Backend: food planner tables | `backend/tests/test_food_models.py` | 53 | Real Postgres, one rolled-back transaction per test: user deletion cascades, CHECK constraints (calorie levels, percentages, dates, closed sets, portion provenance and refuse, capture weights), catalog uniqueness and scope, public-dataset prices, snapshot immutability trigger, seeded region |
 | Backend: seed loaders | `backend/tests/test_seed.py`, fixtures in `backend/tests/fixtures/seed/` | 65 | Real Postgres on one connection rolled back at the end (sessions join with savepoints, so even the command line's commits are undone). Idempotency of every loader, ERS price per cup against every row of both committed ERS files (two swapped pairs checked), crosswalk catalog and stand-ins, coverage report, Prefect flow. SR28 piece weights: refuse divided out (known answers), amounts divided down, portion-map validation, zips loaded by content. Miniature FDC and SR28 zips are built in the test |
 | Backend: household API | `backend/tests/api/routes/test_household.py`, plus the delete-account test in `test_users.py` | 21 | Created on first access with defaults; budget and members replaced in order; removed members deleted; calorie levels, member count, and budget limits; personal fields refused (`extra_forbidden`), not dropped; users see only their own; the first-access race returns the existing household; deleting the account deletes the household and members |
@@ -72,11 +72,11 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Backend: typed-list capture, scripted models | `backend/tests/agents/test_capture_agent.py`, fixtures in `backend/tests/catalog_fixtures.py` | 54 | The known-answers behavioral cases; raw text kept and nothing saved; dollars to cents in code; every unclear line a question; skipped, repeated, or invented line numbers; limits; unusable and runaway model output; the demo reader end to end |
 | Backend: tool `compare_best_buy` and its explanation | `backend/tests/tools/test_best_buy.py` | 49 | Spoilage and the spec's worked example; marking (lowest usable cost, spoilage changing the pick, reference never marked, fallback marked, ties); no-price and no-conversion rows; the 30-day window and the household's own prices; latest ERS snapshot at full precision; cook and freeze extras; prices by count; the explanation's numbers check (sent back, fails after retries, runaway stopped, demo) |
 | Migrations | `.github/workflows/test-backend.yml` | 1 step | Every migration down to an empty database and back up, then `alembic check` |
-| Backend integration: studies API | `backend/tests/api/routes/test_studies.py` | 12 | Real Postgres, Redis, and Prefect test harness |
-| Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | In-memory exporter that snapshots spans at export time; no Phoenix needed |
-| Backend: study job tracing | `backend/tests/test_study_job_tracing.py` | 4 | `execute_study` against real Postgres and the Prefect test harness |
+| Backend integration: grocery analysis runs and vendors | `backend/tests/api/routes/test_grocery_analysis_runs.py` | 28 | Real Postgres and Redis: 202 then polling, both run kinds, requests checked before they queue, idempotency per user, failure states, access control, the vendor API |
+| Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | Capture and best-buy agents with an in-memory exporter; an explanation sent back once; no Phoenix needed |
+| Backend: run job and its tracing | `backend/tests/test_grocery_analysis_job_tracing.py` | 10 | `execute_run` against real Postgres: the run span as the trace root, failures and crashes on the span, deleted runs, job-side failures, the recorded model name, cascade on user deletion |
 | Backend: template API and CRUD | `backend/tests/api/routes/`, `backend/tests/crud/` | 58 | Items, login, users, private routes, user CRUD |
-| Browser E2E: studies | `frontend/tests/studies.spec.ts` | 6 | Full stack in demo mode (`SIM_MODEL=demo`) |
+| Browser E2E: Prices page | `frontend/tests/prices.spec.ts` | 6 | Full stack in demo mode with reference data loaded and a 1 s demo delay: add a store, read a list, drafts with cost per cup, questions, set-aside lines, refresh |
 | Browser E2E: template | `frontend/tests/*.spec.ts` | 6 files | Admin, items, login, reset password, sign-up, user settings |
 | Stack smoke check | `.github/workflows/test-docker-compose.yml` | 2 HTTP checks | Health endpoint and served frontend |
 
@@ -90,9 +90,12 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 - `client` (module scope): one FastAPI `TestClient` per test file.
 - `superuser_token_headers`, `normal_user_token_headers` (module scope): log in through the real
   API. The normal user is created on first use, and gets a fresh random password each module.
-- `tests/agents/conftest.py`: a fake simulator that records calls, and the anyio backend.
-- `test_studies.py`: a module-scoped Prefect test harness, and model injection through FastAPI
-  dependency overrides.
+- `tests/agents/conftest.py`: the anyio backend.
+- `tests/catalog_fixtures.py` (registered in `tests/conftest.py`): `db_session` (one rolled-back
+  connection), `catalog` (empties the national catalog inside it and loads a known one),
+  `household`, and `vendor`.
+- `test_grocery_analysis_runs.py`: model injection through FastAPI dependency overrides
+  (`get_run_model`).
 - Tracing tests: an `exporter` fixture installs tracing with a `SnapshotExporter`
   (`tests/utils/tracing.py`) and shuts it down after the test, because agent instrumentation is
   global and must not leak into other tests.
@@ -102,15 +105,15 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 **Coverage by layer.** The backend tests cover every API route, including authentication,
 permissions, and validation, through the real HTTP layer and a real database. Browser tests cover
 the main user journeys: login, sign-up, password reset (through Mailpit), user settings, admin, items,
-and studies.
+and reading a price list.
 
 **Gaps.**
 - No frontend unit tests: the template has no component test runner, so all frontend behavior is
   checked through the browser.
-- Migrations are only tested going up (`prestart.sh` upgrades); nothing in CI checks downgrades.
 - The backend tests run background jobs synchronously, so true async execution is untested.
 - No load, concurrency, or failure-injection tests.
-- No evaluation of real model behavior; everything runs on scripted models.
+- No evaluation of real model behavior yet; everything runs on scripted models until the nightly
+  golden evals (P1-9).
 
 **Flakiness and speed risks.**
 - The shared database, plus deleting all users at session end, ties the backend tests together:
@@ -118,8 +121,7 @@ and studies.
 - Module-scoped clients and logins couple tests within a file.
 - In CI, Playwright retries failures twice, but `--fail-on-flaky-tests` still fails the build if a
   test only passes on retry. That keeps retries from hiding flakiness.
-- The first study in a fresh stack waits about 10 seconds for Prefect to start, so E2E studies use
-  a 60-second timeout.
+- E2E runs use a 30-second timeout; the 1 s demo delay keeps polling under test.
 
 ## Status of planned additions
 
@@ -130,7 +132,8 @@ and studies.
 | Deterministic demo model (`SIM_MODEL=demo`) | Supports all layers | Done (PR #3) |
 | Studies page E2E against the demo-mode stack | Browser E2E | Done (PR #4) |
 | Phoenix tracing of study jobs (OpenTelemetry, OpenInference) | Tracing | Done (PR #7) |
-| Pydantic Evals golden cases, nightly reference run | Evals and nightly | Next |
+| Grocery analysis runs replace Studies; Prices page E2E with seeded reference data | Integration, Browser E2E | Done (P1-1) |
+| Pydantic Evals golden cases, nightly reference run | Evals and nightly | Phase 1, P1-9 |
 | Load and failure tests (Locust, Chaos Mesh) | Resilience | Not planned before the interview |
 
 ## How the tests were validated
@@ -140,30 +143,20 @@ for it.
 
 | Deliberate bug | Caught by |
 | --- | --- |
-| Pressure guard removed | `test_unsafe_pressure_never_reaches_simulator`, `test_retry_message_tells_the_model_why` |
-| Usage cap removed from `run_study` | `test_runaway_loop_is_capped` |
-| Sub-agent override dropped | `test_wiring_with_test_model` |
-| Model errors not translated | `test_malformed_output_becomes_clear_user_error` |
-| `Idempotency-Key` ignored | `test_same_idempotency_key_returns_same_study`, `test_key_reserved_by_an_in_flight_request_returns_409` |
-| Simulator retries removed | `test_transient_simulator_error_is_retried` |
-| Job runner's catch-all removed | `test_unexpected_crash_still_ends_in_a_failed_state` |
+| *Rows for the retired Studies and simulator tests were removed in P1-1; git history keeps them.* | |
+| Idempotency key ignored | `test_same_idempotency_key_returns_same_run` and one more |
 | Idempotency keys not scoped per user | `test_idempotency_keys_are_scoped_per_user` |
-| Ownership check removed | `test_other_users_cannot_read_a_study` |
-| "Feasible" label inverted | `Feasible study shows its result`, `Infeasible study is reported as not feasible` |
-| Sidebar link points to the wrong page | `Studies link in the sidebar opens the page` |
-| Page stops polling | `Feasible study shows its result` |
-| Agent instrumentation not turned on | `test_agent_run_produces_agent_llm_and_tool_spans` and three more |
-| OpenInference processor runs after the exporter | `test_agent_run_produces_agent_llm_and_tool_spans` |
+| Ownership check removed | `test_other_users_cannot_read_a_run` |
+| Another household's vendor accepted | `test_another_households_vendor_is_rejected` |
+| Another household's private catalog item accepted | `test_another_households_private_item_is_rejected` |
+| Job runner's catch-all removed | `test_unexpected_crash_still_ends_in_a_failed_state`, `test_an_unexpected_crash_is_recorded_on_the_span` |
+| A failed explanation fails the whole best-buy run | `test_best_buy_stands_without_an_explanation` |
+| `grocery_analysis_run.status` missing on success | `test_the_run_span_is_the_root_of_the_agent_trace` |
+| Idempotency key kept after a failed insert | `test_a_failed_insert_releases_the_key` |
+| Agent instrumentation not turned on | `test_each_agent_run_is_an_agent_span_with_its_llm_calls` and four more |
 | `TRACE_INCLUDE_CONTENT` ignored | `test_content_can_be_left_out_of_spans` |
 | Shutdown leaves agents instrumented | `test_shutdown_stops_tracing_and_uninstruments_agents` |
-| Tracer used when tracing is off | `test_tracing_is_off_without_an_endpoint`, `test_endpoint_configures_a_batching_otlp_exporter` |
-| Agent run outside the `study` span | All four `test_study_job_tracing.py` tests |
-| `StudyFailed` not recorded on the span | `test_study_failure_is_recorded_on_the_span` |
-| Unexpected crash not recorded on the span | `test_unexpected_crash_is_recorded_on_the_span` |
-| Error status not set on failure | `test_study_failure_is_recorded_on_the_span`, `test_unexpected_crash_is_recorded_on_the_span` |
-| `study.status` missing on success | `test_study_span_is_the_root_of_the_agent_trace` |
-| `study.status` missing for a deleted study | `test_deleted_study_still_ends_its_span` |
-| `study.id` missing | `test_study_span_is_the_root_of_the_agent_trace` |
+| Prices page stops polling (with the 1 s demo delay) | Both "Reading a typed list" browser tests |
 | Household update ignores unknown fields instead of refusing them | All three `test_update_rejects_personal_fields` cases |
 | Household update keeps the old members | `test_members_can_be_added_and_removed` and two more |
 | Household members accept any integer | Three `test_update_rejects_invalid_values` calorie cases (the database constraint turns them into a 500) |
@@ -239,3 +232,4 @@ for it.
 | 2026-11-11 | PR #18: tool `normalize_price` (P1-4), 100% covered. Six put-back bugs each caught (table above) | +58 backend | ___ |
 | 2026-11-11 | PR #19: typed-list capture (P1-5): `find_catalog_item`, `catalog_aliases.csv`, `household_alias`, the capture agent and its demo reader. Eight put-back bugs each caught (table above) | +96 backend | ___ |
 | 2026-11-11 | PR #20: `compare_best_buy` and its explanation (P1-6); FoodKeeper range maximum and cooked leftovers; item settings; price sizes. Ten put-back bugs each caught (table above) | +63 backend | ___ |
+| 2026-11-12 | PR #21: grocery analysis runs replace Studies (P1-1). Studies, the simulator, and their tests deleted; run, vendor, and job-tracing tests carry over idempotency, terminal states, ownership, and tracing. Prices page E2E with seeded reference data and a 1 s demo delay. Fourteen put-back bugs each caught (table above) | -2 backend (484), E2E spec replaced (6 tests) | Playwright: one more step (load reference data) |

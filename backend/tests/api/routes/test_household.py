@@ -8,8 +8,8 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, func, select
 
 from app import crud
-from app.api.routes.household import _create_household
 from app.core.config import settings
+from app.households import _create_household
 from app.models import Household, HouseholdMember, UserCreate
 from tests.utils.user import create_random_user, user_authentication_headers
 from tests.utils.utils import random_email, random_lower_string
@@ -195,7 +195,7 @@ def test_household_requires_sign_in(client: TestClient) -> None:
 def test_concurrent_first_access_returns_the_existing_household(db: Session) -> None:
     """If another request created the household first, creating again returns that one.
 
-    Simulates the race directly: the household already exists when _create_household inserts,
+    Recreates the race directly: the household already exists when _create_household inserts,
     so the unique owner_id rejects the insert and the existing row is returned.
     """
     user = create_random_user(db)

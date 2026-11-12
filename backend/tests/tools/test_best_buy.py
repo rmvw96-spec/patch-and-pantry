@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from pydantic_ai import ModelMessage, ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
-from sqlmodel import Session
+from sqlmodel import Session, delete
 
 from app.agents.best_buy_agent import (
     ExplanationFailed,
@@ -392,9 +392,8 @@ def test_no_price_at_all(
 
 
 def _cooked_leftovers(session: Session) -> DataSnapshot:
-    snapshot = _snapshot(
-        session, "foodkeeper", "test", datetime(2026, 11, 11, tzinfo=UTC)
-    )
+    # Loaded "now", so it is newer than any real FoodKeeper load in the development database.
+    snapshot = _snapshot(session, "foodkeeper", "test", datetime.now(UTC))
     for location, low, high in (("refrigerator", 3, 4), ("freezer", 30, 60)):
         session.add(
             StorageReference(
@@ -444,6 +443,8 @@ def test_cook_and_freeze_extras(
 def test_freeze_extras_without_cooked_leftovers_falls_back_to_the_item(
     db_session: Session, catalog: Catalog, household: Household
 ) -> None:
+    # The development database may hold real cooked-leftovers rows; this transaction rolls back.
+    db_session.exec(delete(StorageReference))
     db_session.add(
         HouseholdItemSetting(
             household_id=household.id,
@@ -580,7 +581,7 @@ def test_an_explanation_with_a_computed_number_is_sent_back() -> None:
         seen.append(str(messages[-1]))
         return ModelResponse(parts=[TextPart(next(replies))])
 
-    text = asyncio.run(explain_best_buy(_onion_table(), FunctionModel(respond)))
+    text = asyncio.run(explain_best_buy(_onion_table(), FunctionModel(respond))).text
 
     assert text == "Kroger is the best buy at $0.39 per usable cup."
     assert "not in the table: 1.5" in seen[1]
@@ -620,7 +621,9 @@ def test_demo_mode_explains_the_real_table(
     _own_price(db_session, household, vendor, catalog["onion"], 299, 3)
     table = _table(db_session, household, (catalog["onion"], 2), (catalog["kale"], 3))
 
-    text = asyncio.run(explain_best_buy(table))
+    explanation = asyncio.run(explain_best_buy(table))
+    text = explanation.text
+    assert explanation.usage.requests == 1
 
     assert "For onion, Corner store is the best buy at $0.39 per usable cup." in text
     assert (

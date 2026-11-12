@@ -13,6 +13,7 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.usage import UsageLimits
 
 from app.agents.models import build_model
+from app.agents.usage import ModelUsage
 from app.core.config import settings
 from app.tools.best_buy import (
     BestBuyTable,
@@ -89,9 +90,15 @@ class ExplanationFailed(Exception):
         self.reason = reason
 
 
+@dataclass(frozen=True)
+class Explanation:
+    text: str
+    usage: ModelUsage
+
+
 async def explain_best_buy(
     table: BestBuyTable, model: models.Model | str | None = None
-) -> str:
+) -> Explanation:
     """A short explanation that quotes only the table's numbers."""
     if model is None:
         model = build_model(settings.SIM_MODEL, role="best_buy")
@@ -113,4 +120,4 @@ async def explain_best_buy(
             "The assistant could not explain the table using only its numbers; "
             "the table is still right.",
         ) from exc
-    return result.output
+    return Explanation(result.output, ModelUsage.of(result.usage))

@@ -301,20 +301,41 @@ pages).
 - The `demo` model spec scripts the new agents (deterministic capture and best-buy answers), so
   Playwright keeps running without a model.
 
+**As built:**
+
+- `input` is the validated request as JSON (a typed list with its vendor and date, or the items
+  needed), not plain text. The request is a discriminated union on `kind`; unknown fields are
+  refused. Before a run queues, the API checks that the vendor is the household's own and that
+  each item is produce the household can see (national, its region's, or its own), listed once.
+- `tools_used` lists the steps that ran, in order (`capture_agent`, `find_catalog_item`,
+  `portion_grams`, `normalize_price`; or `compare_best_buy`, `best_buy_agent`). The model calls
+  no tools itself, so these are the pipeline's steps rather than model tool calls.
+- A best-buy run whose explanation fails still succeeds, with `explanation_error` set: the table
+  stands without it.
+- **Vendor API** (`GET`/`POST /vendors`): the capture page needs a store to choose; P1-7's price
+  book builds on it.
+- **Prices page** (`/prices`) replaces Studies: choose or add a store, a date, and a typed list;
+  the status polls, then drafts with cost per cup, questions, and set-aside lines. Confirming
+  drafts comes with P1-7.
+- The Playwright workflow loads the committed reference data (`python -m app.seed all`, no USDA
+  zips) before the browser tests, and sets `DEMO_DELAY_SECONDS=1`, so the page must poll.
+- The live smoke check reads a short typed list with the capture agent instead of a study.
+
 **Acceptance criteria:**
 
-- [ ] The run API tests cover what the studies tests covered: idempotency per user, terminal
+- [x] The run API tests cover what the studies tests covered: idempotency per user, terminal
       states on every exit path, users reading only their own runs, tracing attributes.
-- [ ] A run records the snapshots and the model it used.
-- [ ] No reference to the simulator or studies remains (`git grep -i "study\|simulat"` finds only
-      history in docs).
+- [x] A run records the snapshots and the model it used.
+- [x] No reference to the simulator or studies remains (`git grep -i "study\|simulat"` finds only
+      history: migrations, change logs, and the Minnesota garden "study", a research study).
 
 ## P1-7: Pages and shopping list
 
 - **Household settings** (moved from P1-2): the weekly produce budget and the number of people,
   with an optional calorie level per person (the 12 Dietary Guidelines levels in a select). No
   names, ages, or body data.
-- **Price capture:** vendor, date, and a text box; shows drafts and questions; confirm saves.
+- **Price capture:** vendor, date, and a text box; shows drafts and questions (built in P1-1 as
+  the Prices page); confirm saves (to add here).
 - **Price book:** the household's prices (item, vendor, date, price as written, cost per cup),
   with edit and delete.
 - **Best buy:** choose items and cups per week; shows the trade-off table and a short

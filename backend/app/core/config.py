@@ -41,7 +41,7 @@ class Settings(BaseSettings):
                 return database_url.replace(scheme, "postgresql+psycopg://", 1)
         return database_url
 
-    # Redis holds short-lived job coordination state (idempotency keys for study submissions).
+    # Redis holds short-lived job coordination state (idempotency keys for run submissions).
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # Model for the agents (see app/agents/models.py): "demo" (scripted, no key), "test", or
@@ -52,12 +52,11 @@ class Settings(BaseSettings):
     FOUNDRY_ENDPOINT: str | None = None
     FOUNDRY_API_KEY: SecretStr | None = None
 
-    # Toy pipeline simulator used by the study agent (see app/agents/simulator.py).
-    SIM_MAX_INLET_BAR: float = 80.0
-    # Artificial delay per simulation, to imitate long-running jobs in demos and nightly runs.
-    SIM_DELAY_SECONDS: float = 0.0
+    # Wait this long before each demo-model answer, so E2E tests see a run in progress and the
+    # page has to poll (CI sets 1). Only the "demo" model reads it.
+    DEMO_DELAY_SECONDS: float = 0.0
 
-    # OpenTelemetry tracing for the study agent (see app/core/tracing.py). Unset means tracing is
+    # OpenTelemetry tracing for the agents (see app/core/tracing.py). Unset means tracing is
     # off. For a local Phoenix from compose.override.yml: http://localhost:6006/v1/traces
     PHOENIX_COLLECTOR_ENDPOINT: str | None = None
     # Record prompts, model responses, and tool arguments in spans. Turn off where those may hold

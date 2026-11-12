@@ -79,7 +79,7 @@ services:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Variable not set}@db:5432/app
       SENTRY_DSN: ${SENTRY_DSN:-}
       REDIS_URL: redis://redis:6379/0
-      SIM_DELAY_SECONDS: ${SIM_DELAY_SECONDS:-0}
+      DEMO_DELAY_SECONDS: ${DEMO_DELAY_SECONDS:-0}
       # Model spec (app/agents/models.py). "demo" is a deterministic scripted model with no key;
       # "foundry:deepseek-v3.2" also needs FOUNDRY_ENDPOINT and FOUNDRY_API_KEY.
       SIM_MODEL: ${SIM_MODEL:-demo}

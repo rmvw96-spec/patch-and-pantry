@@ -56,7 +56,9 @@ class User(UserBase, table=True):
     hashed_password: str
     created_at: datetime | None = Field(default_factory=get_datetime_utc)
     items: list[Item] = Relationship(back_populates="owner", cascade_delete=True)
-    studies: list[Study] = Relationship(back_populates="owner", cascade_delete=True)
+    grocery_analysis_runs: list[GroceryAnalysisRun] = Relationship(
+        back_populates="owner", cascade_delete=True
+    )
 
 
 # Properties to return via API, id is always required
@@ -109,32 +111,48 @@ class ItemsPublic(SQLModel):
     count: int
 
 
-# Lifecycle of an asynchronous study job: queued -> running -> succeeded | failed
-StudyStatus = Literal["queued", "running", "succeeded", "failed"]
+# Lifecycle of a background agent run: queued -> running -> succeeded | failed
+RunStatus = Literal["queued", "running", "succeeded", "failed"]
+# What a run does: read a typed list into draft prices, or compare best buys.
+RunKind = Literal["price_capture", "best_buy"]
 
 
-# Properties to receive on study submission
-class StudyCreate(SQLModel):
-    prompt: str = Field(min_length=1, max_length=2000)
+# Database model: one row per agent run. Postgres is the source of truth for job state.
+# The request and result schemas are in app/grocery_analysis_jobs.py (they use the agents' types).
+class GroceryAnalysisRun(SQLModel, table=True):
+    __tablename__ = "grocery_analysis_run"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('price_capture', 'best_buy')", name="ck_grocery_analysis_run_kind"
+        ),
+        CheckConstraint(
+            "status IN ('queued', 'running', 'succeeded', 'failed')",
+            name="ck_grocery_analysis_run_status",
+        ),
+        CheckConstraint(
+            "input_tokens >= 0 AND output_tokens >= 0 AND requests >= 0",
+            name="ck_grocery_analysis_run_usage",
+        ),
+    )
 
-
-# Structured result of a successful study (mirrors app.agents.study_agent.StudyResult)
-class StudyOutcome(SQLModel):
-    objective: float
-    feasible: bool
-    review: str | None = None
-
-
-# Database model: one row per submitted study job. Postgres is the source of truth for job state.
-class Study(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_id: uuid.UUID = Field(
-        foreign_key="user.id", nullable=False, ondelete="CASCADE"
+        foreign_key="user.id", nullable=False, ondelete="CASCADE", index=True
     )
-    owner: User | None = Relationship(back_populates="studies")
-    prompt: str = Field(max_length=2000)
+    owner: User | None = Relationship(back_populates="grocery_analysis_runs")
+    kind: str = Field(max_length=20)
+    # The request as validated: a typed list with its vendor and date, or the items needed.
+    input: dict[str, Any] = Field(sa_type=JSON)
     status: str = Field(default="queued", max_length=20, index=True)
     result: dict[str, Any] | None = Field(default=None, sa_type=JSON)
+    # The steps that ran, in order (deterministic tools and agents).
+    tools_used: list[str] = Field(default_factory=list, sa_type=JSON)
+    # Every reference-data snapshot a tool read, so the result can be reproduced.
+    data_snapshot_ids: list[str] = Field(default_factory=list, sa_type=JSON)
+    model: str | None = Field(default=None, max_length=200)  # the SIM_MODEL spec used
+    input_tokens: int = 0
+    output_tokens: int = 0
+    requests: int = 0
     error_reason: str | None = Field(default=None, max_length=50)
     error_message: str | None = Field(default=None, max_length=500)
     created_at: datetime | None = Field(
@@ -142,20 +160,6 @@ class Study(SQLModel, table=True):
     )
     started_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
     finished_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
-
-
-# Properties to return via API
-class StudyPublic(SQLModel):
-    id: uuid.UUID
-    owner_id: uuid.UUID
-    prompt: str
-    status: StudyStatus
-    result: StudyOutcome | None = None
-    error_reason: str | None = None
-    error_message: str | None = None
-    created_at: datetime | None = None
-    started_at: datetime | None = None
-    finished_at: datetime | None = None
 
 
 # Generic message

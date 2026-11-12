@@ -83,7 +83,7 @@ week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/
       when a unit is unclear instead of guessing (confirming drafts comes with the pages).
 - [x] Tool `normalize_price`: any unit to grams of the edible part, then to cups.
 - [x] Tool `compare_best_buy`: cost per cup across stores, with spoilage from FoodKeeper range midpoints, and a per-item "cook and freeze extras" setting.
-- [ ] Generalize the study job into a `grocery_analysis_run` (question, kind, tools used, result,
+- [x] Generalize the study job into a `grocery_analysis_run` (question, kind, tools used, result,
       data versions, model) and retire the pipeline simulator, its tests, and the Studies page.
       Done after the best-buy tool (P1-1, moved 2026-11-11).
 - [ ] Pages: household settings, price capture, price book, best-buy comparison with its trade-off table, printable
@@ -200,3 +200,4 @@ match hand calculations.
 | 2026-11-11 | `normalize_price` done (P1-4). |
 | 2026-11-11 | Typed-list capture done (P1-5): the model reads lines; matching, piece weights, and per-cup math are code. The alias list awaits owner review; the match cutoff waits for real lists. |
 | 2026-11-11 | `compare_best_buy` and its explanation done (P1-6). Next: P1-1 (replace Studies). Reloading reference data (`python -m app.seed all`) picks up FoodKeeper's range maximum and cooked leftovers. |
+| 2026-11-12 | Studies replaced by grocery analysis runs (P1-1): run and vendor APIs, the Prices page, and Playwright with seeded reference data. Next: pages and shopping list (P1-7). |

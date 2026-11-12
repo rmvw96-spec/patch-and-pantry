@@ -7,12 +7,12 @@ import pytest
 from pydantic_ai import ModelMessage, ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-from app.agents.demo_model import demo_study_model
+from app.agents.demo_model import demo_capture_model
 from app.agents.smoke import (
     PROBE_TOOL,
     ToolCallCheckFailed,
     check_tool_calls,
-    run_smoke_study,
+    run_smoke_capture,
 )
 from app.core.tracing import setup_tracing, shutdown_tracing
 from tests.utils.tracing import SnapshotExporter, by_name
@@ -43,10 +43,12 @@ async def test_tool_call_written_as_text_fails() -> None:
         await check_tool_calls(FunctionModel(writes_the_call_as_text))
 
 
-async def test_smoke_study_reports_result_and_usage() -> None:
-    report = await run_smoke_study(demo_study_model())
-    assert report.result.feasible
-    assert report.requests == 2  # one simulation call, then the result
+async def test_smoke_capture_reports_result_and_usage() -> None:
+    report = await run_smoke_capture(demo_capture_model())
+    lines = {line.line: line for line in report.result.lines}
+    assert not lines[1].is_price  # "Kroger"
+    assert (lines[2].item_text, lines[2].quantity, lines[2].unit) == ("onions", 3, "lb")
+    assert report.requests == 1  # one reading of the list
     assert report.input_tokens > 0
     assert report.output_tokens > 0
     assert report.trace_id == "0" * 32  # tracing is off
@@ -60,8 +62,8 @@ def exporter() -> Iterator[SnapshotExporter]:
     shutdown_tracing()
 
 
-async def test_smoke_study_trace_id_finds_the_run(exporter: SnapshotExporter) -> None:
-    report = await run_smoke_study(demo_study_model())
-    span = by_name(exporter.get_finished_spans(), "smoke_study")
+async def test_smoke_capture_trace_id_finds_the_run(exporter: SnapshotExporter) -> None:
+    report = await run_smoke_capture(demo_capture_model())
+    span = by_name(exporter.get_finished_spans(), "smoke_capture")
     assert report.trace_id == format(span.context.trace_id, "032x")
     assert report.trace_id != "0" * 32

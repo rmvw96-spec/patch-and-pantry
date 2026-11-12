@@ -29,7 +29,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         include_content=settings.TRACE_INCLUDE_CONTENT,
     )
     yield
-    # Flush buffered spans so the last studies before a shutdown still reach Phoenix.
+    # Flush buffered spans so the last runs before a shutdown still reach Phoenix.
     shutdown_tracing()
 
 

@@ -28,7 +28,7 @@ FOUNDRY_MODELS: dict[str, str] = {
 
 FOUNDRY_PREFIX = "foundry:"
 
-Role = Literal["study", "reviewer", "capture", "best_buy"]
+Role = Literal["capture", "best_buy"]
 
 
 class ModelConfigError(ValueError):
@@ -91,23 +91,12 @@ def build_foundry_model(spec: str) -> OpenAIChatModel:
     )
 
 
-def build_model(spec: str, role: Role = "study") -> models.Model | str:
+def build_model(spec: str, role: Role) -> models.Model | str:
     """Build the model for one agent. ``role`` matters only for ``demo``, which scripts each agent."""
     if spec == "demo":
-        from app.agents.demo_model import (
-            demo_best_buy_model,
-            demo_capture_model,
-            demo_reviewer_model,
-            demo_study_model,
-        )
+        from app.agents.demo_model import demo_best_buy_model, demo_capture_model
 
-        demos = {
-            "study": demo_study_model,
-            "reviewer": demo_reviewer_model,
-            "capture": demo_capture_model,
-            "best_buy": demo_best_buy_model,
-        }
-        return demos[role]()
+        return demo_capture_model() if role == "capture" else demo_best_buy_model()
     if spec == "test":
         return "test"
     if spec.startswith(FOUNDRY_PREFIX):

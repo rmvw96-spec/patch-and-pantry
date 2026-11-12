@@ -78,7 +78,7 @@ services:
       - "8025:8025"
       - "1025:1025"
 
-  # Local trace viewer for the study agent's OpenTelemetry spans (dev only).
+  # Local trace viewer for the agents' OpenTelemetry spans (dev only).
   # UI and OTLP/HTTP collector on :6006, OTLP/gRPC on :4317.
   phoenix:
     image: arizephoenix/phoenix:version-20.27.0
