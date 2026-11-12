@@ -29,8 +29,8 @@ flowchart LR
 - **Each later phase adds one user setting,** and Phase 4 ties them together.
 - **Phase 5 is the design's scaling list,** deliberately after the core works for one household.
 
-**A gate is a pass/fail check that ends a phase,** not a date. Phases get dates once the owner
-sets weekly hours (see [Decisions to settle](#decisions-to-settle)).
+**A gate is a pass/fail check that ends a phase,** not a date. Phases have no dates: the owner is
+not working to a deadline.
 
 ## How to work a phase (for Claude Code)
 
@@ -174,7 +174,7 @@ match hand calculations.
 | Money representation | **Decided:** integer cents (P0-3, PR #12) | Settled |
 | Eval pass threshold | Exact answers: every case passes 3 of 3 runs; extraction: at least 95% of fields correct (Phase 1 spec, D2) | Phase 1 spec review |
 | Model for each task | **Decided 2026-11-11:** DeepSeek-V3.2 for every text task; judging and comparisons wait for a second model | Settled for text; photo model before Phase 2 |
-| Hours per week for building | Needed before phases get dates | Phase 1 spec review |
+| Hours per week for building | **Decided 2026-11-11:** not needed; phases have no dates | Settled |
 | App name | **Decided 2026-11-11:** Patch & Pantry; domain [patchandpantry.app](https://patchandpantry.app) | Settled |
 | Repository name | **Done:** renamed to `patch-and-pantry` after PR #9 | Settled |
 
@@ -190,3 +190,4 @@ match hand calculations.
 | 2026-11-11 | Smoke run done by the owner (P0-1 and the first P0-2 step); token measurement and prices wait for more Azure cost data. Core tables done (P0-3). |
 | 2026-11-11 | Seed loaders done (P0-4), with an owner-reviewed catalog crosswalk. |
 | 2026-11-11 | Phase 0 closed out (P0-5): gate met except the budget section, moved to Phase 1. Phase 1 spec drafted for review. Decisions table updated: money and repository name settled; the job record name and eval threshold move to the Phase 1 spec. |
+| 2026-11-11 | Repository secrets for the nightly evals added by the owner. Phases stay undated (no hours per week needed). |

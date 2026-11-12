@@ -21,10 +21,9 @@ vision model), growing (Phase 3), independence progress (Phase 4), presets other
       at least 2 stores, as typed on a phone, with the expected item, quantity, unit, and price
       for each line. These become the extraction cases; they are the owner's own data, so they
       can be committed (no names or addresses).
-- [ ] **GitHub Actions secrets** `FOUNDRY_ENDPOINT` and `FOUNDRY_API_KEY` for the nightly eval
+- [x] **GitHub Actions secrets** `FOUNDRY_ENDPOINT` and `FOUNDRY_API_KEY` for the nightly eval
       workflow (repository settings; never in a file).
 - [ ] Answers to the decisions at the end of this spec, especially **spoilage** (D4).
-- [ ] Hours per week available for building (roadmap, "Decisions to settle").
 
 ## P1-1: Agent runs replace studies
 
