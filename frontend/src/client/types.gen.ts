@@ -858,6 +858,10 @@ export type PricePublic = {
      * Note
      */
     note: string | null;
+    /**
+     * Replaced
+     */
+    replaced?: boolean;
 };
 
 /**

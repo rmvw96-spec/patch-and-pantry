@@ -198,6 +198,22 @@ test.describe("Reading a typed list", () => {
     )
   })
 
+  test("Saving the same lines again updates them", async ({ page }) => {
+    await readList(page, "onions 3 lb bag 2.99\ntomatoes 2.49/lb")
+    await page.getByRole("button", { name: "Save 2 prices" }).click()
+    await expect(page.getByTestId("capture-saved")).toContainText(
+      "Saved 2 prices",
+    )
+    await expect(page.getByTestId("capture-saved")).not.toContainText("updated")
+
+    // The same run, saved again: same store, day, and lines.
+    await page.reload()
+    await page.getByRole("button", { name: "Save 2 prices" }).click()
+    await expect(page.getByTestId("capture-saved")).toContainText(
+      "2 were already saved for this store and day, so they were updated.",
+    )
+  })
+
   test("Saved prices appear in the price book", async ({ page }) => {
     const store = await savePrices(page, "onions 3 lb bag 2.99")
     await page.getByRole("link", { name: "price book", exact: true }).click()

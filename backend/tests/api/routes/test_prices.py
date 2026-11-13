@@ -292,6 +292,102 @@ def test_entry_values_are_checked(
 # ---------- the price book ----------
 
 
+def _book(client: TestClient, headers: dict[str, str], item: CatalogItem) -> list[Any]:
+    return [
+        p
+        for p in client.get(PRICES, headers=headers).json()
+        if p["catalog_item_id"] == str(item.id)
+    ]
+
+
+def test_saving_a_line_again_updates_it(
+    client: TestClient, normal_user_token_headers: dict[str, str], mine: dict[str, Any]
+) -> None:
+    """Owner, 2026-11-12: one price per line as typed, store, and day; re-saving adds no copy."""
+    headers, onion = normal_user_token_headers, mine["onion"]
+    (first,) = _save(
+        client, headers, mine, _entry(onion, raw_text="Onions 2 lb $1")
+    ).json()
+    assert first["replaced"] is False
+
+    # The same line, read better and spaced differently: the same price, corrected.
+    again = _save(
+        client, headers, mine,
+        _entry(onion, raw_text="  Onions   2 lb $1 ", quantity=2, price_cents=100),
+    )  # fmt: skip
+
+    assert again.status_code == 201, again.text
+    (second,) = again.json()
+    assert (second["id"], second["replaced"]) == (first["id"], True)
+    assert (second["quantity"], second["price_cents"]) == (2, 100)
+    assert [p["id"] for p in _book(client, headers, onion)] == [first["id"]]
+
+
+def test_different_lines_days_and_stores_stay_separate(
+    client: TestClient, normal_user_token_headers: dict[str, str], mine: dict[str, Any]
+) -> None:
+    headers, onion = normal_user_token_headers, mine["onion"]
+    bag, loose = (
+        _entry(onion, raw_text="onions 3 lb bag 2.99"),
+        _entry(onion, raw_text="onions 1.29/lb", quantity=1, price_cents=129),
+    )
+    saved = _save(client, headers, mine, bag, loose).json()
+    assert [p["replaced"] for p in saved] == [False, False]
+    other_day = {
+        "vendor_id": mine["vendor_id"],
+        "observed_on": "2026-11-12",
+        "entries": [bag],
+    }
+    store = client.post(
+        f"{API}/vendors/", headers=headers, json={"name": "Market"}
+    ).json()
+    other_store = {**other_day, "observed_on": "2026-11-11", "vendor_id": store["id"]}
+    for body in (other_day, other_store):
+        r = client.post(PRICES, headers=headers, json=body)
+        assert r.json()[0]["replaced"] is False
+
+    assert len(_book(client, headers, onion)) == 4
+
+
+def test_a_line_listed_twice_in_one_save_is_one_price(
+    client: TestClient, normal_user_token_headers: dict[str, str], mine: dict[str, Any]
+) -> None:
+    headers, onion = normal_user_token_headers, mine["onion"]
+    r = _save(client, headers, mine, _entry(onion), _entry(onion, price_cents=349))
+    assert r.status_code == 201, r.text
+    (price,) = _book(client, headers, onion)
+    assert price["price_cents"] == 349  # the later entry wins
+
+
+def test_an_edit_cannot_make_a_second_copy_of_a_line(
+    client: TestClient, normal_user_token_headers: dict[str, str], mine: dict[str, Any]
+) -> None:
+    headers, onion = normal_user_token_headers, mine["onion"]
+    (monday,) = _save(client, headers, mine, _entry(onion)).json()
+    body = {
+        "vendor_id": mine["vendor_id"],
+        "observed_on": "2026-11-12",
+        "entries": [_entry(onion)],
+    }
+    (tuesday,) = client.post(PRICES, headers=headers, json=body).json()
+    update = {
+        "vendor_id": mine["vendor_id"],
+        "observed_on": "2026-11-11",
+        "quantity": 3,
+        "unit": "lb",
+        "price_cents": 299,
+    }
+
+    r = client.put(f"{PRICES}{tuesday['id']}", headers=headers, json=update)
+
+    assert r.status_code == 422
+    assert "already have this line" in r.json()["detail"]
+    assert {p["id"] for p in _book(client, headers, onion)} == {
+        monday["id"],
+        tuesday["id"],
+    }
+
+
 def test_the_price_book_lists_newest_first(
     client: TestClient, normal_user_token_headers: dict[str, str], mine: dict[str, Any]
 ) -> None:

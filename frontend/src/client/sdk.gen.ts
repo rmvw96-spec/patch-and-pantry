@@ -438,8 +438,9 @@ export class PricesService {
     /**
      * Create Prices
      *
-     * Save confirmed drafts as your prices, all or none. A confirmed fuzzy match (remember_text)
-     * is saved as your own name for the item.
+     * Save confirmed drafts as your prices, all or none. One price per line as typed, store, and
+     * day: saving a line again updates it (replaced is true). A confirmed fuzzy match
+     * (remember_text) is saved as your own name for the item.
      */
     public static createPrices<ThrowOnError extends boolean = true>(options: Options<pricesCreatePricesData, ThrowOnError>) {
         return (options.client ?? client).post<pricesCreatePricesResponses, pricesCreatePricesErrors, ThrowOnError>({
