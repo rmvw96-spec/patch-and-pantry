@@ -184,6 +184,8 @@ function CaptureReview({
   const [weights, setWeights] = useState<Record<string, WeightAnswer>>({})
   const [choices, setChoices] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState<number | null>(null)
+  // Lines already saved for this store and day: saving updated them (one price per line).
+  const [updated, setUpdated] = useState(0)
   const [notSaved, setNotSaved] = useState<Unsaved[]>([])
 
   const catalog = useQuery({
@@ -237,6 +239,7 @@ function CaptureReview({
     onSuccess: (prices) => {
       setNotSaved(unsaved)
       setSaved(prices.length)
+      setUpdated(prices.filter((price) => price.replaced).length)
       queryClient.invalidateQueries({ queryKey: ["prices"] })
       showSuccessToast(`Saved ${prices.length} prices`)
     },
@@ -252,6 +255,8 @@ function CaptureReview({
             price book
           </Link>
           .
+          {updated > 0 &&
+            ` ${updated} ${updated === 1 ? "was" : "were"} already saved for this store and day, so ${updated === 1 ? "it was" : "they were"} updated.`}
         </p>
         <UnsavedList lines={notSaved} saved />
       </div>

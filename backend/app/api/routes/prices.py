@@ -31,8 +31,9 @@ def create_prices(
     session: SessionDep, current_user: CurrentUser, prices_in: PricesCreate
 ) -> Any:
     """
-    Save confirmed drafts as your prices, all or none. A confirmed fuzzy match (remember_text)
-    is saved as your own name for the item.
+    Save confirmed drafts as your prices, all or none. One price per line as typed, store, and
+    day: saving a line again updates it (replaced is true). A confirmed fuzzy match
+    (remember_text) is saved as your own name for the item.
     """
     household = get_or_create_household(session, current_user.id)
     try:
@@ -41,7 +42,11 @@ def create_prices(
         session.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     session.commit()
-    return _by_ids(price_book(session, household, limit=1000), {p.id for p in saved})
+    replaced = {s.observation.id for s in saved if s.replaced}
+    rows = _by_ids(
+        price_book(session, household, limit=1000), {s.observation.id for s in saved}
+    )
+    return [row.model_copy(update={"replaced": row.id in replaced}) for row in rows]
 
 
 @router.get("/", response_model=list[PricePublic])

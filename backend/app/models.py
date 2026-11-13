@@ -4,7 +4,7 @@ from typing import Any, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 from pydantic import Field as PydanticField
-from sqlalchemy import JSON, CheckConstraint, DateTime, UniqueConstraint
+from sqlalchemy import JSON, CheckConstraint, DateTime, Index, UniqueConstraint, text
 from sqlmodel import AutoString, Field, Relationship, SQLModel
 
 
@@ -632,6 +632,17 @@ class PriceObservation(SQLModel, table=True):
 
     __tablename__ = "price_observation"
     __table_args__ = (
+        # One price per line as typed, per store, per day: saving the same line again updates
+        # it (owner, 2026-11-12). Public datasets are versioned by snapshot instead.
+        Index(
+            "uq_price_observation_line",
+            "household_id",
+            "vendor_id",
+            "observed_on",
+            "raw_text",
+            unique=True,
+            postgresql_where=text("household_id IS NOT NULL"),
+        ),
         _literal_check(
             "captured_via", CapturedVia, "ck_price_observation_captured_via"
         ),

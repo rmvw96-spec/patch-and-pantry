@@ -123,6 +123,8 @@ class PricePublic(BaseModel):
     weight_source: WeightSource | None
     cost_per_cup_cents: float | None
     note: str | None  # why there is no cost per cup, when there is none
+    # Set when saving: the line was already saved for this store and day, and was updated.
+    replaced: bool = False
 
 
 # ---------- checks and conversions ----------
@@ -209,10 +211,25 @@ def _check(
 # ---------- saving and reading ----------
 
 
+def line_text(raw: str) -> str:
+    """A typed line as stored and keyed: trimmed, runs of spaces collapsed."""
+    return " ".join(raw.split())
+
+
+@dataclass(frozen=True)
+class Saved:
+    observation: PriceObservation
+    replaced: bool  # an earlier save of the same line, store, and day was updated
+
+
 def save_prices(
     session: Session, household: Household, prices: PricesCreate
-) -> list[PriceObservation]:
-    """Save confirmed drafts, all or none. Flushes; the caller commits."""
+) -> list[Saved]:
+    """Save confirmed drafts, all or none. Flushes; the caller commits.
+
+    One price per line as typed, per store, per day (owner, 2026-11-12): saving a line again
+    updates its price, so re-saving a list, or saving a corrected reading, adds no copies.
+    """
     vendor = own_vendor(session, household, prices.vendor_id)
     saved = []
     for entry in prices.entries:
@@ -226,29 +243,42 @@ def save_prices(
             entry.price_cents,
             entry.piece_weight,
         )
-        observation = PriceObservation(
+        raw = line_text(entry.raw_text)
+        existing = session.exec(
+            select(PriceObservation).where(
+                PriceObservation.household_id == household.id,
+                PriceObservation.vendor_id == vendor.id,
+                PriceObservation.observed_on == prices.observed_on,
+                PriceObservation.raw_text == raw,
+            )
+        ).first()
+        observation = existing or PriceObservation(
             household_id=household.id,
-            catalog_item_id=item.id,
             vendor_id=vendor.id,
-            price_cents=entry.price_cents,
-            quantity=entry.quantity,
-            unit=checked.unit,
-            size=entry.size,
-            unit_grams=checked.unit_grams,
-            weight_source=checked.weight_source,
-            grams_edible=checked.grams_edible,
             observed_on=prices.observed_on,
+            raw_text=raw,
             captured_via="typed",
             source_type=SOURCE_TYPE[vendor.vendor_type],
             region_id=household.region_id,
             visibility="private",
-            raw_text=entry.raw_text,
+            catalog_item_id=item.id,
+            price_cents=entry.price_cents,
+            quantity=entry.quantity,
+            unit=checked.unit,
         )
+        observation.catalog_item_id = item.id
+        observation.price_cents = entry.price_cents
+        observation.quantity = entry.quantity
+        observation.unit = checked.unit
+        observation.size = entry.size
+        observation.unit_grams = checked.unit_grams
+        observation.weight_source = checked.weight_source
+        observation.grams_edible = checked.grams_edible
         session.add(observation)
         if entry.remember_text:
             remember_alias(session, household, entry.remember_text, item)
-        saved.append(observation)
-    session.flush()
+        saved.append(Saved(observation, replaced=existing is not None))
+        session.flush()  # a line listed twice in one save updates the first
     return saved
 
 
@@ -282,6 +312,19 @@ def update_price(
         update.price_cents,
         weight,
     )
+    clash = session.exec(
+        select(PriceObservation.id).where(
+            PriceObservation.household_id == household.id,
+            PriceObservation.vendor_id == vendor.id,
+            PriceObservation.observed_on == update.observed_on,
+            PriceObservation.raw_text == observation.raw_text,
+            PriceObservation.id != observation.id,
+        )
+    ).first()
+    if clash is not None:
+        raise PriceError(
+            "You already have this line for that store and day. Edit or delete that one."
+        )
     observation.vendor_id = vendor.id
     observation.source_type = SOURCE_TYPE[vendor.vendor_type]
     observation.observed_on = update.observed_on
