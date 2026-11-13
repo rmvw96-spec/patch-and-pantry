@@ -24,16 +24,16 @@ import csv
 import re
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from difflib import SequenceMatcher
 from functools import cache
 from itertools import combinations
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast, get_args
 
 from sqlmodel import Session, col, or_, select
 
-from app.models import CatalogItem, Household, HouseholdAlias
+from app.models import CatalogItem, Household, HouseholdAlias, PortionSize
 
 ALIASES_PATH = Path(__file__).resolve().parents[1] / "seed_data" / "catalog_aliases.csv"
 
@@ -101,6 +101,8 @@ class Match:
     folded: str
     item: Candidate | None = None  # set for household, exact, and fuzzy matches
     candidates: list[Candidate] = field(default_factory=list)
+    # A size the alias implies ("satsuma" is a large orange); a size on the line wins.
+    size: PortionSize | None = None
 
     @property
     def is_match(self) -> bool:
@@ -115,6 +117,8 @@ class Match:
             return f"matched '{self.text}' to {self.item.name}"
         if self.kind == "household":
             return f"'{self.text}' is {self.item.name}, as you confirmed before"
+        if self.size is not None:
+            return f"'{self.text}' is priced as a {self.size} {self.item.name.lower()}"
         return None
 
 
@@ -123,12 +127,17 @@ class AliasRow:
     alias: str
     slug: str
     notes: str
+    # Optional: the piece size the alias stands for ("satsuma" is a large orange).
+    size: str = ""
 
 
 @cache
 def _read_aliases(path: Path) -> tuple[AliasRow, ...]:
     with path.open(newline="", encoding="utf-8") as f:
-        return tuple(AliasRow(**row) for row in csv.DictReader(f))
+        return tuple(
+            AliasRow(row["alias"], row["slug"], row["notes"], row.get("size") or "")
+            for row in csv.DictReader(f)
+        )
 
 
 def read_aliases(path: Path = ALIASES_PATH) -> tuple[AliasRow, ...]:
@@ -184,9 +193,14 @@ def find_catalog_item(
     names: dict[str, set[uuid.UUID]] = defaultdict(set)
     full: dict[str, set[uuid.UUID]] = defaultdict(set)
     spoken = [(catalog_item.name, catalog_item.id) for catalog_item in items]
+    sized: dict[tuple[str, uuid.UUID], PortionSize] = {}
     for row in aliases if aliases is not None else read_aliases():
         if row.slug in by_slug:
             spoken.append((row.alias, by_slug[row.slug].id))
+            if row.size in get_args(PortionSize):
+                sized[_key(_words(row.alias)), by_slug[row.slug].id] = cast(
+                    PortionSize, row.size
+                )
     for name, item_id in spoken:
         names[_key(_words(name))].add(item_id)
         full[_key(_words(name, keep_filler=True))].add(item_id)
@@ -196,7 +210,11 @@ def find_catalog_item(
         _key(_words(text)), set()
     )
     if exact:
-        return _one_or_question("exact", text, folded, exact, by_id)
+        match = _one_or_question("exact", text, folded, exact, by_id)
+        if match.item is not None:
+            size = sized.get((_key(_words(text)), match.item.item_id))
+            return replace(match, size=size)
+        return match
 
     # 3. Broader: the same name without some describing words. Before fuzzy, so a different
     # describing word is not taken for a typo ("green tomato" is not Grape tomato).

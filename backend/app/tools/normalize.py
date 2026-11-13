@@ -326,11 +326,19 @@ def catalog_facts(session: Session, item: CatalogItem) -> CatalogFacts:
     )
 
 
+# The size used when the user names none and an item has several (owner, 2026-11-12).
+DEFAULT_SIZE: PortionSize = "medium"
+
+
 @dataclass(frozen=True)
 class PortionChoice:
     grams: float
     source: str
     snapshot_id: uuid.UUID | None
+    size: PortionSize | None = (
+        None  # the size whose weight was used; None for a single weight
+    )
+    assumed: bool = False  # the user named no size, so DEFAULT_SIZE was used
 
 
 def portion_grams(
@@ -338,9 +346,12 @@ def portion_grams(
 ) -> PortionChoice:
     """The weight of one piece as purchased, or NeedsPortion naming what to ask.
 
-    A size the user did not give is never assumed: an item with several sizes raises
-    NeedsPortion listing them. Portions someone weighed beat loaded ones, newest first; loaded
-    portions come from the most recently loaded snapshot.
+    A size the user gives is used when the item has a weight for it, and ignored otherwise (a
+    bunch, or an item with one weight). With no usable size, an item's single weight is used;
+    an item with several sizes uses medium, marked ``assumed`` so the page can say so
+    (owner, 2026-11-12: market and store sizes differ, and asking was cumbersome). Only an
+    item with sizes but no medium raises NeedsPortion listing them. Portions someone weighed
+    beat loaded ones, newest first; loaded portions come from the most recently loaded snapshot.
     """
     canonical = canonical_unit(unit)
     if canonical in WEIGHT_UNITS:
@@ -365,17 +376,19 @@ def portion_grams(
         p for p, at in rows if p.measured_on is None and at == loaded_at
     ]
     sizes = tuple(s for s in get_args(PortionSize) if any(p.size == s for p in current))
-    if size is None:
-        unsized = [p for p in current if p.size is None]
-        if unsized:
-            chosen = unsized[0]
-        elif len(sizes) == 1:
-            chosen = next(p for p in current if p.size == sizes[0])
-        else:
-            raise NeedsPortion(item.name, canonical, sizes)
+    named = [p for p in current if size is not None and p.size == size]
+    unsized = [p for p in current if p.size is None]
+    assumed = False
+    if named:
+        chosen = named[0]
+    elif unsized:
+        chosen = unsized[0]
+    elif len(sizes) == 1 or DEFAULT_SIZE in sizes:
+        default = sizes[0] if len(sizes) == 1 else DEFAULT_SIZE
+        chosen = next(p for p in current if p.size == default)
+        assumed = True
     else:
-        matches = [p for p in current if p.size == size]
-        if not matches:
-            raise NeedsPortion(item.name, canonical, sizes)
-        chosen = matches[0]
-    return PortionChoice(chosen.grams, chosen.source, chosen.snapshot_id)
+        raise NeedsPortion(item.name, canonical, sizes)
+    return PortionChoice(
+        chosen.grams, chosen.source, chosen.snapshot_id, chosen.size, assumed
+    )

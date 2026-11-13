@@ -7,7 +7,7 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 561 |
+| Backend tests | 58 | 564 |
 | Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
 | Backend suite, local run | 16.4 s | 21.4 s |
@@ -248,3 +248,6 @@ for it.
 | 2026-11-12 | Catalog expanded to every ERS row (124 items), juices by volume, items sharing an FDC food. Tests check every ERS row is mapped once (except three preparation variants), every ERS juice row's published price per cup, volume units and wrong measures, juices at capture and in best buy, and the shared-food load. Checked that mapping each FDC id to one slug fails the shared-food test. The catalog list is sorted in Python (case-insensitive), so the order no longer depends on the database collation | +35 backend | ___ |
 | 2026-11-12 | Dogfooding fix: "Read the list again" leaves out the lines the user dropped or unchecked, instead of asking about them again. Checked that sending the original text fails the new test | +1 E2E | ___ |
 | 2026-11-12 | Dogfooding: name matching (word order, possessives, filler in item names, broader names, form words kept). Tests use the owner's market list phrasings. Checked that five put-back bugs each fail a test: no form guard, order-sensitive names, filler always dropped, broader names never stopping at a named item, possessives kept | +16 backend | ___ |
+| 2026-11-12 | Dogfooding: SR28 piece weights for 28 more count-sold items. The committed-map test now requires weights for the fruits priced by count at the market; checked that removing the avocado row fails it. Loaded with the real SR28 zip into a scratch database: 91 rows | No count change (assertions added) | ___ |
+| 2026-11-12 | Owner decision: no size means medium; a size without a weight is ignored. Tests rewritten from "a size is never assumed"; new cases for ignored sizes (price by the pound, single-weight item, unknown size) and items without a medium. Checked that four put-back bugs each fail tests: never assuming medium, an unusable size raising a question, size kept on weight prices, assumed not reported. Checked on the page with real SR28 weights (scratch database) | +1 backend | ___ |
+| 2026-11-12 | Aliases that imply a size (satsuma is a large orange; tangerine is an orange). Checked that three put-back bugs each fail a test: capture ignoring the alias size, the alias size beating the line's, the matcher dropping it | +2 backend | ___ |

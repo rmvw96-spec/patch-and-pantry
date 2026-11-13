@@ -110,9 +110,12 @@ stand-ins, and `portion_grams(session, item, unit, size)` picks one piece's weig
   a piece of zero grams raises `InvalidAmount`. All four share the base `NormalizeError`, whose
   message is written for the user.
 - Unit spellings fold to one form ("Pounds", "lbs", "lb." are `lb`; "ea" is `each`).
-- **A size is never assumed.** When an item has several piece sizes (tomato small, medium, large)
-  and the user gave none, `portion_grams` raises `NeedsPortion` with the sizes, and the agent asks
-  "Which size tomato: small, medium, or large?". An item with one unsized weight (a head of
+- **No size means medium** (owner, 2026-11-12; this replaced "a size is never assumed"). When an
+  item has several piece sizes (tomato small, medium, large) and the line names none, the medium
+  weight is used and the draft says "medium assumed". A size the line names is used when the item
+  has a weight for it, and ignored otherwise (a bunch, a price by the pound, an item with one
+  weight). Only an item with sizes but no medium (papaya, honeydew) raises `NeedsPortion`, and the
+  agent asks "Which size papaya: small or large?". An item with one unsized weight (a head of
   romaine) needs no question. A piece someone weighed beats a loaded one (newest first); loaded
   pieces come from the most recently loaded snapshot.
 

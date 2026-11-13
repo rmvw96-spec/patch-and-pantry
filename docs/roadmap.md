@@ -106,6 +106,12 @@ real shopping.
 
 - [ ] Market-board photo capture (needs a vision model; choose it before this phase). Photos are
       never stored; CI fixtures are the owner's own photos or made-up boards (public repository).
+      **The photo agent must output item names spelled correctly** (owner, 2026-11-12). The
+      typed-list matcher catches small typos, word order, and describing words, but not every
+      misspelling ("zuchinna", "avacoda" stay questions on purpose). Handwriting and unusual
+      fonts will misread letters, so the photo agent corrects spelling as it reads, and its
+      output then goes through the same matching as a typed list. Golden evals should include
+      misspelled and hard-to-read boards.
 - [ ] Local price premium setting, applied through the Balanced preset.
 - [ ] Tool `value_farm_share`: contents priced at best alternative prices, minus unwanted items,
       minus pickup cost; value-to-cost ratio and break-even.
@@ -203,3 +209,4 @@ match hand calculations.
 | 2026-11-12 | Studies replaced by grocery analysis runs (P1-1): run and vendor APIs, the Prices page, and Playwright with seeded reference data. Next: pages and shopping list (P1-7). |
 | 2026-11-12 | Pages and shopping list done (P1-7): confirm drafts, price book, best buy with a printable shopping list, household settings. |
 | 2026-11-12 | Dogfooding fixes after P1-7: best-buy table notes, totals for per-unit prices, dropping a line at capture, the Items page removed, and the catalog expanded to every ERS row (not only North Alabama crops). Next: P1-8. |
+| 2026-11-12 | Photo capture (Phase 2) note: the photo agent must output correctly spelled item names for the typed-list matcher, which deliberately does not chase every misspelling. |
