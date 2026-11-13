@@ -1,7 +1,7 @@
 # Agent guide
 
-How Patch & Pantry's agents read input and talk to the household (spec P1-8). The owner reviews
-this guide.
+How Patch & Pantry's agents read input and talk to the household (spec P1-8). Reviewed and
+approved by the owner (2026-11-13).
 
 **What is sent to the model:** only the three fenced `text` blocks below. Each block is copied
 word for word into a constant in `backend/app/agents/guide.py`, and

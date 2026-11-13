@@ -384,7 +384,7 @@ pages).
 **Status:** approved by the owner and built (2026-11-13). The owner added that "weight" in the
 dieting rule means a person's weight, not produce's, and kept the word list and the "healthy" ban.
 
-**Where:** `docs/agent-guide.md` (owner reviews), with the instructions each agent is given;
+**Where:** `docs/agent-guide.md` (reviewed and approved by the owner, 2026-11-13), with the instructions each agent is given;
 `backend/app/agents/guide.py` holds the same text as Python constants that the agents use.
 
 - Ask, don't guess; quote tool numbers only; plain words; "cups", never "servings"; no dieting
@@ -548,7 +548,7 @@ Worked (owner's market, 2026-11-12): pecans in shell $5/lb: 453.6 g × 0.53 = 24
 2.21 cups chopped = **$2.27 a cup**. Walnuts in shell $8/lb: 204 g = 1.74 cups = **$4.59 a cup**,
 the same as shelled walnuts at $17.78/lb. Add these to `known-answers.md` once built.
 
-### Sources (new crosswalk and portion rows, for owner review)
+### Sources (new crosswalk and portion rows; reviewed by the owner with the spec, 2026-11-13)
 
 | Slug | FDC | FoodKeeper (location, days) | Pieces or cups (SR28) |
 | --- | --- | --- | --- |
