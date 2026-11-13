@@ -11,7 +11,7 @@ A living record of this repository's test layers, CI timings, and changes to the
 | Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
 | Backend suite, local run | 16.4 s | 21.4 s |
-| Browser E2E specs | 6 files | 10 files (adds `prices.spec.ts` 10, `price-book.spec.ts` 2, `best-buy.spec.ts` 3, `household.spec.ts` 3) |
+| Browser E2E specs | 6 files | 10 files (adds `prices.spec.ts` 13, `price-book.spec.ts` 2, `best-buy.spec.ts` 3, `household.spec.ts` 3) |
 
 Local times are single runs on one development machine, not CI. Most of the backend increase is
 the food planner's tests; the Prefect test server no longer starts for the run tests (the
@@ -77,7 +77,7 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Backend: agent tracing | `backend/tests/agents/test_tracing.py` | 7 | Capture and best-buy agents with an in-memory exporter; an explanation sent back once; no Phoenix needed |
 | Backend: run job and its tracing | `backend/tests/test_grocery_analysis_job_tracing.py` | 10 | `execute_run` against real Postgres: the run span as the trace root, failures and crashes on the span, deleted runs, job-side failures, the recorded model name, cascade on user deletion |
 | Backend: template API and CRUD | `backend/tests/api/routes/`, `backend/tests/crud/` | 47 | Login, users, private routes, user CRUD |
-| Browser E2E: Prices page | `frontend/tests/prices.spec.ts` | 10 | Full stack in demo mode with reference data loaded and a 1 s demo delay: add a store, read a list, drafts with cost per cup, questions, set-aside lines, refresh, answering a weight question, skipping a draft, choosing an item then reading again, saved prices in the book |
+| Browser E2E: Prices page | `frontend/tests/prices.spec.ts` | 13 | Full stack in demo mode with reference data loaded and a 1 s demo delay: add a store, read a list, drafts with cost per cup, questions, set-aside lines, refresh, answering a weight question, skipping a draft, choosing an item then reading again, a price for one with a count, dropping a line, rereading leaves out dropped and unchecked lines, saved prices in the book |
 | Browser E2E: Price book, Best buy, Household | `frontend/tests/price-book.spec.ts`, `best-buy.spec.ts`, `household.spec.ts`; steps in `tests/utils/prices.ts` | 8 | Edit and delete a price (cost per cup recomputed); compare with a starred store price, the ERS reference, explanation, and shopping list; the national-average fallback; budget and people saved and refused |
 | Browser E2E: template | `frontend/tests/*.spec.ts` | 5 files | Admin, login, reset password, sign-up, user settings |
 | Stack smoke check | `.github/workflows/test-docker-compose.yml` | 2 HTTP checks | Health endpoint and served frontend |
@@ -246,3 +246,4 @@ for it.
 | 2026-11-12 | Dogfooding fixes, best buy: notes said once per item under the table, "National average (2023)" with its source, bold explanation text rendered. Checked that putting the storage note back on every row fails `test_item_notes_are_said_once_per_item` | +1 backend, E2E checks added to 2 tests | ___ |
 | 2026-11-12 | Dogfooding fixes, prices: per-unit prices with a count are multiplied out to the total; questions can be dropped; unsaved lines listed; unit prices in the price book. Checked that skipping the multiplication fails two capture tests | +10 backend, +2 E2E | ___ |
 | 2026-11-12 | Catalog expanded to every ERS row (124 items), juices by volume, items sharing an FDC food. Tests check every ERS row is mapped once (except three preparation variants), every ERS juice row's published price per cup, volume units and wrong measures, juices at capture and in best buy, and the shared-food load. Checked that mapping each FDC id to one slug fails the shared-food test. The catalog list is sorted in Python (case-insensitive), so the order no longer depends on the database collation | +35 backend | ___ |
+| 2026-11-12 | Dogfooding fix: "Read the list again" leaves out the lines the user dropped or unchecked, instead of asking about them again. Checked that sending the original text fails the new test | +1 E2E | ___ |

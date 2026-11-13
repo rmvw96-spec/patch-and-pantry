@@ -93,6 +93,17 @@ function UnsavedList({ lines, saved }: { lines: Unsaved[]; saved: boolean }) {
   )
 }
 
+/**
+ * The list without the lines the user set aside (dropped or unchecked), for reading it again.
+ * Without this, every reread brought dropped lines back as questions (dogfooding).
+ */
+export function withoutLines(text: string, leftOut: Set<string>): string {
+  return text
+    .split(/\r?\n/)
+    .filter((line) => !leftOut.has(line))
+    .join("\n")
+}
+
 function DraftPriceCell({ draft }: { draft: DraftPrice }) {
   const each = unitPrice(draft.price_cents, draft.quantity, draft.unit)
   return (
@@ -160,7 +171,7 @@ function CaptureReview({
 }: {
   input: PriceCaptureRequest
   result: PriceCaptureResult
-  onReread?: () => void
+  onReread?: (leftOut: Set<string>) => void
 }) {
   const { showSuccessToast, showErrorToast } = useCustomToast()
   const queryClient = useQueryClient()
@@ -219,6 +230,17 @@ function CaptureReview({
           : "question not answered",
       })),
   ]
+
+  // Lines the user set aside: a reread leaves them out instead of asking about them again.
+  const leftOut = new Set([
+    ...result.drafts
+      .filter((draft) => skipped[draft.raw_text])
+      .map((draft) => draft.raw_text),
+    ...result.questions
+      .filter((question) => dropped[question.raw_text])
+      .map((question) => question.raw_text),
+  ])
+  const nothingLeft = withoutLines(input.text, leftOut).trim() === ""
 
   const save = useMutation({
     mutationFn: async () =>
@@ -483,12 +505,22 @@ function CaptureReview({
           <Save className="mr-2" />
           Save {entries.length} {entries.length === 1 ? "price" : "prices"}
         </LoadingButton>
-        {remembered && onReread && (
-          <Button type="button" variant="outline" onClick={onReread}>
+        {remembered && onReread && !nothingLeft && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onReread(leftOut)}
+          >
             Read the list again
           </Button>
         )}
       </div>
+      {remembered && onReread && leftOut.size > 0 && (
+        <p className="text-muted-foreground text-sm">
+          Reading the list again leaves out the {leftOut.size}{" "}
+          {leftOut.size === 1 ? "line" : "lines"} you dropped or unchecked.
+        </p>
+      )}
     </div>
   )
 }
@@ -548,7 +580,15 @@ const CaptureStatus = ({
             <CaptureReview
               input={input}
               result={run.result}
-              onReread={onReread ? () => onReread(input) : undefined}
+              onReread={
+                onReread
+                  ? (leftOut) =>
+                      onReread({
+                        ...input,
+                        text: withoutLines(input.text, leftOut),
+                      })
+                  : undefined
+              }
             />
           )}
 
