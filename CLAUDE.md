@@ -55,6 +55,7 @@ uv run pytest tests/api/routes/test_grocery_analysis_runs.py -k idempotency   # 
 uv run bash scripts/lint.sh                 # mypy (strict), ty, ruff check, ruff format --check
 uv run python scripts/smoke_foundry.py      # LIVE DeepSeek call (costs money; needs .env.local)
 uv run python scripts/compare_readers.py evals/lists/shoals-farm-market.txt --runs 3   # LIVE: demo reader vs model (--regex-only: free)
+uv run python -m evals --cases extraction    # LIVE golden evals on SIM_MODEL (--model demo: free); see evals/README.md
 uv run python -m app.seed all <FDC zips> <sr28asc.zip>   # load reference data (see app/seed_data/README.md)
 uv run python -m app.seed report            # catalog coverage gaps
 uv run bash scripts/format.sh

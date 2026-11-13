@@ -1,0 +1,152 @@
+# Short lists aimed at what went wrong while dogfooding (P1-5 to P1-11), mixing the owner's lines
+# with lines written for the eval. Extraction cases: at least 95% of fields right in every run.
+# Expected answers need owner review. Format: see 1-owner-lists.yaml.
+
+cases:
+  - name: unit-inside-the-price
+    group: extraction
+    why: >-
+      DeepSeek copied "$3/lb" as the price and left the unit empty (2026-11-13); prices with the
+      unit written in them must give the unit.
+    source: owner's market list, plus lines written for the eval
+    lines:
+      - {text: "Sweet potato’s 99 cents/lb", expect: {item: Sweet potato, quantity: 1, unit: lb, price: 99}}
+      - {text: "Bananas 69 cents a pound", expect: {item: Banana, quantity: 1, unit: lb, price: 69}}
+      - {text: "Carrots $1.5/lb", expect: {item: Carrot, quantity: 1, unit: lb, price: 150}}
+      - {text: "Tomatoes $2.49 per lb", expect: {item: Tomato, quantity: 1, unit: lb, price: 249}}
+      - {text: "Okra $3.99/pound", expect: {item: Okra, quantity: 1, unit: lb, price: 399}}
+      - {text: "Peaches 1.29 ea", expect: {item: Peach, quantity: 1, unit: each, price: 129}}
+      - {text: "Turnip greens $2.50 a bunch", expect: {item: Turnip greens, quantity: 1, unit: bunch, price: 250}}
+
+  - name: price-for-one-times-a-count
+    group: extraction
+    why: >-
+      Dogfooding (Post P1-7 notes): a price for one item with a count bought was read as the
+      total. The total is the price for one times the count.
+    source: written for the eval, in the forms the owner's lists use
+    lines:
+      - {text: "Avocados $0.89 each (4)", expect: {item: Avocado, quantity: 4, unit: each, price: 356}}
+      - {text: "Lemons 1.29 ea x3", expect: {item: Lemon, quantity: 3, unit: each, price: 387}}
+      - {text: "Limes $.50 ea - 6", expect: {item: Lime, quantity: 6, unit: each, price: 300}}
+      - {text: "Onions 3 lb @ 1.49", expect: {item: Onion, quantity: 3, unit: lb, price: 447}}
+      - {text: "Tomatoes 2 lb at $2.50/lb", expect: {item: Tomato, quantity: 2, unit: lb, price: 500}}
+      - text: "Mangoes 2 @ $1.25"
+        why: No unit is written; 2 mangoes, or a question about the unit.
+        expect:
+          - {item: Mango, quantity: 2, unit: each, price: 250}
+          - {ask: missing_unit}
+
+  - name: n-for-a-price
+    group: extraction
+    why: '"3 for $1" is one price for the lot: 3 each, $1 total.'
+    source: owner's market list, plus lines written for the eval
+    lines:
+      - {text: "Hot peppers 3 for $1", expect: {item: Hot pepper, quantity: 3, unit: each, price: 100}}
+      - {text: "Kiwi 2 for$1", expect: {item: Kiwi, quantity: 2, unit: each, price: 100}}
+      - {text: "Corn on the cob 5 for $6", expect: {item: Sweet corn, quantity: 5, unit: each, price: 600}}
+      - {text: "Limes 4 for $1", expect: {item: Lime, quantity: 4, unit: each, price: 100}}
+      - {text: "Avocados 2/$3", expect: {item: Avocado, quantity: 2, unit: each, price: 300}}
+      - {text: "Sweet corn 6 ears for $5", expect: {item: Sweet corn, quantity: 6, unit: ear, price: 500}}
+
+  - name: count-words
+    group: extraction
+    why: >-
+      Store lists write a bag's count as "ct" or "pk", which are not units; the count is the
+      number bought, each.
+    source: owner's ALDI list, plus lines written for the eval
+    lines:
+      - text: "Garlic 3 ct $1.49"
+        expect:
+          - {item: Garlic, quantity: 3, unit: each, price: 149}
+          - {item: Garlic, quantity: 3, unit: head, price: 149}
+      - {text: "Green peppers 3 ct $2.69", expect: {item: Sweet pepper, quantity: 3, unit: each, price: 269}}
+      - {text: "Lemons 5 ct $3.49", expect: {item: Lemon, quantity: 5, unit: each, price: 349}}
+      - {text: "Avocados 4 pk $4.99", expect: {item: Avocado, quantity: 4, unit: each, price: 499}}
+      - {text: "Limes 2 lb bag $2.99", expect: {item: Lime, quantity: 2, unit: lb, price: 299}}
+
+  - name: weight-bought-not-per-pound
+    group: extraction
+    why: >-
+      A weight then a price is the price for that weight ("Banana 0.43 lb $0.23"), not a price
+      per pound; ounces and decimals stay as written.
+    source: owner's Publix and ALDI lists, plus lines written for the eval
+    lines:
+      - {text: "Banana 0.43 lb $0.23", expect: {item: Banana, quantity: 0.43, unit: lb, price: 23}}
+      - {text: "Baby bella mushrooms 8 oz $1.69", expect: {item: Mushroom, quantity: 8, unit: oz, price: 169}}
+      - {text: "Grapes 2.37 lb $4.72", expect: {item: Grape, quantity: 2.37, unit: lb, price: 472}}
+      - {text: "Spinach 10 oz bag $2.50", expect: {item: Spinach, quantity: 10, unit: oz, price: 250}}
+      - {text: "Sweet potatoes 3 lb $1.95", expect: {item: Sweet potato, quantity: 3, unit: lb, price: 195}}
+
+  - name: misspellings
+    group: extraction
+    why: >-
+      Typed lists misspell items; a close match is used with a note or asked about, never
+      matched to the wrong item.
+    source: owner's market list, plus lines written for the eval
+    lines:
+      - text: "Zuchinna $3/lb"
+        expect:
+          - {item: Zucchini, quantity: 1, unit: lb, price: 300}
+          - {ask: no_match, options: [Zucchini]}
+      - text: "Avacoda $2 each"
+        expect:
+          - {item: Avocado, quantity: 1, unit: each, price: 200}
+          - {ask: no_match, options: [Avocado]}
+      - {text: "Pablano pepper 89 cents each", expect: {item: Poblano pepper, quantity: 1, unit: each, price: 89}}
+      - {text: "Diamond sweet, red Phoenix, bubblegum plumbs $4/lb", expect: {item: Plum, quantity: 1, unit: lb, price: 400}}
+      - text: "Brocoli $1.99/lb"
+        expect:
+          - {item: Broccoli, quantity: 1, unit: lb, price: 199}
+          - {ask: no_match, options: [Broccoli]}
+      - text: "Cantelope $3 each"
+        expect:
+          - {item: Cantaloupe, quantity: 1, unit: each, price: 300}
+          - {ask: no_match, options: [Cantaloupe]}
+      - text: "Bananna $0.59/lb"
+        why: Dogfooding (Post P1-7 notes) found "Banana" offered beans; a misspelled banana must not.
+        expect:
+          - {item: Banana, quantity: 1, unit: lb, price: 59}
+          - {ask: no_match, options: [Banana]}
+
+  - name: descriptions-around-the-item
+    group: extraction
+    why: >-
+      Variety names, brackets, and lists of kinds come before the item; the item is still
+      found, and a line naming two items is either one or asked about.
+    source: owner's lists
+    lines:
+      - {text: "Sweet potato (yam) $1.30 each", expect: {item: Sweet potato, quantity: 1, unit: each, price: 130}}
+      - {text: "Amish (medium) tomato’s  $4/lb", expect: {item: Tomato, quantity: 1, unit: lb, price: 400}}
+      - {text: "Sweet, purple yellow onions $2/lb", expect: {item: Onion, quantity: 1, unit: lb, price: 200}}
+      - {text: "Honeycrisp apples 2 lb $2.09", expect: {item: Apple, quantity: 2, unit: lb, price: 209}}
+      - text: "Limes, lemons $1 each"
+        expect:
+          - {item: Lime, quantity: 1, unit: each, price: 100}
+          - {item: Lemon, quantity: 1, unit: each, price: 100}
+          - {ask: which_item, options: [Lime, Lemon]}
+      - {text: "Head of lettuce $3", expect: {item: Lettuce, quantity: 1, unit: head, price: 300}}
+
+  - name: canned-and-frozen
+    group: extraction
+    why: Canned and frozen produce matches its own catalog item, never the fresh one.
+    source: owner's Family Dollar and market lists, plus a line written for the eval
+    lines:
+      - {text: "Canned green cut beans 14.5 oz $0.99", expect: {item: Canned green beans, quantity: 14.5, unit: oz, price: 99}}
+      - {text: "Canned whole potatoes 15 oz $0.99", expect: {item: Canned potatoes, quantity: 15, unit: oz, price: 99}}
+      - {text: "Butter beans frozen $8/lb", expect: {item: Frozen lima beans, quantity: 1, unit: lb, price: 800}}
+      - {text: "Cut okra frozen $6/lb", expect: {item: Frozen okra, quantity: 1, unit: lb, price: 600}}
+      - {text: "Frozen broccoli 12 oz $1.25", expect: {item: Frozen broccoli, quantity: 12, unit: oz, price: 125}}
+
+  - name: per-piece-and-nuts
+    group: extraction
+    why: Spec P1-11 items (lemons, limes, garlic per piece; nuts in the shell).
+    source: owner's market list, plus lines written for the eval
+    lines:
+      - text: "Garlic head 89 cents each"
+        expect:
+          - {item: Garlic, quantity: 1, unit: each, price: 89}
+          - {item: Garlic, quantity: 1, unit: head, price: 89}
+      - {text: "Lemons 3 for $1", expect: {item: Lemon, quantity: 3, unit: each, price: 100}}
+      - {text: "Walnuts with shell $8/lb", expect: {item: Walnut, quantity: 1, unit: lb, price: 800}}
+      - {text: "Pecans in the shell $5/lb", expect: {item: Pecan, quantity: 1, unit: lb, price: 500}}
+      - {text: "Elephant garlic $2.50 each", expect: {item: Elephant garlic, quantity: 1, unit: each, price: 250}}
