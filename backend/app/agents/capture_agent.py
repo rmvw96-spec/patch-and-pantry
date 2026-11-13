@@ -97,7 +97,7 @@ Copy what is written; never calculate, convert, or guess:
   "$.73 ea - 3" are 3. Null if none.
 - unit: the unit word as written. "3 lb bag" is "lb". "3 for $5" and "2 ea" are "each". A bunch
   is "bunch". Null if no unit is written.
-- size: small, medium, or large only if the line says so.
+- size: small, medium, or large only if the line says so ("large oranges", "med avocado").
 - price_text: the price as written, such as "2.99" or "$5". Null if there is no price.
 - price_is_per_unit: true only when the price is for one unit, such as "2.49/lb", "2.49 per lb",
   or "1.29 ea".
@@ -120,6 +120,8 @@ class DraftPrice:
     match_note: str | None  # "matched 'yellow onoins' to Onion"
     quantity: float
     unit: str
+    # The size whose piece weight was used. A size written on a line that needs no piece weight,
+    # or for an item without a weight for it, is ignored (None).
     size: PortionSize | None
     price_cents: int  # for the whole quantity
     vendor_id: uuid.UUID
@@ -130,6 +132,8 @@ class DraftPrice:
     match_kind: str = "exact"
     # How a per-unit price became the total: "$0.29 each x 3". Code multiplies, never the model.
     price_note: str | None = None
+    # No size was written, so medium was used: the page says so (owner, 2026-11-12).
+    size_assumed: bool = False
     piece_grams: float | None = None  # one piece as purchased, for count units
     piece_source: str | None = None
     grams_purchased: float | None = None
@@ -311,7 +315,7 @@ def _process_line(
         match_kind=match.kind,
         quantity=quantity,
         unit=unit,
-        size=line.size,
+        size=None,
         price_cents=cents,
         vendor_id=vendor_id,
         observed_on=observed_on,
@@ -321,7 +325,8 @@ def _process_line(
     piece: float | None = None
     if needs_piece(unit, facts):
         try:
-            choice = portion_grams(session, item, unit, line.size)
+            # A size on the line wins over one an alias implies ("satsuma").
+            choice = portion_grams(session, item, unit, line.size or match.size)
         except NeedsPortion as exc:
             kind: QuestionKind = "needs_size" if exc.sizes else "needs_weight"
             result.questions.append(
@@ -330,6 +335,7 @@ def _process_line(
             return
         piece = choice.grams
         draft.piece_grams, draft.piece_source = choice.grams, choice.source
+        draft.size, draft.size_assumed = choice.size, choice.assumed
         if choice.snapshot_id:
             result.data_snapshot_ids.add(choice.snapshot_id)
 

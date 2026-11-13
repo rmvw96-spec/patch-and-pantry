@@ -434,16 +434,32 @@ def test_no_piece_weight_is_a_question(session: Session) -> None:
         portion_grams(session, item, "bunch")
 
 
-def test_a_size_is_never_assumed(session: Session) -> None:
+def test_no_size_means_medium_and_says_so(session: Session) -> None:
+    """Owner, 2026-11-12: market and store sizes differ, so medium unless the line says."""
     item = _item(session, name="Tomato")
     snapshot = _snapshot(session, datetime(2026, 11, 11, tzinfo=UTC))
     for size, grams in (("small", 100.0), ("medium", 135.2), ("large", 200.0)):
         _piece(session, item, grams, size, snapshot=snapshot)
 
+    assumed = portion_grams(session, item, "each")
+    assert (assumed.grams, assumed.size, assumed.assumed) == (135.2, "medium", True)
+    given = portion_grams(session, item, "each", "large")
+    assert (given.grams, given.size, given.assumed) == (200.0, "large", False)
+    medium = portion_grams(session, item, "each", "medium")
+    assert (medium.size, medium.assumed) == ("medium", False)
+
+
+def test_sizes_without_a_medium_are_asked(session: Session) -> None:
+    item = _item(session, name="Papaya")
+    snapshot = _snapshot(session, datetime.now(UTC))
+    _piece(session, item, 253.0, "small", snapshot=snapshot)
+    _piece(session, item, 1260.0, "large", snapshot=snapshot)
     with pytest.raises(NeedsPortion) as raised:
         portion_grams(session, item, "each")
-    assert raised.value.sizes == ("small", "medium", "large")
-    assert portion_grams(session, item, "each", "medium").grams == 135.2
+    assert raised.value.sizes == ("small", "large")
+    with pytest.raises(NeedsPortion):
+        portion_grams(session, item, "each", "medium")  # no weight for it: ignored
+    assert portion_grams(session, item, "each", "large").grams == 1260.0
 
 
 def test_an_unsized_piece_needs_no_size(session: Session) -> None:
@@ -456,6 +472,9 @@ def test_an_unsized_piece_needs_no_size(session: Session) -> None:
         snapshot=_snapshot(session, datetime.now(UTC)),
     )
     assert portion_grams(session, item, "heads").grams == 666.0
+    # A size for an item with one weight is ignored, not a question.
+    ignored = portion_grams(session, item, "head", "large")
+    assert (ignored.grams, ignored.size, ignored.assumed) == (666.0, None, False)
 
 
 def test_a_single_size_is_used_without_asking(session: Session) -> None:
@@ -466,14 +485,13 @@ def test_a_single_size_is_used_without_asking(session: Session) -> None:
     assert portion_grams(session, item, "each").grams == 310.0
 
 
-def test_an_unknown_size_lists_the_known_ones(session: Session) -> None:
+def test_a_size_without_a_weight_is_ignored(session: Session) -> None:
     item = _item(session, name="Onion")
     snapshot = _snapshot(session, datetime.now(UTC))
     _piece(session, item, 122.2, "medium", snapshot=snapshot)
     _piece(session, item, 166.7, "large", snapshot=snapshot)
-    with pytest.raises(NeedsPortion) as raised:
-        portion_grams(session, item, "each", "small")
-    assert raised.value.sizes == ("medium", "large")
+    choice = portion_grams(session, item, "each", "small")
+    assert (choice.grams, choice.size, choice.assumed) == (122.2, "medium", True)
 
 
 def test_the_latest_snapshot_wins(session: Session) -> None:

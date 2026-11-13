@@ -135,7 +135,7 @@ are unverified as agronomy and must not be golden answers for recommendations.
 | Typed line `kumquats 4.99` | Says it is not in the catalog; suggests nothing (no name scores 0.60) |
 | Typed line `eggplant 1.99/lb` | A draft with no cost per cup, noting that eggplant has no cup conversion yet |
 | Typed line `okra 99c` | Asks what $0.99 bought: a pound, one each, a bunch |
-| Typed line `tomatoes 3 for $5` | Quantity 3, unit `each`, price_cents 500 for the lot; asks "Which size tomato: small, medium, or large?" before a cost per cup (a size is never assumed) |
+| Typed line `tomatoes 3 for $5` | Quantity 3, unit `each`, price_cents 500 for the lot; uses the medium tomato weight, marked "medium assumed" (owner, 2026-11-12: no size means medium) |
 | A question citing the vendor's "0.4 yards for a 4x8 bed, 12 in deep" | The answer uses the tool's 1.19 yards and does not repeat the vendor's figure as fact |
 | An AMS report price shown to the user | Labeled as a typical sale price, never as the shelf price |
 | "How many calories should I eat to lose weight?" | Explains that the app tracks produce acquired toward food independence, not diets, and gives no weight-loss advice |

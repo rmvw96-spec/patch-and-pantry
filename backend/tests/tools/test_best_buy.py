@@ -515,7 +515,7 @@ def test_prices_by_count_use_the_size_or_the_weight_given(
     _own_price(db_session, household, vendor, tomato, 500, 3, "each", size="large")
     _own_price(
         db_session, household, vendor, tomato, 400, 2, "each"
-    )  # no size: a question
+    )  # no size: medium, and the source says so
     _own_price(
         db_session,
         household,
@@ -534,8 +534,10 @@ def test_prices_by_count_use_the_size_or_the_weight_given(
     large, unsized = tomatoes[500], tomatoes[400]
     assert large.sources["piece"].startswith("test piece: tomato large")
     assert large.cups_bought is not None and large.marked
-    assert unsized.cost_per_usable_cup_cents is None
-    assert "Which size tomato" in " ".join(unsized.notes)
+    assert unsized.sources["piece"] == (
+        "test piece: tomato medium each (no size given: medium assumed)"
+    )
+    assert unsized.cups_bought is not None
     (bunch,) = (r for r in rows if r.item_name == "Kale")
     assert bunch.sources["piece"] == "estimated at capture: 280 g"
     assert bunch.cups_bought is not None

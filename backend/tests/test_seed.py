@@ -1007,6 +1007,9 @@ def test_the_committed_portion_map_is_valid() -> None:
     # Owner decision (2026-11-11): potatoes use 10% refuse, not SR28's 25%.
     assert {row.refuse_override for row in rows if row.slug == "potato"} == {10}
     assert {row.slug for row in rows if row.refuse_override is not None} == {"potato"}
+    # Dogfooding: these were priced by count at a market and each asked for a weight.
+    priced_by_count = {"avocado", "mango", "kiwi", "clementine", "orange", "grapefruit"}
+    assert priced_by_count <= {row.slug for row in rows if row.has_source}
 
 
 @pytest.mark.parametrize(

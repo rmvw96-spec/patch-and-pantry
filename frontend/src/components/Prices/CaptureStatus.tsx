@@ -335,7 +335,18 @@ function CaptureReview({
                     </p>
                   )}
                 </TableCell>
-                <TableCell>{amount(draft)}</TableCell>
+                <TableCell>
+                  {amount(draft)}
+                  {draft.size_assumed && (
+                    <p
+                      className="text-muted-foreground text-xs"
+                      data-testid="draft-size-assumed"
+                    >
+                      Medium assumed. Write small or large on the line to change
+                      it.
+                    </p>
+                  )}
+                </TableCell>
                 <TableCell data-testid="draft-price">
                   <DraftPriceCell draft={draft} />
                 </TableCell>

@@ -30,7 +30,7 @@ pytestmark = pytest.mark.usefixtures("catalog")
         ("Swiss chard", "swiss chard"), ("asparagus", "asparagus"),
         ("organic baby spinach", "spinach"), ("large tomatoes, fresh!", "tomato"),
         ("jalapeños", "jalapeno"), ("black-eyed peas", "black eyed pea"), ("3 lb", "lb"),
-        ("", ""), ("$2.99", ""),
+        ("", ""), ("$2.99", ""), ("Sweet potato’s", "sweet potato"), ("tomato's", "tomato"),
     ],
 )  # fmt: skip
 def test_fold(text: str, folded: str) -> None:
@@ -179,6 +179,7 @@ def test_the_alias_list_is_valid() -> None:
     assert {row.slug for row in rows} <= produce
     pairs = [(fold(row.alias), row.slug) for row in rows]
     assert len(pairs) == len(set(pairs))
+    assert {row.size for row in rows} <= {"", "small", "medium", "large"}
     names = {fold(row.name) for row in read_crosswalk()}
     repeats = names & {fold(row.alias) for row in rows}
     assert not repeats, f"aliases repeat catalog names: {repeats}"
@@ -190,3 +191,129 @@ def test_aliases_are_read_once(tmp_path: Path) -> None:
     first = read_aliases(path)
     path.write_text("alias,slug,notes\n", encoding="utf-8")
     assert read_aliases(path) is first
+
+
+# ---------- dogfooding: word order, filler in names, broader names, forms ----------
+
+# Items the shared test catalog lacks, added in this test's rolled-back transaction.
+EXTRA = [
+    "Carrot", "Baby carrots", "Grape tomato", "Lima bean", "Frozen lima beans", "Okra",
+    "Frozen okra", "Southern pea", "Frozen peas", "Peach", "Canned peaches in juice",
+    "Canned peaches in syrup or water", "Cucumber",
+]  # fmt: skip
+EXTRA_ALIASES = (
+    AliasRow("butter bean", "lima-bean", ""),
+    AliasRow("purple hull pea", "southern-pea", ""),
+    AliasRow("squash", "zucchini", ""),
+    AliasRow("squash", "yellow-squash", ""),
+    AliasRow("squash", "acorn-squash", ""),
+)
+
+
+@pytest.fixture
+def more_items(db_session: Session, catalog: Catalog) -> None:  # noqa: ARG001
+    """After ``catalog``, which replaces every national item with the test catalog."""
+    for name in EXTRA:
+        db_session.add(
+            CatalogItem(
+                slug=name.lower().replace(" ", "-"),
+                name=name,
+                kind="produce",
+                category="vegetable",
+                conversion_source="test",
+            )
+        )
+    db_session.flush()
+
+
+def _match(db_session: Session, text: str) -> tuple[str, str | None, list[str]]:
+    match = find_catalog_item(db_session, text, aliases=EXTRA_ALIASES)
+    item = match.item.name if match.item else None
+    return match.kind, item, [c.name for c in match.candidates]
+
+
+@pytest.mark.usefixtures("more_items")
+@pytest.mark.parametrize(
+    ("text", "name"),
+    [
+        ("lima beans frozen", "Frozen lima beans"),  # dogfooding: "frozen" was stripped
+        ("okra frozen", "Frozen okra"),
+        ("carrots", "Carrot"),  # "baby" is filler, but not when the name has it
+        ("baby carrots", "Baby carrots"),
+    ],
+)
+def test_word_order_and_filler_in_names(
+    db_session: Session, text: str, name: str
+) -> None:
+    assert _match(db_session, text)[:2] == ("exact", name)
+
+
+@pytest.mark.usefixtures("more_items")
+@pytest.mark.parametrize(
+    ("text", "name"),
+    [
+        ("heirloom tomatoes", "Tomato"),
+        (
+            "green tomatoes",
+            "Tomato",
+        ),  # a different describing word, not a typo of "grape"
+        ("pickling cucumbers", "Cucumber"),
+        ("purple onions", "Onion"),
+        ("new potatoes", "Potato"),
+        ("cut okra frozen", "Frozen okra"),
+        ("butter beans frozen", "Frozen lima beans"),  # alias, then the frozen form
+        # A typo settles a name shared by several items.
+        ("yelow squash", "Yellow squash"),  # spellchecker:disable-line
+    ],
+)
+def test_broader_names_match_and_say_so(
+    db_session: Session, text: str, name: str
+) -> None:
+    match = find_catalog_item(db_session, text, aliases=EXTRA_ALIASES)
+    assert match.kind == "fuzzy"
+    assert match.item is not None and match.item.name == name
+    assert match.note == f"matched '{text}' to {name}"
+
+
+@pytest.mark.usefixtures("more_items")
+def test_broader_names_shared_by_several_items_are_questions(
+    db_session: Session,
+) -> None:
+    kind, item, names = _match(db_session, "delicata squash")
+    assert (kind, item) == ("ambiguous", None)
+    assert names == ["Acorn squash", "Yellow squash", "Zucchini"]
+    kind, item, names = _match(db_session, "peaches canned")
+    assert (kind, item) == ("ambiguous", None)
+    assert names == ["Canned peaches in juice", "Canned peaches in syrup or water"]
+
+
+@pytest.mark.usefixtures("more_items")
+def test_a_form_is_never_dropped(db_session: Session) -> None:
+    """Frozen, canned, or juice in the text never matches an item without it, or the reverse."""
+    # Southern pea is named, but there are no frozen southern peas: a question, not Frozen
+    # peas (garden peas) and not fresh Southern pea.
+    kind, item, names = _match(db_session, "purple hull peas frozen")
+    assert (kind, item) == ("none", None)
+    assert "Southern pea" in names  # still offered to choose
+    assert _match(db_session, "frozen cucumbers")[:2] == ("none", None)
+    typo = "frozen brocoli"  # spellchecker:disable-line
+    assert _match(db_session, typo)[:2] == ("none", None)
+    # Without a form word, a frozen item is never the match.
+    assert _match(db_session, "lima beans")[:2] == ("exact", "Lima bean")
+    assert _match(db_session, "cut okra")[:2] == ("fuzzy", "Okra")
+
+
+def test_an_alias_can_imply_a_size(db_session: Session) -> None:
+    """Owner, 2026-11-12: "satsuma" is priced as a large orange; "tangerine" names no size."""
+    aliases = (
+        AliasRow("beefsteak", "tomato", "", "large"),
+        AliasRow("plum tomato", "tomato", ""),
+    )
+    match = find_catalog_item(db_session, "Beefsteaks", aliases=aliases)
+    assert (match.kind, match.size) == ("exact", "large")
+    assert match.note == "'Beefsteaks' is priced as a large tomato"
+    plain = find_catalog_item(db_session, "plum tomatoes", aliases=aliases)
+    assert (plain.kind, plain.size, plain.note) == ("exact", None, None)
+    assert find_catalog_item(db_session, "tomatoes", aliases=aliases).size is None
+    committed = {row.alias: row.size for row in read_aliases()}
+    assert (committed["satsuma"], committed["tangerine"]) == ("large", "")
