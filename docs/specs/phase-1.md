@@ -203,7 +203,7 @@ back to SR28's own figure (2 peppers: 2 x 164 g = 328 g; a romaine head: 626 g).
 - [x] Scripted-model tests: each behavioral case in `known-answers.md` produces the expected
       drafts or questions.
 - [x] A draft keeps `raw_text` exactly as typed; nothing is saved before confirmation.
-- [ ] Owner review of `catalog_aliases.csv`.
+- [x] Owner review of `catalog_aliases.csv` (2026-11-13).
 - [ ] Tune `CUTOFF` and `MARGIN` against the owner's real lists (when they arrive).
 
 ## P1-6: Tool `compare_best_buy`

@@ -114,7 +114,7 @@ These come from `docs/design.md`; follow them in every change.
   `produce_cups`; spec P1-11). Best-buy amounts are in the item's measure (`per_week`,
   `amount_bought`), never assumed to be cups.
 - **Units:** store grams of the edible part; show cups (the federal produce definition). Do not use
-  the word "serving" in the UI. Money is integer cents (pending owner review of the Phase 0 spec).
+  the word "serving" in the UI. Money is integer cents (reviewed by the owner).
 - **Agent prompts come from `docs/agent-guide.md`** (spec P1-8). Its three `text` blocks are
   copied word for word into `backend/app/agents/guide.py` (`SHARED_RULES`, `CAPTURE_TASK`,
   `BEST_BUY_TASK`), and `tests/agents/test_guide.py` fails if they differ: change a prompt in

@@ -215,3 +215,4 @@ match hand calculations.
 | 2026-11-13 | P1-11 added from dogfooding: lemons, limes, garlic, and nuts were missing (not in ERS). Spec drafted for owner review. |
 | 2026-11-13 | P1-11 built: lemons, limes, garlic, elephant garlic, walnuts, pecans, and hazelnuts added; best-buy amounts are in each item's measure. |
 | 2026-11-13 | Agent guide done (P1-8): `docs/agent-guide.md` holds the prompts, copied into `app/agents/guide.py` and kept equal by a test. Next: P1-9 (golden evals). |
+| 2026-11-13 | Owner reviewed every pending item: the alias list, the piece weights and crosswalk rows added 2026-11-12 (including `poblano-pepper`), the P1-11 seed rows, and integer cents for money. |
