@@ -608,6 +608,26 @@ def test_rules_first_reads_plain_lines_without_the_model(
     assert (result.model_lines, result.usage.requests) == (0, 0)
 
 
+def test_a_dieting_question_in_the_list_is_set_aside_unanswered(
+    db_session: Session, household: Household, vendor: Vendor
+) -> None:
+    # Spec P1-8's behavioral case: a note, with no draft, question, or model call.
+    def never(_m: list[ModelMessage], _i: AgentInfo) -> ModelResponse:
+        raise AssertionError("the model was called")
+
+    question = "How many calories should I eat to lose weight?"
+    result = read_rules_first(
+        db_session,
+        household,
+        vendor,
+        f"{question}\nonions 3 lb bag 2.99",
+        FunctionModel(never),
+    )
+    assert result.ignored == [question]
+    assert [d.item_name for d in result.drafts] == ["Onion"]
+    assert (result.questions, result.model_lines) == ([], 0)
+
+
 def test_rules_first_sends_only_the_unsure_lines_to_the_model(
     db_session: Session, household: Household, vendor: Vendor
 ) -> None:

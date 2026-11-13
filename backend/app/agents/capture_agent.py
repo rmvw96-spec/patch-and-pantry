@@ -25,6 +25,7 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.usage import UsageLimits
 from sqlmodel import Session
 
+from app.agents.guide import CAPTURE_TASK, instructions
 from app.agents.models import build_model
 from app.agents.usage import ModelUsage
 from app.core.config import CaptureReader, settings
@@ -99,24 +100,7 @@ class Extraction(BaseModel):
     lines: list[ExtractedLine]
 
 
-INSTRUCTIONS = """\
-You read a typed shopping list. Each line is numbered. Return one entry per line number.
-
-Copy what is written; never calculate, convert, or guess:
-- item_text: only the words naming the produce ("yellow onions"), as written, misspellings
-  included. Leave out quantities, units, sizes, packaging words such as "bag", and prices.
-- quantity: the amount bought, as written. "3 lb bag" is 3. "3 for $5" is 3. A count written
-  apart from the price is the amount bought too: "$0.29 each (3)", "1.29 ea x3", and
-  "$.73 ea - 3" are 3. Null if none.
-- unit: the unit word as written. "3 lb bag" is "lb". "3 for $5" and "2 ea" are "each". A bunch
-  is "bunch". A unit can come before the item: "Head of lettuce $3" is "head", "bunch of kale"
-  is "bunch". Null if no unit is written.
-- size: small, medium, or large only if the line says so ("large oranges", "med avocado").
-- price_text: the price as written, such as "2.99" or "$5". Null if there is no price.
-- price_is_per_unit: true only when the price is for one unit, such as "2.49/lb", "2.49 per lb",
-  or "1.29 ea".
-- is_price: false for lines that are not an item with a price, such as a store name or a note.
-"""
+INSTRUCTIONS = instructions(CAPTURE_TASK)
 
 capture_agent = Agent(output_type=Extraction, instructions=INSTRUCTIONS, retries=2)
 

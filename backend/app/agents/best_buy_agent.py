@@ -3,7 +3,8 @@
 The table is computed by ``compare_best_buy``; the model only explains it. It may quote numbers
 exactly as the table shows them and nothing else: an output validator rejects any explanation
 with a number the table does not contain (a computed ratio, a rounded figure, a made-up price),
-and the model gets the offending numbers back to fix. Tone and wording rules are refined in P1-8.
+and the model gets the offending numbers back to fix. Tone and wording rules come from the
+agent guide (``app.agents.guide``); explanations with dieting words are sent back as well.
 """
 
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ from pydantic_ai import Agent, ModelRetry, RunContext, models
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.usage import UsageLimits
 
+from app.agents.guide import BEST_BUY_TASK, dieting_words, instructions
 from app.agents.models import build_model
 from app.agents.usage import ModelUsage
 from app.core.config import settings
@@ -25,18 +27,7 @@ from app.tools.best_buy import (
 
 MAX_MODEL_REQUESTS = 4
 
-INSTRUCTIONS = """\
-You explain a produce price comparison to a household, in plain words, in at most four short
-sentences. The table is already computed; do not compute anything.
-
-- Name the marked (best) row for each item and why it wins, quoting its cost per usable cup
-  (or per usable piece, for items counted by the piece, such as a lemon or a head of garlic).
-- Mention spoilage when it changes the answer.
-- Quote numbers exactly as the table shows them, with the same digits. Never add, subtract,
-  compare by ratio, round, or invent a number. Say "cheaper", not "3 times cheaper".
-- A national average (ERS) is not a store price; say so if you mention one.
-- This is about buying produce, not dieting: no talk of calories, weight, or eating less.
-"""
+INSTRUCTIONS = instructions(BEST_BUY_TASK)
 
 
 @dataclass(frozen=True)
@@ -56,6 +47,12 @@ def _only_table_numbers(ctx: RunContext[Deps], text: str) -> str:
         raise ModelRetry(
             f"These numbers are not in the table: {', '.join(bad)}. "
             "Quote only numbers the table shows, exactly as shown."
+        )
+    dieting = dieting_words(text)
+    if dieting:
+        raise ModelRetry(
+            f"Do not use these words: {', '.join(dieting)}. This is about buying produce, "
+            'not dieting; say "cups", never "servings" or "portions".'
         )
     return text
 
@@ -130,7 +127,7 @@ async def explain_best_buy(
     except UnexpectedModelBehavior as exc:
         raise ExplanationFailed(
             "invalid_output",
-            "The assistant could not explain the table using only its numbers; "
+            "The assistant could not explain the table within its rules; "
             "the table is still right.",
         ) from exc
     return Explanation(result.output, ModelUsage.of(result.usage))

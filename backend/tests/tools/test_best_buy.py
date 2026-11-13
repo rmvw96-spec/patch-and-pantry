@@ -634,6 +634,26 @@ def test_an_explanation_with_a_computed_number_is_sent_back() -> None:
     assert "not in the table: 1.5" in seen[1]
 
 
+def test_an_explanation_with_dieting_words_is_sent_back() -> None:
+    # Spec P1-8: the agent guide's rules, enforced for a short list of words.
+    replies = iter(
+        [
+            "Kroger is the best buy at $0.39 per usable cup, a low-calorie serving.",
+            "Kroger is the best buy at $0.39 per usable cup.",
+        ]
+    )
+    seen: list[str] = []
+
+    def respond(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
+        seen.append(str(messages[-1]))
+        return ModelResponse(parts=[TextPart(next(replies))])
+
+    text = asyncio.run(explain_best_buy(_onion_table(), FunctionModel(respond))).text
+
+    assert text == "Kroger is the best buy at $0.39 per usable cup."
+    assert "Do not use these words: calorie, serving." in seen[1]
+
+
 def test_an_explanation_that_keeps_inventing_numbers_fails() -> None:
     def respond(_messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
         return ModelResponse(parts=[TextPart("Save 42% at Kroger!")])
