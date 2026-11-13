@@ -203,7 +203,7 @@ back to SR28's own figure (2 peppers: 2 x 164 g = 328 g; a romaine head: 626 g).
 - [x] Scripted-model tests: each behavioral case in `known-answers.md` produces the expected
       drafts or questions.
 - [x] A draft keeps `raw_text` exactly as typed; nothing is saved before confirmation.
-- [ ] Owner review of `catalog_aliases.csv`.
+- [x] Owner review of `catalog_aliases.csv` (2026-11-13).
 - [ ] Tune `CUTOFF` and `MARGIN` against the owner's real lists (when they arrive).
 
 ## P1-6: Tool `compare_best_buy`
@@ -381,10 +381,68 @@ pages).
 
 ## P1-8: Agent instructions and tone guide
 
-**Where:** `docs/agent-guide.md` (owner reviews), loaded into the agents' instructions.
+**Status:** approved by the owner and built (2026-11-13). The owner added that "weight" in the
+dieting rule means a person's weight, not produce's, and kept the word list and the "healthy" ban.
+
+**Where:** `docs/agent-guide.md` (reviewed and approved by the owner, 2026-11-13), with the instructions each agent is given;
+`backend/app/agents/guide.py` holds the same text as Python constants that the agents use.
 
 - Ask, don't guess; quote tool numbers only; plain words; "cups", never "servings"; no dieting
   language (the behavioral case "How many calories should I eat to lose weight?").
+
+### How the guide reaches the agents (D10)
+
+**Decided (owner, 2026-11-13):** constants plus a matching test. The Docker image copies only
+`backend/app`, so the app cannot read `docs/` at run time. The guide's instruction blocks are
+copied word for word into constants in `app/agents/guide.py`, and a test fails if a block in the
+doc and its constant differ. A prompt change therefore shows in the PR as a code change, and
+rewording the doc cannot change what the model is told without one.
+
+The guide has three fenced `text` blocks, each under its own heading, and nothing else is checked:
+
+| Heading in the guide | Constant | Used by |
+| --- | --- | --- |
+| Rules for every agent | `SHARED_RULES` | both agents, appended to their task text |
+| Prices reader | `CAPTURE_TASK` | `capture_agent` (reads typed list lines into fields) |
+| Best buy explainer | `BEST_BUY_TASK` | `best_buy_agent` (explains the computed table) |
+
+The rest of the guide (why each rule exists, examples of good and bad wording) is for people and
+is not sent to the model.
+
+### Rules (the draft in `docs/agent-guide.md`)
+
+- **Ask, don't guess.** The reader leaves a field empty rather than filling it in; missing details
+  become questions to the user (asked by code, not the model). The explainer says "no store price
+  yet" rather than guessing one.
+- **Numbers only from the tools**, quoted exactly as shown (unchanged; the output validator
+  already enforces it).
+- **Plain words.** Short sentences; no internal names ("ERS", "SR28", "crosswalk", "normalize");
+  "national average" instead of "ERS average".
+- **Cups, never "servings"**; per-piece items in their own measure ("per lemon", "per head").
+- **Not a dieting app.** No calories, weight loss, diets, portions, "healthy" or "unhealthy"
+  foods, or eating less. A question about any of these is not answered.
+
+### Checks
+
+1. **Doc and code match:** `tests/agents/test_guide.py` reads the three blocks from
+   `docs/agent-guide.md` and compares each with its constant.
+2. **Dieting words are rejected in explanations:** the explainer's output validator also rejects
+   words from a short list (calorie, diet, dieting, lose weight, weight loss, serving, portion),
+   and the model is sent back to reword, as for an unsupported number. Tested with a scripted
+   `FunctionModel`. This is a deterministic floor; the nightly evals (P1-9) judge the rest.
+3. **The calorie question is not answered:** typed into the Prices box, "How many calories should
+   I eat to lose weight?" has no price, so the rules reader treats it as a note: it is listed as
+   ignored, with no draft, question, or model call. A test pins this. The same case, sent to the
+   live model, is added to the P1-9 evals.
+4. **The UI and code-written messages never say "serving":** a test scans `frontend/src` (minus
+   the generated client) and the user-facing messages in `app/` for the word.
+
+**Acceptance criteria:**
+
+- [x] `docs/agent-guide.md` written and reviewed by the owner.
+- [x] Both agents' instructions come from `app/agents/guide.py`; the matching test passes and
+      fails when either side is edited alone.
+- [x] Checks 2 to 4 pass, and each fails with its bug introduced.
 
 ## P1-9: Golden evals and the nightly run
 
@@ -393,7 +451,8 @@ installed yet and would be a new dependency), `.github/workflows/nightly-evals.y
 
 - Cases: extraction field by field (from the owner's real lists), clarification cases,
   conversions and rankings exact, and a trace check that every number in an answer appears in a
-  tool output.
+  tool output. P1-8's behavioral case, "How many calories should I eat to lose weight?" sent to
+  the live reader, must come back as a note (`is_price` false), unanswered.
 - Each case runs 3 times against DeepSeek-V3.2. Pass threshold (D2): exact-answer cases pass 3 of
   3; extraction at least 95% of fields correct.
 - Nightly at 03:00 Central on `master`, using the repository secrets; never on pull requests.
@@ -489,7 +548,7 @@ Worked (owner's market, 2026-11-12): pecans in shell $5/lb: 453.6 g × 0.53 = 24
 2.21 cups chopped = **$2.27 a cup**. Walnuts in shell $8/lb: 204 g = 1.74 cups = **$4.59 a cup**,
 the same as shelled walnuts at $17.78/lb. Add these to `known-answers.md` once built.
 
-### Sources (new crosswalk and portion rows, for owner review)
+### Sources (new crosswalk and portion rows; reviewed by the owner with the spec, 2026-11-13)
 
 | Slug | FDC | FoodKeeper (location, days) | Pieces or cups (SR28) |
 | --- | --- | --- | --- |
@@ -545,3 +604,4 @@ uses measured token counts and derived prices.
 | D7 | Matching typed item names | **Decided:** exact match on names and aliases, then fuzzy candidates; a clear match is shown on the draft, anything else is a question; confirmed matches become household aliases. See P1-5 |
 | D8 | Items not suited to a cup | **Decided 2026-11-13:** each item has a measure it is compared by: cup (default), or per piece (lemons and limes each, garlic by the head). Lemons, limes, garlic, and nuts do not count toward produce cups. Garlic heads: small 35 g, medium 47.5 g, large 60 g (owner); elephant garlic is its own item, 150 g a head. Hazelnuts borrow walnuts' storage time. See P1-11 |
 | D9 | Nuts in the shell | **Decided 2026-11-13:** one item per nut, compared per cup of chopped kernels; in-shell prices converted with SR28's shell refuse. English walnuts only, named "Walnut". See P1-11 |
+| D10 | How the agent guide reaches the agents | **Decided 2026-11-13:** the guide's instruction blocks are copied into constants in `app/agents/guide.py`, and a test keeps doc and code equal (the image does not contain `docs/`). See P1-8 |

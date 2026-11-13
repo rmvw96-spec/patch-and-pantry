@@ -93,7 +93,7 @@ week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/
       icon, and check it on a phone.
 - [x] Items compared per piece (lemons, limes, garlic) and nuts per cup of chopped kernels,
       with in-shell prices converted; none counts toward produce cups (P1-11, added 2026-11-13).
-- [ ] Agent instructions and tone guide written and reviewed.
+- [x] Agent instructions and tone guide written and reviewed (P1-8, `docs/agent-guide.md`).
 - [ ] Golden evals: extraction field by field; conversions and rankings exact; clarification
       cases; a trace check that every number came from a tool.
 - [ ] Model comparison per task: deferred until a second model is deployed (see `design.md`,
@@ -214,3 +214,5 @@ match hand calculations.
 | 2026-11-12 | Photo capture (Phase 2) note: the photo agent must output correctly spelled item names for the typed-list matcher, which deliberately does not chase every misspelling. |
 | 2026-11-13 | P1-11 added from dogfooding: lemons, limes, garlic, and nuts were missing (not in ERS). Spec drafted for owner review. |
 | 2026-11-13 | P1-11 built: lemons, limes, garlic, elephant garlic, walnuts, pecans, and hazelnuts added; best-buy amounts are in each item's measure. |
+| 2026-11-13 | Agent guide done (P1-8): `docs/agent-guide.md` holds the prompts, copied into `app/agents/guide.py` and kept equal by a test. Next: P1-9 (golden evals). |
+| 2026-11-13 | Owner reviewed every pending item: the alias list, the piece weights and crosswalk rows added 2026-11-12 (including `poblano-pepper`), the P1-11 seed rows, and integer cents for money. |

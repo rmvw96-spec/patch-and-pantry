@@ -99,7 +99,7 @@ in CI.
 
 **Where:** `backend/app/models.py` (follow the `Study` patterns: UUID primary keys,
 timezone-aware timestamps, `Literal` types for closed sets, cascading deletes from `user`), one
-Alembic revision. Money is **integer cents** (proposed; confirm in review).
+Alembic revision. Money is **integer cents** (reviewed by the owner).
 
 | Table | Fields | Notes |
 | --- | --- | --- |
