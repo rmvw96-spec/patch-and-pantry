@@ -443,7 +443,7 @@ Two new facts on `catalog_item`:
 | Item | `compared_by` | `produce_cups` | Example |
 | --- | --- | --- | --- |
 | Lemon, lime | `each` | false | "3 for $1" is $0.33 a lemon; "2 lb bag $3" becomes lemons through one lemon's weight as bought |
-| Garlic | `head` | false | "Garlic head 89 cents each" is $0.89 a head; a price per lb needs one head's weight (asked, see below) |
+| Garlic, elephant garlic | `head` | false | "Garlic head 89 cents each" is $0.89 a head; "$4/lb" is $0.42 a medium head (47.5 g) |
 | Walnut, pecan, hazelnut | `cup` (shelled, chopped) | false | "Pecans $5/lb" in shell is $2.27 a cup (worked below) |
 
 **Decided (owner, 2026-11-13):** lemons, limes, and garlic are compared per piece and do not
@@ -494,16 +494,22 @@ the same as shelled walnuts at $17.78/lb. Add these to `known-answers.md` once b
 | --- | --- | --- | --- |
 | `lemon` | 167746, SR Legacy (Lemons, raw, without peel) | 256 Citrus fruit (refrigerator, 10 to 21) | each: medium 2-1/8" (09150 seq 2, 58 g edible, 109 g as bought), large 2-3/8" (seq 3, 84 g, 159 g); refuse 47% (45% peel, 2% seeds) |
 | `lime` | 168155, SR Legacy (Limes, raw) | 256 Citrus fruit (refrigerator, 10 to 21) | each, any size: 2" (09159 seq 1, 67 g edible, 80 g as bought); refuse 16% (peel and seeds) |
-| `garlic` | 1104647, Foundation (Garlic, raw) | 285 Garlic (pantry, 1 month; FoodKeeper says to refrigerate single cloves) | head: **no SR28 weight** (only a clove, 3 g), so a price per lb asks for one head's weight; refuse 13% (knob and skin) |
+| `garlic` | 1104647, Foundation (Garlic, raw) | 285 Garlic (pantry, 1 month; FoodKeeper says to refrigerate single cloves) | head, as bought (**owner, 2026-11-13**; SR28 weighs only a clove, 3 g): small 35 g, medium 47.5 g, large 60 g, the softneck (supermarket) range; hardneck (50 to 70 g) falls between medium and large. Refuse 13% (knob and skin, SR28 11215) |
+| `elephant-garlic` | stand-in: garlic | stand-in: garlic | head, as bought: 150 g, any size (**owner**: 100 to 200 g). Its own item, not a size of garlic: a different plant (closer to leeks), and its heads cost far more, so its prices are compared only with each other |
 | `walnut` | 2346394, Foundation (walnuts, English, halves, raw) | 446 Walnuts, shell or no shell (refrigerator, 9 to 12 months) | cup chopped, above |
 | `pecan` | 2346395, Foundation (pecans, halves, raw) | 444 Pecans, no shell (refrigerator, 9 months; in shell is 12) | cup chopped, above |
-| `hazelnut` | 2515375, Foundation (hazelnuts or filberts, raw) | **none in FoodKeeper**: no storage time, so no spoilage limit (shown as such) | cup chopped, above |
+| `hazelnut` | 2515375, Foundation (hazelnuts or filberts, raw) | none in FoodKeeper; **owner, 2026-11-13:** walnuts' 446 (refrigerator, 9 to 12 months), labeled as borrowed | cup chopped, above |
 
 - Cup weights for items without an ERS cup go in a new seed file, `catalog_cup_weights.csv`
   (slug, SR28 NDB and sequence, notes). Its loader sets `cup_equivalent_lb` from the gram weight
   and the shell refuse from SR28's `Refuse`; the conversion source names the SR28 rows.
-- Aliases: `english walnut`, `filbert`, `garlic head`, `head of garlic`, `meyer lemon`,
-  `key lime`, `persian lime`. Plurals already fold.
+- Piece weights the owner gives (garlic) go in `catalog_portions.csv` with a new `grams` column
+  (weight as bought) and the source in the notes, instead of SR28 keys. A size with a weight is
+  used as now: medium when none is written (P1-3 dogfooding default).
+- Hazelnut's storage borrows walnut's FoodKeeper entry; the crosswalk notes say so, and best buy
+  labels it ("storage: as walnuts").
+- Aliases: `english walnut`, `filbert`, `garlic head`, `head of garlic`, `softneck garlic`,
+  `hardneck garlic`, `meyer lemon`, `key lime`, `persian lime`. Plurals already fold.
 
 ### Tests
 
@@ -514,7 +520,9 @@ the same as shelled walnuts at $17.78/lb. Add these to `known-answers.md` once b
 - The in-shell words set `in_shell`; the worked pecan and walnut answers exactly.
 - `produce_cups` false for the six; true for every other item.
 - Seed: the six crosswalk rows load, the cup-weight file loads with its sources, and the coverage
-  report lists hazelnut's missing storage and garlic's missing head weight.
+  report lists none of the six as missing a fact.
+- Garlic per lb: $4/lb is $0.42 a medium head (453.6 g / 47.5 g = 9.55 heads), and the draft says
+  medium was assumed.
 
 ## Gate
 
@@ -533,5 +541,5 @@ uses measured token counts and derived prices.
 | D5 | Which prices count | **Decided:** the household's own from the last 30 days first; otherwise the ERS average, labeled; ERS always shown as a reference row. See P1-6 |
 | D6 | Retiring Studies | **Decided:** delete the code (git history keeps it) once the `grocery_analysis_run` equivalents of its tests pass |
 | D7 | Matching typed item names | **Decided:** exact match on names and aliases, then fuzzy candidates; a clear match is shown on the draft, anything else is a question; confirmed matches become household aliases. See P1-5 |
-| D8 | Items not suited to a cup | **Decided 2026-11-13:** each item has a measure it is compared by: cup (default), or per piece (lemons and limes each, garlic by the head). Lemons, limes, garlic, and nuts do not count toward produce cups. See P1-11 |
+| D8 | Items not suited to a cup | **Decided 2026-11-13:** each item has a measure it is compared by: cup (default), or per piece (lemons and limes each, garlic by the head). Lemons, limes, garlic, and nuts do not count toward produce cups. Garlic heads: small 35 g, medium 47.5 g, large 60 g (owner); elephant garlic is its own item, 150 g a head. Hazelnuts borrow walnuts' storage time. See P1-11 |
 | D9 | Nuts in the shell | **Decided 2026-11-13:** one item per nut, compared per cup of chopped kernels; in-shell prices converted with SR28's shell refuse. English walnuts only, named "Walnut". See P1-11 |
