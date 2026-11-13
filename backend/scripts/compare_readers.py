@@ -1,10 +1,12 @@
 # ruff: noqa: T201  -- a command-line script: printing is its output
 """Score the regex reader and a live model on a typed list with a hand-checked answer key.
 
-Both readers turn a line into the same fields (item words, quantity, unit, price). Each reading
-then goes through the same steps the capture code applies (a missing quantity is 1, a unit
-written before the item is found in the line, a per-unit price is multiplied out), so two readings
-that lead to the same price count as the same. Item words are compared after lower-casing and
+Three readings are scored: the rules alone ("regex"), the model on every line ("model"), and
+rules first with the model reading only the lines the rules are not sure of ("rules+m", as the
+app reads lists). Each gives the same fields (item words, quantity, unit, price), and each
+reading then goes through the steps the capture code applies (a missing quantity is 1, a unit
+written before the item is found in the line, a per-unit price is multiplied out), so two
+readings that lead to the same price count as the same. Item words are compared after lower-casing and
 dropping punctuation; the catalog match itself is not part of the score.
 
 The answer key is a CSV next to the list (``list.txt`` -> ``list.csv``): one row per acceptable
@@ -30,14 +32,14 @@ from pathlib import Path
 
 from app.agents.capture_agent import (
     ExtractedLine,
-    extract_lines,
-    read_price,
+    read_lines,
     split_lines,
     total_cents,
 )
-from app.agents.demo_model import read_list_line
 from app.agents.models import build_model
+from app.core.config import CaptureReader
 from app.tools.normalize import UnknownUnit, canonical_unit, count_unit_in
+from app.tools.read_line import read_list_line, read_price
 
 DEFAULT_SPEC = "foundry:deepseek-v3.2"
 FIELDS = ("item", "quantity", "unit", "price_cents", "size")
@@ -155,10 +157,14 @@ def regex_run(lines: list[str]) -> Run:
     return Run("regex", readings, read)
 
 
-async def model_run(lines: list[str], spec: str, index: int) -> Run:
+async def model_run(
+    lines: list[str], spec: str, index: int, reader: CaptureReader
+) -> Run:
+    """The model reads every line (``model``), or only those the rules are not sure of
+    (``rules_first``, as the app reads lists)."""
     model = build_model(spec, role="capture")
     start = time.monotonic()
-    extracted, usage = await extract_lines(lines, model)
+    extracted, usage, _asked = await read_lines(lines, model, reader)
     readings = {
         n: reading_of(raw, extracted.get(n)) for n, raw in enumerate(lines, start=1)
     }
@@ -168,7 +174,8 @@ async def model_run(lines: list[str], spec: str, index: int) -> Run:
         if f.name.endswith("tokens") and getattr(usage, f.name)
     )
     raw = {n: extracted.get(n) for n in readings}
-    return Run(f"model {index}", readings, raw, time.monotonic() - start, tokens)
+    name = "model" if reader == "model" else "rules+m"
+    return Run(f"{name} {index}", readings, raw, time.monotonic() - start, tokens)
 
 
 def report(
@@ -237,7 +244,9 @@ async def main() -> int:
             )
             return 2
         for i in range(1, args.runs + 1):
-            runs.append(await model_run(lines, args.model, i))
+            runs.append(await model_run(lines, args.model, i, "model"))
+        for i in range(1, args.runs + 1):
+            runs.append(await model_run(lines, args.model, i, "rules_first"))
     report(lines, key, runs, args.verbose)
     return 0
 

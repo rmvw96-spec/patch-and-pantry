@@ -11,7 +11,13 @@ from datetime import date
 from typing import Any
 
 import pytest
-from pydantic_ai import ModelMessage, ModelResponse, TextPart, ToolCallPart
+from pydantic_ai import (
+    ModelMessage,
+    ModelResponse,
+    TextPart,
+    ToolCallPart,
+    UserPromptPart,
+)
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from sqlmodel import Session, func, select
 
@@ -19,13 +25,10 @@ import app.agents.capture_agent as capture
 from app.agents.capture_agent import (
     CaptureFailed,
     CaptureResult,
-    WrittenPrice,
     capture_typed_list,
-    price_cents,
-    read_price,
     total_cents,
 )
-from app.agents.demo_model import demo_capture_model, read_list_line
+from app.agents.demo_model import demo_capture_model
 from app.agents.models import build_model
 from app.core.config import settings
 from app.models import (
@@ -34,6 +37,13 @@ from app.models import (
     HouseholdAlias,
     PriceObservation,
     Vendor,
+)
+from app.tools.read_line import (
+    WrittenPrice,
+    needs_model,
+    price_cents,
+    read_list_line,
+    read_price,
 )
 from tests.catalog_fixtures import make_household
 
@@ -64,6 +74,13 @@ def run(
     return asyncio.run(
         capture_typed_list(session, household, text, vendor.id, DAY, model)
     )
+
+
+@pytest.fixture(autouse=True)
+def model_reads_every_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests script the model's reading, so every line goes to it. Reading by the rules
+    first has its own tests (``test_rules_first_*`` in tests/agents/test_capture_agent.py)."""
+    monkeypatch.setattr(settings, "CAPTURE_READER", "model")
 
 
 @pytest.fixture
@@ -529,7 +546,7 @@ def test_an_empty_list_needs_no_model(
         raise AssertionError("the model was called")
 
     result = run(db_session, household, vendor, "\n  \n", FunctionModel(never))
-    assert result == CaptureResult()
+    assert result == CaptureResult(reader="model")
 
 
 def test_unusable_model_output_is_a_clear_failure(
@@ -559,6 +576,99 @@ def test_a_runaway_model_is_stopped(
     assert raised.value.reason == "too_many_steps"
 
 
+# ---------- rules first (owner decision, 2026-11-13) ----------
+
+
+def read_rules_first(
+    session: Session, household: Household, vendor: Vendor, text: str, model: Any
+) -> CaptureResult:
+    return asyncio.run(
+        capture_typed_list(
+            session, household, text, vendor.id, DAY, model, reader="rules_first"
+        )
+    )
+
+
+def test_rules_first_reads_plain_lines_without_the_model(
+    db_session: Session, household: Household, vendor: Vendor
+) -> None:
+    def never(_m: list[ModelMessage], _i: AgentInfo) -> ModelResponse:
+        raise AssertionError("the model was called")
+
+    text = "Kroger\nonions 3 lb bag 2.99\ntomatoes 2.49/lb"
+    result = read_rules_first(db_session, household, vendor, text, FunctionModel(never))
+    assert result.ignored == ["Kroger"]
+    assert [
+        (d.item_name, d.quantity, d.unit, d.price_cents) for d in result.drafts
+    ] == [
+        ("Onion", 3, "lb", 299),
+        ("Tomato", 1, "lb", 249),
+    ]
+    assert (result.model_lines, result.usage.requests) == (0, 0)
+
+
+def test_rules_first_sends_only_the_unsure_lines_to_the_model(
+    db_session: Session, household: Household, vendor: Vendor
+) -> None:
+    prompts: list[str] = []
+
+    def reads_tomatoes(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        prompts.extend(
+            [
+                p.content
+                for p in messages[0].parts
+                if isinstance(p, UserPromptPart) and isinstance(p.content, str)
+            ]
+        )
+        line = {
+            "line": 1,
+            "is_price": True,
+            "item_text": "tomatoes",
+            "unit": "lb",
+            "price_text": "$3",
+        }
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"lines": [line]})])  # fmt: skip
+
+    text = "onions 3 lb bag 2.99\n$3 tomatoes a pound\nKroger"
+    result = read_rules_first(
+        db_session, household, vendor, text, FunctionModel(reads_tomatoes)
+    )
+    assert prompts == ["1: $3 tomatoes a pound"]
+    assert [(d.raw_text, d.price_cents) for d in result.drafts] == [
+        ("onions 3 lb bag 2.99", 299),
+        ("$3 tomatoes a pound", 300),
+    ]
+    assert result.ignored == ["Kroger"]
+    assert (result.model_lines, result.usage.requests) == (1, 1)
+
+
+def test_rules_first_keeps_the_rules_readings_when_the_model_fails(
+    db_session: Session, household: Household, vendor: Vendor
+) -> None:
+    def prose(_m: list[ModelMessage], _i: AgentInfo) -> ModelResponse:
+        return ModelResponse(parts=[TextPart("Here are your prices!")])
+
+    text = "onions 3 lb bag 2.99\n$3 tomatoes"
+    result = read_rules_first(db_session, household, vendor, text, FunctionModel(prose))
+    assert [d.raw_text for d in result.drafts] == ["onions 3 lb bag 2.99"]
+    assert [(q.raw_text, q.kind) for q in result.questions] == [
+        ("$3 tomatoes", "unreadable")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("line", "unsure"),
+    [
+        ("onions 3 lb bag 2.99", False), ("Kroger", False), ("Notes from Saturday", False),
+        ("$3 tomatoes", True), ("Melons two for five dollars", True), ("Kroger #42", True),
+        ("Tomatoes 3# $5", True), ("Apples 1/2 bushel $20 or $2/lb", True), ("$5", True),
+        ("Watermelon 5", True), ("Watermelon 5.00", False), ("okra 99c", False),
+    ],
+)  # fmt: skip
+def test_lines_the_rules_are_not_sure_of(line: str, unsure: bool) -> None:
+    assert needs_model(line, read_list_line(line)) is unsure
+
+
 # ---------- demo mode ----------
 
 
@@ -581,6 +691,15 @@ def test_a_runaway_model_is_stopped(
         ("Bell pepper $2 each", {"item_text": "Bell pepper", "unit": "each", "price_text": "$2"}),
         ("Amish (medium) tomato’s  $4/lb", {"item_text": "Amish tomato’s", "size": "medium", "unit": "lb"}),
         ("Head of lettuce $3", {"item_text": "lettuce", "unit": "head", "price_text": "$3", "price_is_per_unit": False}),
+        # "@" or "at" before the price: a price for one unit (3 lb @ 1.49 is $4.47).
+        ("Apples 3 lb @ 1.49", {"item_text": "Apples", "quantity": 3.0, "unit": "lb", "price_text": "1.49", "price_is_per_unit": True}),
+        ("2 lb carrots at $1.29", {"item_text": "carrots", "quantity": 2.0, "price_is_per_unit": True}),
+        ("Wheat berries 2.99", {"item_text": "Wheat berries", "price_is_per_unit": False}),
+        # Separators and joining words left in the item words.
+        ("Tomatoes - 3 lbs - $4.50", {"item_text": "Tomatoes", "quantity": 3.0, "price_text": "$4.50"}),
+        ("Kale, 1 bunch, $2.50", {"item_text": "Kale", "unit": "bunch"}),
+        ("Blueberries 2 pints for $7", {"item_text": "Blueberries", "quantity": 2.0}),
+        ("Limes, lemons $1 each", {"item_text": "Limes, lemons"}),
         ("Kroger", {"is_price": False}),
     ],
 )  # fmt: skip

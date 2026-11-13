@@ -1,6 +1,7 @@
 """Deterministic stand-ins for the LLM, enabled with SIM_MODEL=demo.
 
-Each agent has a script: the capture agent reads typed lists with a small parser, and the
+Each agent has a script: the capture agent reads typed lists with the same rules as
+production (``app.tools.read_line``), and the
 best-buy agent names each item's marked row. They let you exercise the whole platform (API,
 background job, database, browser) in an E2E test or locally without an LLM API key, and they
 always give the same answer for the same input.
@@ -18,8 +19,8 @@ from pydantic_ai import (
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-from app.agents.capture_agent import PRICE_UNIT_TAIL, read_price
 from app.core.config import settings
+from app.tools.read_line import read_list_line
 
 
 async def _pause() -> None:
@@ -37,70 +38,6 @@ def _user_prompt(messages: list[ModelMessage]) -> str:
 # ---------- typed-list capture (P1-5) ----------
 
 _NUMBERED = re.compile(r"^(\d+): (.*)$")
-# A price at the end of the line, with the unit it is for if one is written ("$3/lb",
-# "69 cents a pound"); read_price splits the two, as it does for the model's price text.
-_PRICE_AT_END = re.compile(
-    rf"(?P<price>\$?\s*\d*\.?\d+(?:\s*(?:c\b|¢|cents?\b))?{PRICE_UNIT_TAIL}?)\s*$",
-    re.IGNORECASE,
-)
-_FOR = re.compile(r"\b(?P<qty>\d+)\s*(?:for|/)\s*$", re.IGNORECASE)
-_QTY_UNIT = re.compile(
-    r"\b(?P<qty>\d+(?:\.\d+)?)?\s*(?P<unit>lbs?|pounds?|oz|ounces?|kg|each|ea|bunch(?:es)?|heads?|ears?|pints?)\b",
-    re.IGNORECASE,
-)
-# A count written after the price: "(3)", "x3", "- 3".
-_COUNT_AT_END = re.compile(
-    r"\s*(?:\((?P<a>\d+)\)|x\s*(?P<b>\d+)|-\s*(?P<c>\d+))\s*$", re.IGNORECASE
-)
-_SIZE = re.compile(r"\b(small|medium|large)\b", re.IGNORECASE)
-_EMPTY_BRACKETS = re.compile(r"\(\s*\)")  # left by a size taken out: "Amish (medium)"
-_LEADING_OF = re.compile(r"^of\s+", re.IGNORECASE)
-_PACKAGING = re.compile(r"\b(bag|box|pack|package|bundle)\b", re.IGNORECASE)
-
-
-def read_list_line(text: str) -> dict[str, object]:
-    """A rough, deterministic reading of one typed line, standing in for the model in demo mode.
-
-    It follows the same rules as the capture agent's instructions: copy, never calculate.
-    """
-    entry: dict[str, object] = {"is_price": False}
-    count = _COUNT_AT_END.search(text)
-    if count:
-        text = text[: count.start()]
-    price = _PRICE_AT_END.search(text)
-    if not price:
-        return entry
-    rest = text[: price.start()].rstrip()
-    written = read_price(price.group("price"))
-    entry |= {
-        "is_price": True,
-        "price_text": written.amount,
-        "price_is_per_unit": written.per is not None,
-    }
-    if written.per:
-        entry["unit"] = written.per
-    lot = _FOR.search(rest)
-    if lot:
-        entry |= {"quantity": float(lot.group("qty")), "unit": "each"}
-        rest = rest[: lot.start()]
-    unit = _QTY_UNIT.search(rest)
-    if unit:
-        if unit.group("qty"):
-            entry["quantity"] = float(unit.group("qty"))
-        entry.setdefault("unit", unit.group("unit").lower())
-        rest = rest[: unit.start()] + rest[unit.end() :]
-    size = _SIZE.search(rest)
-    if size:
-        entry["size"] = size.group(1).lower()
-        rest = rest[: size.start()] + rest[size.end() :]
-    if count:
-        entry["quantity"] = float(
-            count.group("a") or count.group("b") or count.group("c")
-        )
-    item = " ".join(_EMPTY_BRACKETS.sub("", _PACKAGING.sub("", rest)).split())
-    item = _LEADING_OF.sub("", item)  # a unit before the item: "Head of lettuce"
-    entry["item_text"] = item or None
-    return entry
 
 
 async def _demo_capture(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:

@@ -27,7 +27,7 @@ keeps them.
   tools with `bun`/`bunx`. Do not use pip or npm to add dependencies.
 - `backend/app/`: FastAPI app. Runs: `api/routes/grocery_analysis_runs.py` and
   `grocery_analysis_jobs.py` (request and result schemas, the background job). Deterministic tools
-  in `tools/` (`normalize.py`, `catalog.py`, `best_buy.py`); agents in `agents/`
+  in `tools/` (`normalize.py`, `catalog.py`, `best_buy.py`, `read_line.py`); agents in `agents/`
   (`capture_agent.py`, `best_buy_agent.py`, `demo_model.py`, `models.py`). Household and vendor
   APIs in `api/routes/household.py` and `vendors.py`. Tests that need a known catalog use the
   fixtures in `tests/catalog_fixtures.py` (`catalog`, `household`, `vendor`; one rolled-back
@@ -83,6 +83,9 @@ uv run prek run --all-files
   or pass `model=` to `capture_typed_list`, `extract_lines`, or `explain_best_buy` (agent tests).
   The national catalog differs between a seeded dev database and CI's empty one: use the
   `catalog` fixture, or items the test household owns, never real catalog rows.
+- Typed lists are read by rules first (`tools/read_line.py`); only lines they are not sure of go
+  to the model (`CAPTURE_READER`, default `rules_first`; `model` sends every line). Tests that
+  script the model's reading pin `CAPTURE_READER="model"`, or the rules read their lines first.
 - `SIM_MODEL` is a `Settings` field (default `demo`, deterministic scripted responses); the model
   is built when a run starts, not at import. Other values: `test`, `foundry:deepseek-v3.2`.
   `DEMO_DELAY_SECONDS` makes demo answers wait (Playwright CI sets 1, so the page must poll).

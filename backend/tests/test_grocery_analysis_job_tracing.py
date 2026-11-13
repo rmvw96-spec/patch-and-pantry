@@ -19,6 +19,7 @@ from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from sqlmodel import Session
 
+from app.core.config import settings
 from app.core.tracing import setup_tracing, shutdown_tracing
 from app.grocery_analysis_jobs import execute_run, model_name
 from app.households import get_or_create_household
@@ -27,6 +28,13 @@ from tests.utils.tracing import SnapshotExporter, by_name, parent_of
 from tests.utils.user import create_random_user
 
 pytestmark = pytest.mark.anyio
+
+
+@pytest.fixture(autouse=True)
+def model_reads_every_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests script the model's reading, so every line goes to it. Reading by the rules
+    first has its own tests (``test_rules_first_*`` in tests/agents/test_capture_agent.py)."""
+    monkeypatch.setattr(settings, "CAPTURE_READER", "model")
 
 
 @pytest.fixture

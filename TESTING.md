@@ -7,7 +7,7 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 599 |
+| Backend tests | 58 | 623 |
 | Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
 | Backend suite, local run | 16.4 s | 21.4 s |
@@ -257,3 +257,4 @@ for it.
 | 2026-11-12 | Price book: select several prices and delete them together. Checked that two put-back bugs each fail a backend test (a partial delete allowed, no ownership check) and that the E2E test fails when the page deletes every shown row instead of the selected ones | +2 backend, +1 E2E | ___ |
 | 2026-11-12 | Price book: row actions (select, Edit, Delete; Save and Cancel while editing) moved to the first column, and long text wraps, so nothing needs sideways scrolling (dogfooding). New E2E test at 1024 px wide; checked that it fails on the old layout | +1 E2E | ___ |
 | 2026-11-13 | Prices with the unit written in them ("$3/lb", "99 cents a pound", "$20 per box", "1.29 ea") are split in code (`read_price`), for the model's price text and the demo reader alike; the demo reader also drops a leading "of" ("Head of lettuce") and empty brackets. New `scripts/compare_readers.py` scores the demo reader and a live model against an answer key (`evals/lists/`): on the owner's 45-line market list the reader went from 38 to 44 lines right; DeepSeek got 42 to 43 in four runs and 12 to 15 in two, when it left the unit in the price. Checked that six put-back bugs each fail a test. The E2E lines read the same as before | +22 backend | ___ |
+| 2026-11-13 | Rules first, model fallback (owner decision): `app/tools/read_line.py` reads typed lines; only unsure lines go to the model. Tests that script the model pin `CAPTURE_READER="model"` (an autouse fixture in the capture, run, and job-tracing tests); rules first has its own tests (no model call for plain lines, only the unsure lines sent and mapped back, the rules' readings kept when the model fails, the run's recorded model and tools), plus "@" prices and leftover separators. Found while testing: "Kroger #42" was read as $0.42, now sent to the model. Checked that nine put-back bugs each fail a test; a tenth (dropping lone separators) did not, so that step was removed as redundant | +24 backend | ___ |

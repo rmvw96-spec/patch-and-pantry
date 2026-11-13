@@ -36,6 +36,13 @@ VENDORS_URL = f"{settings.API_V1_STR}/vendors/"
 HOUSEHOLD_URL = f"{settings.API_V1_STR}/household/"
 
 
+@pytest.fixture(autouse=True)
+def model_reads_every_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests script the model's reading, so every line goes to it. Reading by the rules
+    first has its own tests (``test_rules_first_*`` in tests/agents/test_capture_agent.py)."""
+    monkeypatch.setattr(settings, "CAPTURE_READER", "model")
+
+
 @pytest.fixture
 def use_model() -> Iterator[Callable[[Any], None]]:
     """Inject a model into the run's agents for the duration of one test."""
@@ -223,6 +230,50 @@ def test_capture_with_the_demo_model_records_the_spec(
     assert run["status"] == "succeeded"
     assert run["model"] == "demo"
     assert run["result"]["ignored"] == ["Kroger"]
+
+
+def test_a_list_the_rules_read_records_no_model(
+    client: TestClient,
+    normal_user_token_headers: dict[str, str],
+    use_model: Callable[[Any], None],
+    vendor: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rules first (owner decision, 2026-11-13): a list the rules can read asks no model."""
+    monkeypatch.setattr(settings, "CAPTURE_READER", "rules_first")
+    calls: list[int] = []
+    use_model(reads_an_unknown_item(calls))
+    r = capture(
+        client, normal_user_token_headers, vendor, "Kroger\nzzqx 3 lb 2.99"
+    )  # spellchecker:disable-line
+    run = poll_until_finished(client, normal_user_token_headers, r.json()["id"])
+    assert run["status"] == "succeeded"
+    assert calls == []
+    assert run["model"] == "rules"
+    assert run["tools_used"][0] == "read_list_line"
+    assert "capture_agent" not in run["tools_used"]
+    assert run["requests"] == 0
+
+
+def test_a_line_the_rules_are_not_sure_of_records_the_model(
+    client: TestClient,
+    normal_user_token_headers: dict[str, str],
+    use_model: Callable[[Any], None],
+    vendor: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "CAPTURE_READER", "rules_first")
+    calls: list[int] = []
+    use_model(reads_an_unknown_item(calls))
+    r = capture(
+        client, normal_user_token_headers, vendor, "$2.99 zzqx"
+    )  # spellchecker:disable-line
+    run = poll_until_finished(client, normal_user_token_headers, r.json()["id"])
+    assert run["status"] == "succeeded"
+    assert calls == [1]
+    assert run["model"].startswith("function:")
+    assert run["tools_used"][:2] == ["read_list_line", "capture_agent"]
+    assert run["requests"] == 1
 
 
 # ---------- best buy ----------
