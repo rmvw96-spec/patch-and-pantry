@@ -82,4 +82,25 @@ test.describe("Editing prices", () => {
     await expect(rows).toContainText("onions 1.29/lb")
     await expect(remove).toHaveText("Delete selected (0)")
   })
+
+  test("Edit and Delete are visible without scrolling sideways", async ({
+    page,
+  }) => {
+    // Dogfooding: on a laptop-width window the buttons sat off to the right of a wide row.
+    await page.setViewportSize({ width: 1024, height: 800 })
+    const store = await savePrices(
+      page,
+      "Diamond sweet, red Phoenix, bubblegum plumbs $4/lb",
+    )
+    await page.goto("/price-book")
+    const row = page.getByTestId("price-row").filter({ hasText: store })
+    await expect(row.getByRole("button", { name: /^Edit / })).toBeInViewport()
+    await expect(row.getByRole("button", { name: /^Delete / })).toBeInViewport()
+
+    // Save and Cancel are in the same place while editing.
+    await row.getByRole("button", { name: /^Edit / }).click()
+    const edit = page.getByTestId("price-edit-row")
+    await expect(edit.getByRole("button", { name: "Save" })).toBeInViewport()
+    await expect(edit.getByRole("button", { name: "Cancel" })).toBeInViewport()
+  })
 })
