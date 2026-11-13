@@ -167,3 +167,4 @@ compost,Compost,supply,soil,,,,,,,,,,
 cedar-1x8x8,"Cedar board, 1x8, 8 ft",supply,lumber,,,,,,,,,,
 cedar-2x8x8,"Cedar board, 2x8, 8 ft",supply,lumber,,,,,,,,,,
 seed-packet,Seed packet,supply,seed,,,,,,,,,,
+poblano-pepper,Poblano pepper,produce,vegetable,,,2747662,foundation,548,refrigerator,,Peppers,sweet-pepper,"Owner (2026-11-12): its own item, so its prices are compared only with poblanos. No ERS form; sweet pepper is the stand-in for conversions and piece weights (similar size; SR28 has no poblano). FDC: poblano, seeded. FoodKeeper: as hot pepper (a chili)"

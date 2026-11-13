@@ -1,22 +1,33 @@
 """Grocery analysis runs (P1-1): submit agent work, then poll for the result."""
 
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Self
 
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Response
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlmodel import Session, col, or_, select
 
+from app.agents.capture_agent import CaptureFailed, LineAnswer, answer_line
 from app.api.deps import CurrentUser, RedisDep, RunModelDep, SessionDep
 from app.grocery_analysis_jobs import (
     BestBuyRequest,
     GroceryAnalysisRunCreate,
     GroceryAnalysisRunPublic,
     PriceCaptureRequest,
+    PriceCaptureResult,
     execute_run,
     to_public,
 )
 from app.households import get_or_create_household
-from app.models import CatalogItem, GroceryAnalysisRun, Household, Vendor
+from app.models import (
+    CatalogItem,
+    GroceryAnalysisRun,
+    Household,
+    PortionSize,
+    Vendor,
+)
+from app.prices import PieceWeight
+from app.tools.catalog import remember_alias
 
 router = APIRouter(prefix="/grocery-analysis-runs", tags=["grocery_analysis_runs"])
 
@@ -27,6 +38,34 @@ IDEMPOTENCY_TTL_SECONDS = 24 * 60 * 60
 def _idempotency_redis_key(user_id: uuid.UUID, key: str) -> str:
     # Scoped per user, so two users can never collide on the same key.
     return f"idempotency:grocery_analysis_runs:{user_id}:{key}"
+
+
+class QuestionAnswer(BaseModel):
+    """The answer to one question on a price list: an item, a unit, a size, or a weight."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    raw_text: str = Field(min_length=1, max_length=500)
+    catalog_item_id: uuid.UUID | None = None
+    unit: str | None = Field(default=None, max_length=20)
+    size: PortionSize | None = None
+    piece_weight: PieceWeight | None = None
+
+    @model_validator(mode="after")
+    def one_answer(self) -> Self:
+        given = [self.catalog_item_id, self.unit, self.size, self.piece_weight]
+        if sum(value is not None for value in given) != 1:
+            raise ValueError("give one answer: an item, a unit, a size, or a weight")
+        return self
+
+
+def _visible(household: Household) -> Any:
+    """Items the household can see: national, its region's, and its own (never another's)."""
+    return or_(
+        col(CatalogItem.scope) == "national",
+        col(CatalogItem.region_id) == household.region_id,
+        col(CatalogItem.household_id) == household.id,
+    )
 
 
 def _check_request(
@@ -43,12 +82,7 @@ def _check_request(
             )
         return
     ids = [need.catalog_item_id for need in request.needs]
-    # Items the household can see: national, its region's, and its own (never another's).
-    visible = or_(
-        col(CatalogItem.scope) == "national",
-        col(CatalogItem.region_id) == household.region_id,
-        col(CatalogItem.household_id) == household.id,
-    )
+    visible = _visible(household)
     found = set(
         session.exec(
             select(CatalogItem.id).where(
@@ -140,4 +174,68 @@ def read_grocery_analysis_run(
         raise HTTPException(status_code=404, detail="Run not found")
     if not current_user.is_superuser and (run.owner_id != current_user.id):
         raise HTTPException(status_code=403, detail="Not enough permissions")
+    return to_public(run)
+
+
+@router.post("/{id}/answers", response_model=GroceryAnalysisRunPublic)
+def answer_question(
+    session: SessionDep, current_user: CurrentUser, id: uuid.UUID, body: QuestionAnswer
+) -> Any:
+    """
+    Answer one question on a read price list. The line is completed in code (no model call)
+    and the question becomes a draft, or the next question. Choosing an item also remembers
+    the typed words as the household's name for it.
+    """
+    run = session.get(GroceryAnalysisRun, id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    if run.kind != "price_capture" or run.status != "succeeded" or not run.result:
+        raise HTTPException(status_code=409, detail="This run has no questions.")
+    request = PriceCaptureRequest.model_validate(run.input)
+    result = PriceCaptureResult.model_validate(run.result)
+    index = next(
+        (i for i, q in enumerate(result.questions) if q.raw_text == body.raw_text),
+        None,
+    )
+    if index is None:
+        raise HTTPException(status_code=404, detail="No question for that line.")
+    question = result.questions[index]
+    household = get_or_create_household(session, run.owner_id)
+    if body.catalog_item_id is not None:
+        item = session.exec(
+            select(CatalogItem).where(
+                CatalogItem.id == body.catalog_item_id,
+                CatalogItem.kind == "produce",
+                _visible(household),
+            )
+        ).first()
+        if item is None:
+            raise HTTPException(status_code=422, detail="Unknown produce item.")
+        reading = question.reading
+        words = question.item_text or (reading.item_text if reading else None)
+        if words and words.strip():
+            remember_alias(session, household, words, item)
+    answer = LineAnswer(
+        catalog_item_id=body.catalog_item_id,
+        unit=body.unit,
+        size=body.size,
+        piece_weight=body.piece_weight,
+    )
+    try:
+        completed = answer_line(
+            session, household, question, answer, request.vendor_id, request.observed_on
+        )
+    except CaptureFailed as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    result.questions[index : index + 1] = completed.questions
+    result.drafts.extend(completed.drafts)
+    run.result = result.model_dump(mode="json")
+    run.data_snapshot_ids = sorted(
+        {*run.data_snapshot_ids, *(str(i) for i in completed.data_snapshot_ids)}
+    )
+    session.add(run)
+    session.commit()
+    session.refresh(run)
     return to_public(run)

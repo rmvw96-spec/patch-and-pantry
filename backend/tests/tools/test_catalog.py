@@ -199,7 +199,7 @@ def test_aliases_are_read_once(tmp_path: Path) -> None:
 EXTRA = [
     "Carrot", "Baby carrots", "Grape tomato", "Lima bean", "Frozen lima beans", "Okra",
     "Frozen okra", "Southern pea", "Frozen peas", "Peach", "Canned peaches in juice",
-    "Canned peaches in syrup or water", "Cucumber",
+    "Canned peaches in syrup or water", "Cucumber", "Plum",
 ]  # fmt: skip
 EXTRA_ALIASES = (
     AliasRow("butter bean", "lima-bean", ""),
@@ -262,6 +262,10 @@ def test_word_order_and_filler_in_names(
         ("new potatoes", "Potato"),
         ("cut okra frozen", "Frozen okra"),
         ("butter beans frozen", "Frozen lima beans"),  # alias, then the frozen form
+        (
+            "bubblegum plumbs",
+            "Plum",
+        ),  # dogfooding: a misspelled item word after a variety
         # A typo settles a name shared by several items.
         ("yelow squash", "Yellow squash"),  # spellchecker:disable-line
     ],

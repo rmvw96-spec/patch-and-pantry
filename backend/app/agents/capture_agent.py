@@ -27,7 +27,8 @@ from app.agents.models import build_model
 from app.agents.usage import ModelUsage
 from app.core.config import settings
 from app.models import CatalogItem, Household, PortionSize, Vendor
-from app.tools.catalog import Match, find_catalog_item
+from app.prices import PieceWeight, piece_grams
+from app.tools.catalog import Candidate, Match, find_catalog_item
 from app.tools.normalize import (
     InvalidAmount,
     NeedsPortion,
@@ -36,6 +37,7 @@ from app.tools.normalize import (
     WrongMeasure,
     canonical_unit,
     catalog_facts,
+    count_unit_in,
     needs_piece,
     normalize_price,
     portion_grams,
@@ -96,6 +98,7 @@ Copy what is written; never calculate, convert, or guess:
   apart from the price is the amount bought too: "$0.29 each (3)", "1.29 ea x3", and
   "$.73 ea - 3" are 3. Null if none.
 - unit: the unit word as written. "3 lb bag" is "lb". "3 for $5" and "2 ea" are "each". A bunch
+  is "bunch". A unit can come before the item: "Head of lettuce $3" is "head", "bunch of kale"
   is "bunch". Null if no unit is written.
 - size: small, medium, or large only if the line says so ("large oranges", "med avocado").
 - price_text: the price as written, such as "2.99" or "$5". Null if there is no price.
@@ -134,6 +137,8 @@ class DraftPrice:
     price_note: str | None = None
     # No size was written, so medium was used: the page says so (owner, 2026-11-12).
     size_assumed: bool = False
+    # The user's answer to "How much does one ... weigh?", saved with the price.
+    piece_weight: PieceWeight | None = None
     piece_grams: float | None = None  # one piece as purchased, for count units
     piece_source: str | None = None
     grams_purchased: float | None = None
@@ -157,6 +162,16 @@ QuestionKind = Literal[
 ]
 
 
+@dataclass(frozen=True)
+class LineAnswer:
+    """The user's answer to one question. Each field replaces what was read, or adds to it."""
+
+    catalog_item_id: uuid.UUID | None = None
+    unit: str | None = None
+    size: PortionSize | None = None
+    piece_weight: PieceWeight | None = None
+
+
 @dataclass
 class CaptureQuestion:
     raw_text: str
@@ -167,6 +182,10 @@ class CaptureQuestion:
     draft: DraftPrice | None = None
     # The item words the question is about ("greens"), for saving the user's choice as an alias.
     item_text: str | None = None
+    # What the model read on this line, so an answer completes it in code without the model,
+    # and the answers given so far (an item chosen, then a unit), kept for the next answer.
+    reading: ExtractedLine | None = None
+    answered: LineAnswer | None = None
 
 
 @dataclass
@@ -247,6 +266,25 @@ def _process_line(
     vendor_id: uuid.UUID,
     observed_on: date,
     result: CaptureResult,
+    answer: LineAnswer | None = None,
+) -> None:
+    """Read one line into a draft or a question. ``answer`` holds the user's answers so far."""
+    answer = answer or LineAnswer()
+    asked = len(result.questions)
+    _process(session, household, raw, line, vendor_id, observed_on, result, answer)
+    for question in result.questions[asked:]:
+        question.reading = line
+
+
+def _process(
+    session: Session,
+    household: Household,
+    raw: str,
+    line: ExtractedLine | None,
+    vendor_id: uuid.UUID,
+    observed_on: date,
+    result: CaptureResult,
+    answer: LineAnswer,
 ) -> None:
     if line is None:
         result.questions.append(
@@ -256,12 +294,25 @@ def _process_line(
     if not line.is_price:
         result.ignored.append(raw)
         return
-    if not line.item_text or not line.item_text.strip():
+    if answer.catalog_item_id is None and (
+        not line.item_text or not line.item_text.strip()
+    ):
         result.questions.append(
             CaptureQuestion(raw, "no_match", f"Which item is '{raw}'?")
         )
         return
-    match = find_catalog_item(session, line.item_text, household)
+    if answer.catalog_item_id is not None:
+        chosen = session.get(CatalogItem, answer.catalog_item_id)
+        if chosen is None:
+            raise ValueError("unknown catalog item")
+        match = Match(
+            "household",
+            line.item_text or raw,
+            "",
+            Candidate(chosen.id, chosen.slug, chosen.name, 1.0),
+        )
+    else:
+        match = find_catalog_item(session, line.item_text or "", household)
     if match.item is None:
         result.questions.append(_question_for_match(raw, match))
         return
@@ -280,20 +331,23 @@ def _process_line(
             )
         )
         return
-    if line.unit is None:
-        options = ["lb", "each", "bunch"]
+    # A unit before the item ("Head of lettuce $3") can be missed by the reader: the line's own
+    # count word is used when it names exactly one.
+    written_unit = answer.unit or line.unit or count_unit_in(raw)
+    if written_unit is None:
+        options = ["lb", "each", "bunch", "head"]
         result.questions.append(
             CaptureQuestion(
                 raw,
                 "missing_unit",
                 f"What did ${cents / 100:.2f} buy of {item.name.lower()}: "
-                "a pound, one each, a bunch, or something else?",
+                "a pound, one each, a bunch, a head, or something else?",
                 options,
             )
         )
         return
     try:
-        unit = canonical_unit(line.unit)
+        unit = canonical_unit(written_unit)
     except UnknownUnit as exc:
         result.questions.append(CaptureQuestion(raw, "unknown_unit", str(exc)))
         return
@@ -311,7 +365,7 @@ def _process_line(
         catalog_item_id=item.id,
         item_name=item.name,
         match_note=match.note,
-        item_text=line.item_text,
+        item_text=line.item_text or "",
         match_kind=match.kind,
         quantity=quantity,
         unit=unit,
@@ -323,10 +377,16 @@ def _process_line(
     )
     facts = catalog_facts(session, item)
     piece: float | None = None
-    if needs_piece(unit, facts):
+    if needs_piece(unit, facts) and answer.piece_weight is not None:
+        piece = piece_grams(answer.piece_weight)
+        how = answer.piece_weight.source
+        draft.piece_grams, draft.piece_source = piece, f"{how} at capture: {piece:g} g"
+        draft.piece_weight = answer.piece_weight
+    elif needs_piece(unit, facts):
         try:
-            # A size on the line wins over one an alias implies ("satsuma").
-            choice = portion_grams(session, item, unit, line.size or match.size)
+            # An answered size, then one on the line, then one an alias implies ("satsuma").
+            size = answer.size or line.size or match.size
+            choice = portion_grams(session, item, unit, size)
         except NeedsPortion as exc:
             kind: QuestionKind = "needs_size" if exc.sizes else "needs_weight"
             result.questions.append(
@@ -361,6 +421,51 @@ def _process_line(
         if facts.snapshot_id:
             result.data_snapshot_ids.add(facts.snapshot_id)
     result.drafts.append(draft)
+
+
+def answer_line(
+    session: Session,
+    household: Household,
+    question: CaptureQuestion,
+    answer: LineAnswer,
+    vendor_id: uuid.UUID,
+    observed_on: date,
+) -> CaptureResult:
+    """Complete one question's line with the user's answer, in code: no model call.
+
+    The line is read again from what the model read the first time, with the answer applied.
+    The result is a draft, or the next question (an item chosen, then its weight).
+    """
+    if question.reading is None:
+        raise CaptureFailed(
+            "not_read", "This line could not be read. Drop it and type it again."
+        )
+    prior = question.answered or LineAnswer()
+    merged = LineAnswer(
+        catalog_item_id=answer.catalog_item_id or prior.catalog_item_id,
+        unit=answer.unit or prior.unit,
+        size=answer.size or prior.size,
+        piece_weight=answer.piece_weight or prior.piece_weight,
+    )
+    result = CaptureResult()
+    _process_line(
+        session,
+        household,
+        question.raw_text,
+        question.reading,
+        vendor_id,
+        observed_on,
+        result,
+        merged,
+    )
+    for follow_up in result.questions:
+        follow_up.answered = merged
+    if merged.catalog_item_id is not None:
+        chosen = [*result.drafts, *(q.draft for q in result.questions if q.draft)]
+        for draft in chosen:
+            draft.match_note = f"you chose {draft.item_name}"
+            draft.match_kind = "chosen"
+    return result
 
 
 async def extract_lines(

@@ -7,11 +7,12 @@ import {
   type CaptureQuestion,
   CatalogService,
   type DraftPrice,
-  HouseholdService,
+  GroceryAnalysisRunsService,
   type PriceCaptureRequest,
   type PriceCaptureResult,
   type PriceEntry,
   PricesService,
+  type QuestionAnswer,
 } from "@/client"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -49,15 +50,13 @@ interface WeightAnswer {
   source: WeightSource
 }
 
-function amount(draft: DraftPrice, size?: Size | null): string {
-  const shown = size ?? draft.size
-  return `${draft.quantity}${shown ? ` ${shown}` : ""} ${draft.unit}`
+const NO_WEIGHT: WeightAnswer = { amount: "", unit: "lb", source: "estimated" }
+
+function amount(draft: DraftPrice): string {
+  return `${draft.quantity}${draft.size ? ` ${draft.size}` : ""} ${draft.unit}`
 }
 
-function toEntry(
-  draft: DraftPrice,
-  extra: Partial<PriceEntry> = {},
-): PriceEntry {
+function toEntry(draft: DraftPrice): PriceEntry {
   return {
     raw_text: draft.raw_text,
     catalog_item_id: draft.catalog_item_id,
@@ -65,9 +64,10 @@ function toEntry(
     unit: draft.unit,
     size: draft.size ?? null,
     price_cents: draft.price_cents,
+    // The weight the user gave for one piece, when the catalog has none.
+    piece_weight: draft.piece_weight ?? null,
     // A misspelling the user confirms becomes their own name for the item.
     remember_text: draft.match_kind === "fuzzy" ? draft.item_text : null,
-    ...extra,
   }
 }
 
@@ -93,17 +93,6 @@ function UnsavedList({ lines, saved }: { lines: Unsaved[]; saved: boolean }) {
   )
 }
 
-/**
- * The list without the lines the user set aside (dropped or unchecked), for reading it again.
- * Without this, every reread brought dropped lines back as questions (dogfooding).
- */
-export function withoutLines(text: string, leftOut: Set<string>): string {
-  return text
-    .split(/\r?\n/)
-    .filter((line) => !leftOut.has(line))
-    .join("\n")
-}
-
 function DraftPriceCell({ draft }: { draft: DraftPrice }) {
   const each = unitPrice(draft.price_cents, draft.quantity, draft.unit)
   return (
@@ -122,12 +111,17 @@ function WeightQuestion({
   question,
   answer,
   onChange,
+  onAnswer,
+  pending,
 }: {
   question: CaptureQuestion
   answer: WeightAnswer
   onChange: (answer: WeightAnswer) => void
+  onAnswer: () => void
+  pending: boolean
 }) {
   const label = question.raw_text
+  const grams = Number(answer.amount)
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Input
@@ -160,27 +154,35 @@ function WeightQuestion({
         <option value="estimated">estimated</option>
         <option value="weighed">weighed</option>
       </select>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={!(grams > 0) || pending}
+        onClick={onAnswer}
+      >
+        Use this weight
+      </Button>
     </div>
   )
 }
 
 function CaptureReview({
+  runId,
   input,
   result,
-  onReread,
 }: {
+  runId: string
   input: PriceCaptureRequest
   result: PriceCaptureResult
-  onReread?: (leftOut: Set<string>) => void
 }) {
   const { showSuccessToast, showErrorToast } = useCustomToast()
   const queryClient = useQueryClient()
   const [skipped, setSkipped] = useState<Record<string, boolean>>({})
-  const [weights, setWeights] = useState<Record<string, WeightAnswer>>({})
-  const [sizes, setSizes] = useState<Record<string, Size>>({})
-  const [choices, setChoices] = useState<Record<string, string>>({})
   const [dropped, setDropped] = useState<Record<string, boolean>>({})
-  const [remembered, setRemembered] = useState(false)
+  // What the user has typed or picked for a question, before sending it.
+  const [weights, setWeights] = useState<Record<string, WeightAnswer>>({})
+  const [choices, setChoices] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState<number | null>(null)
   const [notSaved, setNotSaved] = useState<Unsaved[]>([])
 
@@ -189,58 +191,37 @@ function CaptureReview({
     queryFn: async () => (await CatalogService.readCatalog()).data,
   })
 
-  const entries: PriceEntry[] = [
-    ...result.drafts
-      .filter((draft) => !skipped[draft.raw_text])
-      .map((draft) => toEntry(draft)),
-    ...result.questions.flatMap((question) => {
-      const draft = question.draft
-      if (!draft || dropped[question.raw_text]) return []
-      if (question.kind === "needs_size" && sizes[question.raw_text]) {
-        return [toEntry(draft, { size: sizes[question.raw_text] })]
-      }
-      const weight = weights[question.raw_text]
-      const grams = weight ? Number(weight.amount) : Number.NaN
-      if (question.kind === "needs_weight" && grams > 0) {
-        return [
-          toEntry(draft, {
-            piece_weight: {
-              amount: grams,
-              unit: weight.unit,
-              source: weight.source,
-            },
-          }),
-        ]
-      }
-      return []
-    }),
-  ]
+  // An answer completes its line on the server, in code (no model call): the question becomes
+  // a draft in the table, or the next question. The run comes back with the change saved.
+  const answer = useMutation({
+    mutationFn: async (body: QuestionAnswer) =>
+      (
+        await GroceryAnalysisRunsService.answerQuestion({
+          path: { id: runId },
+          body,
+        })
+      ).data,
+    onSuccess: (run) => {
+      queryClient.setQueryData(["grocery-analysis-run", runId], run)
+    },
+    onError: handleError.bind(showErrorToast),
+  })
 
-  const savedLines = new Set(entries.map((entry) => entry.raw_text))
+  const entries: PriceEntry[] = result.drafts
+    .filter((draft) => !skipped[draft.raw_text])
+    .map(toEntry)
+
   const unsaved: Unsaved[] = [
     ...result.drafts
       .filter((draft) => skipped[draft.raw_text])
       .map((draft) => ({ rawText: draft.raw_text, reason: "unchecked" })),
-    ...result.questions
-      .filter((question) => !savedLines.has(question.raw_text))
-      .map((question) => ({
-        rawText: question.raw_text,
-        reason: dropped[question.raw_text]
-          ? "you dropped it"
-          : "question not answered",
-      })),
+    ...result.questions.map((question) => ({
+      rawText: question.raw_text,
+      reason: dropped[question.raw_text]
+        ? "you dropped it"
+        : "question not answered",
+    })),
   ]
-
-  // Lines the user set aside: a reread leaves them out instead of asking about them again.
-  const leftOut = new Set([
-    ...result.drafts
-      .filter((draft) => skipped[draft.raw_text])
-      .map((draft) => draft.raw_text),
-    ...result.questions
-      .filter((question) => dropped[question.raw_text])
-      .map((question) => question.raw_text),
-  ])
-  const nothingLeft = withoutLines(input.text, leftOut).trim() === ""
 
   const save = useMutation({
     mutationFn: async () =>
@@ -258,23 +239,6 @@ function CaptureReview({
       setSaved(prices.length)
       queryClient.invalidateQueries({ queryKey: ["prices"] })
       showSuccessToast(`Saved ${prices.length} prices`)
-    },
-    onError: handleError.bind(showErrorToast),
-  })
-
-  const remember = useMutation({
-    mutationFn: async (question: CaptureQuestion) =>
-      (
-        await HouseholdService.createAlias({
-          body: {
-            text: question.item_text ?? question.raw_text,
-            catalog_item_id: choices[question.raw_text],
-          },
-        })
-      ).data,
-    onSuccess: () => {
-      setRemembered(true)
-      showSuccessToast("Saved. Read the list again to use it.")
     },
     onError: handleError.bind(showErrorToast),
   })
@@ -346,6 +310,11 @@ function CaptureReview({
                       it.
                     </p>
                   )}
+                  {draft.piece_weight && (
+                    <p className="text-muted-foreground text-xs">
+                      {draft.piece_source}
+                    </p>
+                  )}
                 </TableCell>
                 <TableCell data-testid="draft-price">
                   <DraftPriceCell draft={draft} />
@@ -364,133 +333,165 @@ function CaptureReview({
       {result.questions.length > 0 && (
         <div className="flex flex-col gap-3">
           <h3 className="font-medium">Questions</h3>
+          <p className="text-muted-foreground text-sm">
+            Answer a question and its line moves into the table above.
+          </p>
           <ul className="flex flex-col gap-4" data-testid="capture-questions">
-            {result.questions.map((question) => (
-              <li
-                key={question.raw_text}
-                className="flex flex-col gap-2"
-                data-testid="capture-question"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p
-                    className={dropped[question.raw_text] ? "line-through" : ""}
-                  >
-                    <span className="text-muted-foreground">
-                      {question.raw_text}:
-                    </span>{" "}
-                    {question.message}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`${dropped[question.raw_text] ? "Keep" : "Drop"} ${question.raw_text}`}
-                    onClick={() =>
-                      setDropped({
-                        ...dropped,
-                        [question.raw_text]: !dropped[question.raw_text],
-                      })
-                    }
-                  >
-                    {dropped[question.raw_text] ? (
-                      <>
-                        <Undo2 className="mr-1" />
-                        Keep this line
-                      </>
-                    ) : (
-                      <>
-                        <X className="mr-1" />
-                        Drop this line
-                      </>
-                    )}
-                  </Button>
-                </div>
-                {dropped[question.raw_text] ? null : (
-                  <>
-                    {question.kind === "needs_weight" && question.draft && (
-                      <WeightQuestion
-                        question={question}
-                        answer={
-                          weights[question.raw_text] ?? {
-                            amount: "",
-                            unit: "lb",
-                            source: "estimated",
+            {result.questions.map((question) => {
+              const line = question.raw_text
+              const send = (body: Omit<QuestionAnswer, "raw_text">) =>
+                answer.mutate({ raw_text: line, ...body })
+              return (
+                <li
+                  key={line}
+                  className="flex flex-col gap-2"
+                  data-testid="capture-question"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className={dropped[line] ? "line-through" : ""}>
+                      <span className="text-muted-foreground">{line}:</span>{" "}
+                      {question.message}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`${dropped[line] ? "Keep" : "Drop"} ${line}`}
+                      onClick={() =>
+                        setDropped({ ...dropped, [line]: !dropped[line] })
+                      }
+                    >
+                      {dropped[line] ? (
+                        <>
+                          <Undo2 className="mr-1" />
+                          Keep this line
+                        </>
+                      ) : (
+                        <>
+                          <X className="mr-1" />
+                          Drop this line
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {dropped[line] ? null : (
+                    <>
+                      {question.kind === "needs_weight" && (
+                        <WeightQuestion
+                          question={question}
+                          answer={weights[line] ?? NO_WEIGHT}
+                          onChange={(value) =>
+                            setWeights({ ...weights, [line]: value })
                           }
-                        }
-                        onChange={(answer) =>
-                          setWeights({
-                            ...weights,
-                            [question.raw_text]: answer,
-                          })
-                        }
-                      />
-                    )}
-                    {question.kind === "needs_size" && question.draft && (
-                      <select
-                        className={selectClass}
-                        aria-label={`Size for ${question.raw_text}`}
-                        value={sizes[question.raw_text] ?? ""}
-                        onChange={(e) =>
-                          setSizes({
-                            ...sizes,
-                            [question.raw_text]: e.target.value as Size,
-                          })
-                        }
-                      >
-                        <option value="">Choose a size</option>
-                        {(question.options ?? []).map((size) => (
-                          <option key={size} value={size}>
-                            {size}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    {(question.kind === "which_item" ||
-                      question.kind === "no_match") && (
-                      <div className="flex flex-wrap items-center gap-2">
+                          pending={answer.isPending}
+                          onAnswer={() => {
+                            const weight = weights[line] ?? NO_WEIGHT
+                            send({
+                              piece_weight: {
+                                amount: Number(weight.amount),
+                                unit: weight.unit,
+                                source: weight.source,
+                              },
+                            })
+                          }}
+                        />
+                      )}
+                      {question.kind === "needs_size" && (
                         <select
                           className={selectClass}
-                          aria-label={`Item for ${question.raw_text}`}
-                          value={choices[question.raw_text] ?? ""}
+                          aria-label={`Size for ${line}`}
+                          value=""
+                          disabled={answer.isPending}
                           onChange={(e) =>
-                            setChoices({
-                              ...choices,
-                              [question.raw_text]: e.target.value,
-                            })
+                            send({ size: e.target.value as Size })
                           }
                         >
-                          <option value="">Choose an item</option>
-                          {/* The question's candidates first, then the whole catalog. */}
-                          {[
-                            ...items.filter((i) =>
-                              question.options?.includes(i.name),
-                            ),
-                            ...items.filter(
-                              (i) => !question.options?.includes(i.name),
-                            ),
-                          ].map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.name}
+                          <option value="">Choose a size</option>
+                          {(question.options ?? []).map((size) => (
+                            <option key={size} value={size}>
+                              {size}
                             </option>
                           ))}
                         </select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={
-                            !choices[question.raw_text] || remember.isPending
-                          }
-                          onClick={() => remember.mutate(question)}
-                        >
-                          Use this item
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </li>
-            ))}
+                      )}
+                      {question.kind === "missing_unit" && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            className={selectClass}
+                            aria-label={`Unit for ${line}`}
+                            value={choices[line] ?? ""}
+                            onChange={(e) =>
+                              setChoices({
+                                ...choices,
+                                [line]: e.target.value,
+                              })
+                            }
+                          >
+                            <option value="">Choose a unit</option>
+                            {(question.options ?? []).map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit === "lb" ? "a pound (lb)" : `one ${unit}`}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!choices[line] || answer.isPending}
+                            onClick={() => send({ unit: choices[line] })}
+                          >
+                            Use this unit
+                          </Button>
+                        </div>
+                      )}
+                      {(question.kind === "which_item" ||
+                        question.kind === "no_match") && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            className={selectClass}
+                            aria-label={`Item for ${line}`}
+                            value={choices[line] ?? ""}
+                            onChange={(e) =>
+                              setChoices({
+                                ...choices,
+                                [line]: e.target.value,
+                              })
+                            }
+                          >
+                            <option value="">Choose an item</option>
+                            {/* The question's candidates first, then the whole catalog. */}
+                            {[
+                              ...items.filter((i) =>
+                                question.options?.includes(i.name),
+                              ),
+                              ...items.filter(
+                                (i) => !question.options?.includes(i.name),
+                              ),
+                            ].map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.name}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!choices[line] || answer.isPending}
+                            onClick={() =>
+                              send({ catalog_item_id: choices[line] })
+                            }
+                          >
+                            Use this item
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}
@@ -516,33 +517,12 @@ function CaptureReview({
           <Save className="mr-2" />
           Save {entries.length} {entries.length === 1 ? "price" : "prices"}
         </LoadingButton>
-        {remembered && onReread && !nothingLeft && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onReread(leftOut)}
-          >
-            Read the list again
-          </Button>
-        )}
       </div>
-      {remembered && onReread && leftOut.size > 0 && (
-        <p className="text-muted-foreground text-sm">
-          Reading the list again leaves out the {leftOut.size}{" "}
-          {leftOut.size === 1 ? "line" : "lines"} you dropped or unchecked.
-        </p>
-      )}
     </div>
   )
 }
 
-const CaptureStatus = ({
-  runId,
-  onReread,
-}: {
-  runId: string
-  onReread?: (input: PriceCaptureRequest) => void
-}) => {
+const CaptureStatus = ({ runId }: { runId: string }) => {
   const { data: run, isError } = useRun(runId)
 
   if (isError) {
@@ -588,19 +568,7 @@ const CaptureStatus = ({
         {run.status === "succeeded" &&
           input &&
           run.result?.kind === "price_capture" && (
-            <CaptureReview
-              input={input}
-              result={run.result}
-              onReread={
-                onReread
-                  ? (leftOut) =>
-                      onReread({
-                        ...input,
-                        text: withoutLines(input.text, leftOut),
-                      })
-                  : undefined
-              }
-            />
+            <CaptureReview runId={run.id} input={input} result={run.result} />
           )}
 
         {run.status === "failed" && (

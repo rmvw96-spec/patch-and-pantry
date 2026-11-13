@@ -22,8 +22,10 @@ concentrate makes four). On a volume item "oz" means fluid ounces, and "pint" is
 weight item "pint" stays a container sold by count (a pint of blueberries).
 """
 
+import re
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import get_args
 
 from sqlmodel import Session, col, select
@@ -219,6 +221,18 @@ def canonical_unit(unit: str) -> str:
     return text
 
 
+def count_unit_in(text: str) -> str | None:
+    """The one count unit a line names ("Head of lettuce $3" -> "head"), or None for none or
+    several. For a unit written before the item, which the reader can miss (dogfooding)."""
+    words = re.findall(r"[a-z]+", text.lower())
+    found = {UNIT_SPELLINGS.get(w, w) for w in words} & COUNT_UNITS
+    return next(iter(found)) if len(found) == 1 else None
+
+
+# One "each" of an item weighed by the ear or the head is one ear or head ("corn 5 for $6").
+EACH_IS = ("ear", "head")
+
+
 def needs_piece(unit: str, facts: CatalogFacts) -> bool:
     """Whether a price in this (canonical) unit needs one piece's weight: a count unit for an
     item measured by weight. A juice never does: "pint" is its volume, and "each" is refused."""
@@ -341,6 +355,21 @@ class PortionChoice:
     assumed: bool = False  # the user named no size, so DEFAULT_SIZE was used
 
 
+def _portions(
+    session: Session, item: CatalogItem, unit: str
+) -> list[tuple[CatalogPortion, datetime | None]]:
+    return list(
+        session.exec(
+            select(CatalogPortion, DataSnapshot.loaded_at)
+            .outerjoin(DataSnapshot, col(DataSnapshot.id) == CatalogPortion.snapshot_id)
+            .where(
+                CatalogPortion.catalog_item_id == item.id,
+                CatalogPortion.unit == unit,
+            )
+        ).all()
+    )
+
+
 def portion_grams(
     session: Session, item: CatalogItem, unit: str, size: PortionSize | None = None
 ) -> PortionChoice:
@@ -356,14 +385,12 @@ def portion_grams(
     canonical = canonical_unit(unit)
     if canonical in WEIGHT_UNITS:
         raise ValueError(f"{canonical} is a weight unit; it needs no portion")
-    rows = session.exec(
-        select(CatalogPortion, DataSnapshot.loaded_at)
-        .outerjoin(DataSnapshot, col(DataSnapshot.id) == CatalogPortion.snapshot_id)
-        .where(
-            CatalogPortion.catalog_item_id == item.id,
-            CatalogPortion.unit == canonical,
-        )
-    ).all()
+    rows = _portions(session, item, canonical)
+    if not rows and canonical == "each":
+        # Corn is weighed by the ear and lettuce by the head: "each" means one of those.
+        others = [unit for unit in EACH_IS if _portions(session, item, unit)]
+        if len(others) == 1:
+            rows = _portions(session, item, others[0])
     if not rows:
         raise NeedsPortion(item.name, canonical)
     measured = sorted(

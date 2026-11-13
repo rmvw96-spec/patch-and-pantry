@@ -611,3 +611,37 @@ def test_a_size_from_an_alias_is_used_unless_the_line_names_one(
     )
     assert from_alias.match_note == "'beefsteaks' is priced as a large tomato"
     assert (from_line.size, from_line.piece_grams) == ("small", 100.0)
+
+
+def test_a_unit_before_the_item_is_read_from_the_line(capture_run: Any) -> None:
+    """Dogfooding: "Head of lettuce $3" came back with no unit and an unanswerable question."""
+    result = capture_run(
+        "Head of lettuce $3",
+        {"item_text": "lettuce", "price_text": "$3"},
+    )
+    assert result.questions == []
+    (draft,) = result.drafts
+    assert (draft.quantity, draft.unit, draft.piece_grams) == (1, "head", 666.0)
+
+
+def test_each_is_one_ear_or_one_head(capture_run: Any) -> None:
+    """Dogfooding: "Corn on the cob 5 for $6" asked for a weight; corn is weighed by the ear."""
+    result = capture_run(
+        "Corn on the cob 5 for $6\nlettuce $3 each",
+        {"line": 1, "item_text": "corn on the cob", "quantity": 5, "unit": "each", "price_text": "$6"},
+        {"line": 2, "item_text": "lettuce", "unit": "each", "price_text": "$3"},
+    )  # fmt: skip
+    assert result.questions == []
+    corn, lettuce = result.drafts
+    assert (corn.unit, corn.size, corn.piece_grams) == ("each", "medium", 283.3333)
+    assert (lettuce.unit, lettuce.piece_grams) == ("each", 666.0)
+
+
+def test_a_line_naming_two_units_still_asks(capture_run: Any) -> None:
+    result = capture_run(
+        "lettuce head or bunch $3",
+        {"item_text": "lettuce", "price_text": "$3"},
+    )
+    (question,) = result.questions
+    assert question.kind == "missing_unit"
+    assert question.reading is not None and question.reading.item_text == "lettuce"
