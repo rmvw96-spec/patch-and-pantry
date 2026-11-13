@@ -19,8 +19,10 @@ import app.agents.capture_agent as capture
 from app.agents.capture_agent import (
     CaptureFailed,
     CaptureResult,
+    WrittenPrice,
     capture_typed_list,
     price_cents,
+    read_price,
     total_cents,
 )
 from app.agents.demo_model import demo_capture_model, read_list_line
@@ -230,6 +232,40 @@ def test_raw_text_is_kept_exactly_and_nothing_is_saved(
 )  # fmt: skip
 def test_price_text_to_cents(text: str | None, cents: int | None) -> None:
     assert price_cents(text) == cents
+
+
+@pytest.mark.parametrize(
+    ("text", "cents", "amount", "per"),
+    [
+        ("$3/lb", 300, "$3", "lb"), ("$3 /lb", 300, "$3", "lb"), ("$1.50/lb.", 150, "$1.50", "lb"),
+        ("99 cents/lb", 99, "99 cents", "lb"), ("69 cents a pound", 69, "69 cents", "pound"),
+        ("$20 per box", 2000, "$20", "box"), ("1.29 ea", 129, "1.29", "ea"),
+        ("$2 each", 200, "$2", "each"), ("2.99 lb", 299, "2.99", "lb"),
+        ("$5", 500, "$5", None), (" 99¢ ", 99, "99¢", None),
+        (None, None, None, None), ("two", None, None, None), ("two/lb", None, None, None),
+        # Two prices: the code does not choose between them.
+        ("$20 or $2/lb", None, None, None),
+    ],
+)  # fmt: skip
+def test_a_unit_written_in_the_price_is_split_off(
+    text: str | None, cents: int | None, amount: str | None, per: str | None
+) -> None:
+    assert read_price(text) == WrittenPrice(cents, amount, per)
+
+
+def test_a_unit_left_in_the_price_text_is_used(capture_run: Any) -> None:
+    """DeepSeek sometimes copies "$3/lb" as the price and leaves the unit empty (2 of 6 runs on
+    a real list, 2026-11-13): every such line used to ask for the price."""
+    result = capture_run(
+        "onions 3 lb at $3/lb\nlettuce 99 cents a head",
+        {"item_text": "onions", "quantity": 3, "price_text": "$3/lb"},
+        {"item_text": "lettuce", "price_text": "99 cents a head"},
+    )  # fmt: skip
+    assert result.questions == []
+    onions, lettuce = result.drafts
+    assert (onions.quantity, onions.unit, onions.price_cents) == (3, "lb", 900)
+    assert onions.price_note == "$3.00 a lb x 3"
+    assert (lettuce.quantity, lettuce.unit, lettuce.price_cents) == (1, "head", 99)
 
 
 def test_a_per_unit_price_is_multiplied_out_to_the_total(capture_run: Any) -> None:
@@ -538,6 +574,13 @@ def test_a_runaway_model_is_stopped(
         ("hass avocado $.73 ea - 2", {"item_text": "hass avocado", "quantity": 2.0, "price_is_per_unit": True}),
         ("limes 1.29 ea x3", {"item_text": "limes", "quantity": 3.0, "price_is_per_unit": True}),
         ("okra 99c", {"item_text": "okra", "price_text": "99c"}),
+        # A real market board (2026-11-13): prices with the unit written in them.
+        ("Sweet potato’s 99 cents/lb", {"item_text": "Sweet potato’s", "unit": "lb", "price_text": "99 cents", "price_is_per_unit": True}),
+        ("Bananas 69 cents a pound", {"item_text": "Bananas", "unit": "pound", "price_text": "69 cents"}),
+        ("Yellow potato’s $20 per box", {"item_text": "Yellow potato’s", "unit": "box", "price_text": "$20"}),
+        ("Bell pepper $2 each", {"item_text": "Bell pepper", "unit": "each", "price_text": "$2"}),
+        ("Amish (medium) tomato’s  $4/lb", {"item_text": "Amish tomato’s", "size": "medium", "unit": "lb"}),
+        ("Head of lettuce $3", {"item_text": "lettuce", "unit": "head", "price_text": "$3", "price_is_per_unit": False}),
         ("Kroger", {"is_price": False}),
     ],
 )  # fmt: skip

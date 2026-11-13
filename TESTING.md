@@ -7,7 +7,7 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 577 |
+| Backend tests | 58 | 599 |
 | Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
 | Backend suite, local run | 16.4 s | 21.4 s |
@@ -256,3 +256,4 @@ for it.
 | 2026-11-12 | One price per line, store, and day (owner decision): saves update by key, a partial unique index, and a migration that keeps the newest copy. Checked that four put-back bugs each fail a test (always inserting, spacing not collapsed, no edit clash check, replaced never set). Ran the migration on a copy of the owner's dev database: 102 typed prices became 52 (the newest of each line; corrected readings kept), reference rows, users, and runs unchanged; downgrade, upgrade, and `alembic check` pass | +4 backend, +1 E2E | ___ |
 | 2026-11-12 | Price book: select several prices and delete them together. Checked that two put-back bugs each fail a backend test (a partial delete allowed, no ownership check) and that the E2E test fails when the page deletes every shown row instead of the selected ones | +2 backend, +1 E2E | ___ |
 | 2026-11-12 | Price book: row actions (select, Edit, Delete; Save and Cancel while editing) moved to the first column, and long text wraps, so nothing needs sideways scrolling (dogfooding). New E2E test at 1024 px wide; checked that it fails on the old layout | +1 E2E | ___ |
+| 2026-11-13 | Prices with the unit written in them ("$3/lb", "99 cents a pound", "$20 per box", "1.29 ea") are split in code (`read_price`), for the model's price text and the demo reader alike; the demo reader also drops a leading "of" ("Head of lettuce") and empty brackets. New `scripts/compare_readers.py` scores the demo reader and a live model against an answer key (`evals/lists/`): on the owner's 45-line market list the reader went from 38 to 44 lines right; DeepSeek got 42 to 43 in four runs and 12 to 15 in two, when it left the unit in the price. Checked that six put-back bugs each fail a test. The E2E lines read the same as before | +22 backend | ___ |

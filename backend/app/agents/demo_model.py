@@ -18,6 +18,7 @@ from pydantic_ai import (
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
+from app.agents.capture_agent import PRICE_UNIT_TAIL, read_price
 from app.core.config import settings
 
 
@@ -36,8 +37,10 @@ def _user_prompt(messages: list[ModelMessage]) -> str:
 # ---------- typed-list capture (P1-5) ----------
 
 _NUMBERED = re.compile(r"^(\d+): (.*)$")
+# A price at the end of the line, with the unit it is for if one is written ("$3/lb",
+# "69 cents a pound"); read_price splits the two, as it does for the model's price text.
 _PRICE_AT_END = re.compile(
-    r"(?P<price>\$?\d*\.?\d+|\d+\s*(?:c|¢))\s*(?P<per>(?:/|per\s+|\s)(?:lb|lbs|ea|each|oz))?\s*$",
+    rf"(?P<price>\$?\s*\d*\.?\d+(?:\s*(?:c\b|¢|cents?\b))?{PRICE_UNIT_TAIL}?)\s*$",
     re.IGNORECASE,
 )
 _FOR = re.compile(r"\b(?P<qty>\d+)\s*(?:for|/)\s*$", re.IGNORECASE)
@@ -50,6 +53,8 @@ _COUNT_AT_END = re.compile(
     r"\s*(?:\((?P<a>\d+)\)|x\s*(?P<b>\d+)|-\s*(?P<c>\d+))\s*$", re.IGNORECASE
 )
 _SIZE = re.compile(r"\b(small|medium|large)\b", re.IGNORECASE)
+_EMPTY_BRACKETS = re.compile(r"\(\s*\)")  # left by a size taken out: "Amish (medium)"
+_LEADING_OF = re.compile(r"^of\s+", re.IGNORECASE)
 _PACKAGING = re.compile(r"\b(bag|box|pack|package|bundle)\b", re.IGNORECASE)
 
 
@@ -66,16 +71,14 @@ def read_list_line(text: str) -> dict[str, object]:
     if not price:
         return entry
     rest = text[: price.start()].rstrip()
+    written = read_price(price.group("price"))
     entry |= {
         "is_price": True,
-        "price_text": price.group("price").strip(),
-        "price_is_per_unit": False,
+        "price_text": written.amount,
+        "price_is_per_unit": written.per is not None,
     }
-    if price.group("per"):
-        entry |= {
-            "price_is_per_unit": True,
-            "unit": re.sub(r"[/\s]|per", "", price.group("per").lower()),
-        }
+    if written.per:
+        entry["unit"] = written.per
     lot = _FOR.search(rest)
     if lot:
         entry |= {"quantity": float(lot.group("qty")), "unit": "each"}
@@ -94,7 +97,8 @@ def read_list_line(text: str) -> dict[str, object]:
         entry["quantity"] = float(
             count.group("a") or count.group("b") or count.group("c")
         )
-    item = " ".join(_PACKAGING.sub("", rest).split())
+    item = " ".join(_EMPTY_BRACKETS.sub("", _PACKAGING.sub("", rest)).split())
+    item = _LEADING_OF.sub("", item)  # a unit before the item: "Head of lettuce"
     entry["item_text"] = item or None
     return entry
 

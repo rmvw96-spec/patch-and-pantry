@@ -228,6 +228,42 @@ def price_cents(text: str | None) -> int | None:
         return None
 
 
+# A unit written inside the price: "$3/lb", "99 cents a pound", "$20 per box", "1.29 ea". The
+# model sometimes copies the price that way and leaves the unit empty (2 of 6 DeepSeek runs on a
+# real list, 2026-11-13), and the demo reader uses the same grammar.
+_PER = r"/|\bper\b|\ban?\b"
+_BARE_UNITS = r"each|ea|lbs?|oz"
+PRICE_UNIT_TAIL = rf"(?:\s*(?:{_PER})\s*[a-z][a-z.]*|\s+(?:{_BARE_UNITS})\b)"
+_PRICE_PER_UNIT = re.compile(
+    rf"^(?P<amount>.+?)\s*(?:(?:{_PER})\s*(?P<unit>[a-z][a-z.]*)|\b(?P<bare>{_BARE_UNITS}))$",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True)
+class WrittenPrice:
+    """A price as written, split into its amount and the unit it is for, if one is written."""
+
+    cents: int | None
+    amount: str | None = None  # the price words alone: "$3" from "$3/lb"
+    per: str | None = None  # "lb" from "$3/lb"; None for a price of the whole amount
+
+
+def read_price(text: str | None) -> WrittenPrice:
+    """'$3/lb' -> 300 per 'lb'; '$5' -> 500 for the whole amount; 'two' -> no price."""
+    cents = price_cents(text)
+    if text is None or cents is not None:
+        return WrittenPrice(cents, text.strip() if text else None)
+    split = _PRICE_PER_UNIT.match(text.strip())
+    if split is None:
+        return WrittenPrice(None)
+    cents = price_cents(split.group("amount"))
+    if cents is None:
+        return WrittenPrice(None)
+    per = (split.group("unit") or split.group("bare")).lower().rstrip(".")
+    return WrittenPrice(cents, split.group("amount").strip(), per)
+
+
 def total_cents(per_unit_cents: int, quantity: float) -> int:
     """The total for a per-unit price: 29 cents each x 3 -> 87. Rounded half up to the cent."""
     total = Decimal(per_unit_cents) * Decimal(str(quantity))
@@ -320,7 +356,8 @@ def _process(
     if item is None:  # pragma: no cover - the matcher only returns existing items
         raise RuntimeError(f"catalog item {match.item.item_id} disappeared")
 
-    cents = price_cents(line.price_text)
+    written_price = read_price(line.price_text)
+    cents = written_price.cents
     if cents is None:
         written = f" ('{line.price_text}')" if line.price_text else ""
         result.questions.append(
@@ -333,7 +370,7 @@ def _process(
         return
     # A unit before the item ("Head of lettuce $3") can be missed by the reader: the line's own
     # count word is used when it names exactly one.
-    written_unit = answer.unit or line.unit or count_unit_in(raw)
+    written_unit = answer.unit or line.unit or written_price.per or count_unit_in(raw)
     if written_unit is None:
         options = ["lb", "each", "bunch", "head"]
         result.questions.append(
@@ -355,7 +392,8 @@ def _process(
     # paid for the quantity, so a per-unit price ("$0.29 each (3)") is multiplied out here.
     quantity = 1.0 if line.quantity is None else line.quantity
     price_note = None
-    if line.price_is_per_unit and quantity > 0 and quantity != 1:
+    is_per_unit = line.price_is_per_unit or written_price.per is not None
+    if is_per_unit and quantity > 0 and quantity != 1:
         per_unit = cents
         cents = total_cents(per_unit, quantity)
         price_note = f"${per_unit / 100:.2f} {_per(unit)} x {quantity:g}"
