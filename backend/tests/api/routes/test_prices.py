@@ -13,7 +13,13 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.models import CatalogItem, CatalogPortion, Household, HouseholdAlias
+from app.models import (
+    CatalogItem,
+    CatalogPortion,
+    Household,
+    HouseholdAlias,
+    PriceObservation,
+)
 from app.tools.catalog import find_catalog_item
 from app.tools.normalize import GRAMS_PER_LB
 
@@ -649,3 +655,96 @@ def test_item_settings_can_be_set_and_read(
         ).status_code
         == 422
     )
+
+
+# ---------- items compared per piece, and nuts in the shell (spec P1-11) ----------
+
+
+def test_a_piece_item_is_saved_and_listed_per_piece(
+    db: Session,
+    client: TestClient,
+    normal_user_token_headers: dict[str, str],
+    mine: dict[str, Any],
+) -> None:
+    lemon = _item(
+        db,
+        mine["household"],
+        f"Test lemon {uuid.uuid4().hex[:4]}",
+        compared_by="each",
+        preparation_yield_factor=None,
+        cup_equivalent_lb=None,
+    )
+    r = _save(
+        client,
+        normal_user_token_headers,
+        mine,
+        _entry(lemon, raw_text=f"{lemon.name} 3 for $1", quantity=3, unit="each", price_cents=100),
+    )  # fmt: skip
+    assert r.status_code == 201, r.text
+    (price,) = r.json()
+    assert price["measure"] == lemon.name.lower()
+    assert price["cost_per_piece_cents"] == pytest.approx(33.33, abs=0.01)
+    assert price["cost_per_cup_cents"] is None and price["note"] is None
+    catalog = client.get(f"{API}/catalog/", headers=normal_user_token_headers).json()
+    measures = {i["name"]: i["measure"] for i in catalog}
+    assert measures[lemon.name] == lemon.name.lower()
+    assert measures[mine["onion"].name] == "cup"
+
+
+def test_nuts_in_the_shell_are_saved_and_edited_as_such(
+    db: Session,
+    client: TestClient,
+    normal_user_token_headers: dict[str, str],
+    mine: dict[str, Any],
+) -> None:
+    walnut = _item(
+        db,
+        mine["household"],
+        f"Test walnut {uuid.uuid4().hex[:4]}",
+        preparation_yield_factor=1.0,
+        cup_equivalent_lb=0.2579,
+        shell_refuse_pct=55,
+    )
+    entry = _entry(
+        walnut, raw_text="walnuts with shell $8/lb", quantity=1, price_cents=800
+    )
+    r = _save(client, normal_user_token_headers, mine, entry | {"in_shell": True})
+    assert r.status_code == 201, r.text
+    (price,) = r.json()
+    assert price["in_shell"] is True
+    assert price["cost_per_cup_cents"] == pytest.approx(459, abs=1)
+    observation = db.get(PriceObservation, uuid.UUID(price["id"]))
+    assert observation is not None
+    db.refresh(observation)
+    assert observation.grams_edible == pytest.approx(453.59237 * 0.45)
+
+    edit = {
+        "vendor_id": mine["vendor_id"],
+        "observed_on": "2026-11-11",
+        "quantity": 1,
+        "unit": "lb",
+        "price_cents": 800,
+        "in_shell": False,
+    }
+    r = client.put(
+        f"{PRICES}{price['id']}", headers=normal_user_token_headers, json=edit
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["in_shell"] is False
+    assert r.json()["cost_per_cup_cents"] == pytest.approx(
+        800 / (453.59237 / 117), abs=1
+    )
+
+
+def test_in_shell_is_ignored_for_an_item_without_a_shell(
+    client: TestClient, normal_user_token_headers: dict[str, str], mine: dict[str, Any]
+) -> None:
+    r = _save(
+        client,
+        normal_user_token_headers,
+        mine,
+        _entry(mine["onion"]) | {"in_shell": True},
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()[0]["in_shell"] is False
+    assert r.json()[0]["cost_per_cup_cents"] / 100 == pytest.approx(0.3906, abs=1e-4)

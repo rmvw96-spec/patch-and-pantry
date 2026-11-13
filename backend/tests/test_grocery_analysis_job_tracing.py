@@ -186,7 +186,7 @@ async def test_an_unknown_item_fails_a_best_buy_run(db: Session) -> None:
     run = GroceryAnalysisRun(
         owner_id=user.id,
         kind="best_buy",
-        input={"kind": "best_buy", "needs": [{"catalog_item_id": str(uuid.uuid4()), "cups_per_week": 2}], "on": None},
+        input={"kind": "best_buy", "needs": [{"catalog_item_id": str(uuid.uuid4()), "per_week": 2}], "on": None},
     )  # fmt: skip
     db.add(run)
     db.commit()

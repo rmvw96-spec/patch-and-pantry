@@ -34,7 +34,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import useCustomToast from "@/hooks/useCustomToast"
-import { isFinished, money, RUN_BADGE, unitPrice, useRun } from "@/hooks/useRun"
+import {
+  costPer,
+  isFinished,
+  money,
+  RUN_BADGE,
+  unitPrice,
+  useRun,
+} from "@/hooks/useRun"
 import { handleError } from "@/utils"
 
 const selectClass =
@@ -66,6 +73,8 @@ function toEntry(draft: DraftPrice): PriceEntry {
     price_cents: draft.price_cents,
     // The weight the user gave for one piece, when the catalog has none.
     piece_weight: draft.piece_weight ?? null,
+    // Nuts bought in the shell: saved so the price converts to kernels.
+    in_shell: draft.in_shell ?? false,
     // A misspelling the user confirms becomes their own name for the item.
     remember_text: draft.match_kind === "fuzzy" ? draft.item_text : null,
   }
@@ -276,7 +285,7 @@ function CaptureReview({
               <TableHead>Item</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Price</TableHead>
-              <TableHead>Per cup</TableHead>
+              <TableHead>Per cup or piece</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -320,14 +329,20 @@ function CaptureReview({
                       {draft.piece_source}
                     </p>
                   )}
+                  {draft.shell_note && (
+                    <p
+                      className="text-muted-foreground text-xs"
+                      data-testid="draft-shell-note"
+                    >
+                      {draft.shell_note}
+                    </p>
+                  )}
                 </TableCell>
                 <TableCell data-testid="draft-price">
                   <DraftPriceCell draft={draft} />
                 </TableCell>
                 <TableCell data-testid="draft-cost-per-cup">
-                  {draft.cost_per_cup_cents == null
-                    ? (draft.note ?? "-")
-                    : money(draft.cost_per_cup_cents)}
+                  {costPer(draft)}
                 </TableCell>
               </TableRow>
             ))}

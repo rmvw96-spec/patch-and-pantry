@@ -109,6 +109,10 @@ These come from `docs/design.md`; follow them in every change.
 - **Numbers come only from deterministic tools.** The model extracts input, asks questions,
   chooses tools, and explains; it never computes prices, quantities, yields, or dates. Every
   number in an answer must match a tool output (a nightly trace check enforces this).
+- **Measures:** most items are compared per cup; lemons, limes, and garlic per piece, and nuts per
+  cup of chopped kernels, none counted toward produce cups (`catalog_item.compared_by`,
+  `produce_cups`; spec P1-11). Best-buy amounts are in the item's measure (`per_week`,
+  `amount_bought`), never assumed to be cups.
 - **Units:** store grams of the edible part; show cups (the federal produce definition). Do not use
   the word "serving" in the UI. Money is integer cents (pending owner review of the Phase 0 spec).
 - **Not a dieting app:** no meal logging, portion tracking, or body measurements. "Actual" means

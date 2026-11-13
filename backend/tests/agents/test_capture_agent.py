@@ -26,6 +26,7 @@ from app.agents.capture_agent import (
     CaptureFailed,
     CaptureResult,
     capture_typed_list,
+    shell_words,
     total_cents,
 )
 from app.agents.demo_model import demo_capture_model
@@ -807,3 +808,63 @@ def test_a_line_naming_two_units_still_asks(capture_run: Any) -> None:
     (question,) = result.questions
     assert question.kind == "missing_unit"
     assert question.reading is not None and question.reading.item_text == "lettuce"
+
+
+# ---------- items compared per piece, and nuts in the shell (spec P1-11) ----------
+
+
+def test_a_count_price_of_lemons_is_a_cost_per_lemon(capture_run: Any) -> None:
+    result = capture_run(
+        "Lemons 3 for $1",
+        {"item_text": "Lemons", "quantity": 3, "unit": "each", "price_text": "$1"},
+    )
+    (draft,) = result.drafts
+    assert (draft.item_name, draft.measure, draft.pieces) == ("Lemon", "lemon", 3)
+    assert draft.cost_per_piece_cents == pytest.approx(33.33, abs=0.01)
+    assert draft.cups is None and draft.note is None
+
+
+def test_garlic_by_the_pound_assumes_a_medium_head(capture_run: Any) -> None:
+    """Owner (2026-11-13): heads are small 35, medium 47.5, large 60 g; medium assumed."""
+    result = capture_run(
+        "Garlic $4/lb",
+        {"item_text": "Garlic", "unit": "lb", "price_text": "$4", "price_is_per_unit": True},
+    )  # fmt: skip
+    (draft,) = result.drafts
+    assert (draft.measure, draft.size, draft.size_assumed) == ("head", "medium", True)
+    assert draft.pieces == pytest.approx(9.55, abs=0.005)
+    assert draft.cost_per_piece_cents == pytest.approx(41.89, abs=0.01)
+
+
+def test_walnuts_with_shell_count_only_the_kernels(capture_run: Any) -> None:
+    result = capture_run(
+        "Walnuts with shell $8/lb",
+        {"item_text": "Walnuts with shell", "unit": "lb", "price_text": "$8", "price_is_per_unit": True},
+    )  # fmt: skip
+    (draft,) = result.drafts
+    assert (draft.item_name, draft.in_shell) == ("Walnut", True)
+    assert draft.shell_note == "In the shell: 45% of the weight is kernels (USDA SR28)."
+    assert draft.cost_per_cup_cents == pytest.approx(459, abs=1)
+    assert draft.item_text == "Walnuts with shell"  # the words as typed are kept
+
+
+def test_shell_words_mean_nothing_for_an_item_without_a_shell(capture_run: Any) -> None:
+    result = capture_run(
+        "onions in shell 1 lb 1.00",
+        {"item_text": "onions in shell", "quantity": 1, "unit": "lb", "price_text": "1.00"},
+    )  # fmt: skip
+    (draft,) = result.drafts
+    assert (draft.item_name, draft.in_shell, draft.shell_note) == ("Onion", False, None)
+
+
+@pytest.mark.parametrize(
+    ("text", "words", "in_shell"),
+    [
+        ("Walnuts with shell", "Walnuts", True), ("pecans in shell", "pecans", True),
+        ("pecans in the shell", "pecans", True), ("in-shell hazelnuts", "hazelnuts", True),
+        ("unshelled pecans", "pecans", True), ("Pecans with shells", "Pecans", True),
+        ("shelled pecans", "shelled pecans", False), ("pecan halves", "pecan halves", False),
+    ],
+)  # fmt: skip
+def test_shell_words(text: str, words: str, in_shell: bool) -> None:
+    assert shell_words(text) == (words, in_shell)

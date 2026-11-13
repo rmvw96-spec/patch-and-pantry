@@ -17,7 +17,7 @@ from app.agents.usage import ModelUsage
 from app.core.config import settings
 from app.tools.best_buy import (
     BestBuyTable,
-    cups_text,
+    amount_text,
     money,
     percent,
     unsupported_numbers,
@@ -29,7 +29,8 @@ INSTRUCTIONS = """\
 You explain a produce price comparison to a household, in plain words, in at most four short
 sentences. The table is already computed; do not compute anything.
 
-- Name the marked (best) row for each item and why it wins, quoting its cost per usable cup.
+- Name the marked (best) row for each item and why it wins, quoting its cost per usable cup
+  (or per usable piece, for items counted by the piece, such as a lemon or a head of garlic).
 - Mention spoilage when it changes the answer.
 - Quote numbers exactly as the table shows them, with the same digits. Never add, subtract,
   compare by ratio, round, or invent a number. Say "cheaper", not "3 times cheaper".
@@ -67,7 +68,9 @@ def format_table(table: BestBuyTable) -> str:
     for row in table.rows:
         if row.item_name != current:
             current = row.item_name
-            lines.append(f"\n{row.item_name} (needs {row.cups_per_week:g} cups a week)")
+            lines.append(
+                f"\n{row.item_name} (needs {row.per_week:g} {row.measure}s a week)"
+            )
             note = item_notes.get(row.item_name)
             if note is not None:
                 said = [t for t in (note.storage, *note.notes) if t]
@@ -81,11 +84,11 @@ def format_table(table: BestBuyTable) -> str:
             continue
         price = f"{money(row.price_cents)} for {row.quantity:g} {row.unit}"
         detail = (
-            f"{cups_text(row.cups_bought)} cups bought, {cups_text(row.usable_cups)} usable "
-            f"({percent(row.spoiled_share)} spoils), {money(row.cost_per_usable_cup_cents)} "
-            "per usable cup"
-            if row.cost_per_usable_cup_cents is not None
-            else "no cost per cup"
+            f"{amount_text(row.amount_bought)} {row.measure}s bought, "
+            f"{amount_text(row.usable_amount)} usable ({percent(row.spoiled_share)} spoils), "
+            f"{money(row.cost_per_usable_cents)} per usable {row.measure}"
+            if row.cost_per_usable_cents is not None
+            else f"no cost per {row.measure}"
         )
         notes = f" Notes: {' '.join(row.notes)}" if row.notes else ""
         lines.append(f"- {mark}: {row.label}, {price}: {detail}.{notes}")

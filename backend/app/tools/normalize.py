@@ -188,10 +188,18 @@ class CatalogFacts:
     snapshot_id: uuid.UUID | None = None
     # Juices: pints per cup equivalent, set instead of cup_equivalent_lb.
     cup_equivalent_pints: float | None = None
+    # The measure the item is compared by: "cup", or a count unit for a piece (spec P1-11).
+    compared_by: str = "cup"
+    # Nuts: the shell's share of the weight bought in the shell (SR28 refuse, percent).
+    shell_refuse_pct: float | None = None
 
     @property
     def by_volume(self) -> bool:
         return self.cup_equivalent_pints is not None
+
+    @property
+    def by_piece(self) -> bool:
+        return self.compared_by != "cup"
 
 
 @dataclass(frozen=True)
@@ -199,12 +207,27 @@ class Normalized:
     # Weights for an item measured by weight or count; pints for a juice.
     grams_purchased: float | None
     grams_edible: float | None
-    cups: float
-    cost_per_cup_cents: float
+    # Cups for an item compared by the cup; pieces for one compared per piece (spec P1-11).
+    cups: float | None
+    cost_per_cup_cents: float | None
     unit: str  # the canonical unit used, for example "lb" for "pounds"
     conversion_source: str
     stand_in_name: str | None
     pints_purchased: float | None = None
+    pieces: float | None = None
+    cost_per_piece_cents: float | None = None
+
+    @property
+    def amount(self) -> float | None:
+        """How much was bought in the item's own measure: cups, or pieces."""
+        return self.pieces if self.pieces is not None else self.cups
+
+    @property
+    def cost_per_measure_cents(self) -> float | None:
+        """The cost of one cup, or of one piece."""
+        if self.cost_per_piece_cents is not None:
+            return self.cost_per_piece_cents
+        return self.cost_per_cup_cents
 
 
 def canonical_unit(unit: str) -> str:
@@ -233,10 +256,18 @@ def count_unit_in(text: str) -> str | None:
 EACH_IS = ("ear", "head")
 
 
-def needs_piece(unit: str, facts: CatalogFacts) -> bool:
-    """Whether a price in this (canonical) unit needs one piece's weight: a count unit for an
-    item measured by weight. A juice never does: "pint" is its volume, and "each" is refused."""
-    return unit in COUNT_UNITS and not facts.by_volume
+def piece_unit(unit: str, facts: CatalogFacts) -> str | None:
+    """The count unit whose weight a price in this (canonical) unit needs, or None.
+
+    Compared by the cup: a count price needs one piece's weight ("2 each" tomatoes). Compared
+    per piece: a count price is pieces already, and a weight price needs one piece's weight to
+    count them ("2 lb bag" of lemons). A juice never needs one: "pint" is its volume.
+    """
+    if facts.by_volume:
+        return None
+    if facts.by_piece:
+        return facts.compared_by if unit in WEIGHT_UNITS else None
+    return unit if unit in COUNT_UNITS else None
 
 
 def _volume_cups(
@@ -265,24 +296,68 @@ def _volume_cups(
     )
 
 
+def _pieces(
+    price_cents: float,
+    quantity: float,
+    canonical: str,
+    item: CatalogFacts,
+    portion_grams: float | None,
+) -> Normalized:
+    """Pieces and cost per piece, for an item compared per piece (lemons, garlic heads)."""
+    if canonical in COUNT_UNITS:
+        # "3 for $1" is 3 lemons; "each" garlic is a head.
+        if canonical not in (item.compared_by, "each"):
+            raise WrongMeasure(item.name, canonical, by_volume=False)
+        pieces = quantity
+        grams = quantity * portion_grams if portion_grams else None
+    elif canonical in WEIGHT_UNITS:
+        if portion_grams is None:
+            raise NeedsPortion(item.name, item.compared_by)
+        if portion_grams <= 0:
+            raise InvalidAmount(
+                f"A piece must weigh more than zero, not {portion_grams} g."
+            )
+        grams = quantity * WEIGHT_UNITS[canonical]
+        pieces = grams / portion_grams
+    else:
+        raise WrongMeasure(item.name, canonical, by_volume=False)
+    return Normalized(
+        grams_purchased=grams,
+        grams_edible=None,
+        cups=None,
+        cost_per_cup_cents=None,
+        unit=canonical,
+        conversion_source=item.conversion_source,
+        stand_in_name=item.stand_in_name,
+        pieces=pieces,
+        cost_per_piece_cents=price_cents / pieces,
+    )
+
+
 def normalize_price(
     price_cents: float,
     quantity: float,
     unit: str,
     item: CatalogFacts,
     portion_grams: float | None = None,
+    in_shell: bool = False,
 ) -> Normalized:
-    """Grams, cups, and cost per cup for one price, as written.
+    """Grams, cups, and cost per cup for one price, as written; or pieces and cost per piece
+    for an item compared per piece (spec P1-11).
 
     ``price_cents`` is the price for the whole ``quantity`` ("3 for $5" is 500 for 3 each). It
     may be fractional for reference averages such as ERS's. ``portion_grams`` is the weight of
-    one piece as purchased, required for count units (from ``portion_grams()`` or the user).
+    one piece as purchased, required for count units (from ``portion_grams()`` or the user), and
+    for weight prices of an item compared per piece. ``in_shell``: nuts weighed in the shell,
+    whose shell refuse is taken out (D9); ignored for an item with no shell refuse.
     """
     if price_cents < 0:
         raise InvalidAmount(f"A price cannot be negative ({price_cents} cents).")
     if quantity <= 0:
         raise InvalidAmount(f"A quantity must be more than zero, not {quantity}.")
     canonical = canonical_unit(unit)
+    if item.by_piece:
+        return _pieces(price_cents, quantity, canonical, item, portion_grams)
     if item.by_volume:
         return _volume_cups(price_cents, quantity, canonical, item)
     if canonical in VOLUME_UNITS and canonical not in COUNT_UNITS:
@@ -301,7 +376,10 @@ def normalize_price(
         raise NoConversion(item.name)
 
     grams_purchased = quantity * grams_per_unit
-    grams_edible = grams_purchased * item.preparation_yield_factor
+    kernels = 1.0
+    if in_shell and item.shell_refuse_pct is not None:
+        kernels = 1 - item.shell_refuse_pct / 100
+    grams_edible = grams_purchased * item.preparation_yield_factor * kernels
     cups = grams_edible / (item.cup_equivalent_lb * GRAMS_PER_LB)
     return Normalized(
         grams_purchased=grams_purchased,
@@ -337,7 +415,16 @@ def catalog_facts(session: Session, item: CatalogItem) -> CatalogFacts:
         conversion_source=source.conversion_source,
         stand_in_name=source.name if source is not item else None,
         snapshot_id=source.snapshot_id,
+        compared_by=item.compared_by,
+        shell_refuse_pct=source.shell_refuse_pct,
     )
+
+
+def measure_name(item_name: str, compared_by: str) -> str:
+    """What one unit of the item's measure is called: "cup", "lemon", "head"."""
+    if compared_by == "each":
+        return item_name.lower()
+    return compared_by
 
 
 # The size used when the user names none and an item has several (owner, 2026-11-12).

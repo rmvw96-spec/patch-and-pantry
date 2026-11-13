@@ -57,6 +57,32 @@ test.describe("Comparing prices", () => {
     await expect(list.getByRole("button", { name: "Print" })).toBeVisible()
   })
 
+  test("Lemons are compared per lemon, not per cup", async ({ page }) => {
+    // Spec P1-11: lemons, limes, and garlic are compared per piece. A count price needs no
+    // piece weight, so this runs on CI's data too.
+    await savePrices(page, "Lemons 3 for $1")
+    await page.goto("/best-buy")
+    await page.getByLabel("Item").selectOption({ label: "Lemon" })
+    await page.getByLabel("Lemons per week").fill("4")
+    await page.getByRole("button", { name: "Add item" }).click()
+    await expect(page.getByTestId("best-buy-needs")).toContainText(
+      "4 lemons a week",
+    )
+    await page.getByRole("button", { name: "Compare prices" }).click()
+    await expect(page.getByTestId("run-status")).toHaveText("succeeded", {
+      timeout: RUN_TIMEOUT_MS,
+    })
+
+    const marked = page.getByTestId("best-buy-marked")
+    await expect(marked.getByTestId("best-buy-cost")).toHaveText(
+      "$0.33 per lemon",
+    )
+    await expect(marked).toContainText("3.00 lemons")
+    await expect(
+      page.getByTestId("best-buy-explanation").locator("strong"),
+    ).toHaveText("$0.33 per usable lemon")
+  })
+
   test("An item with no store price uses the national average", async ({
     page,
   }) => {

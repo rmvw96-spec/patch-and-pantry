@@ -1,96 +1,103 @@
-slug,unit,size,sr28_ndb,sr28_seq,refuse_pct_override,notes
-tomato,each,small,11529,9,,"small whole (2-2/5"" dia)"
-tomato,each,medium,11529,6,,"medium whole (2-3/5"" dia)"
-tomato,each,large,11529,5,,"large whole (3"" dia)"
-sweet-pepper,each,small,11333,7,,Green bell
-sweet-pepper,each,medium,11333,5,,Green bell
-sweet-pepper,each,large,11333,4,,Check: SR28 says 2-1/4 per lb (202 g); 164 g edible / 0.82 = 200 g
-hot-pepper,each,,11979,2,,Jalapeno (the crosswalk's hot pepper)
-cucumber,each,,11205,2,,"With peel, 8-1/4 inches: SR28's only whole-cucumber weight"
-zucchini,each,small,11477,6,,
-zucchini,each,medium,11477,4,,
-zucchini,each,large,11477,3,,
-yellow-squash,each,small,11641,5,,"Summer squash, all varieties: same weights as zucchini in SR28"
-yellow-squash,each,medium,11641,3,,"Summer squash, all varieties"
-yellow-squash,each,large,11641,2,,"Summer squash, all varieties"
-onion,each,small,11282,8,,
-onion,each,medium,11282,6,,"medium (2-1/2"" dia)"
-onion,each,large,11282,4,,
-cabbage,head,small,11109,7,,"about 4-1/2"" dia"
-cabbage,head,medium,11109,5,,"about 5-3/4"" dia"
-cabbage,head,large,11109,3,,"about 7"" dia"
-lettuce,head,,11251,4,,Romaine
-broccoli,bunch,,11090,2,,"FDC has a bunch weight, so no question at capture (D3 covers bunches without one)"
-cauliflower,head,small,11135,5,,"4"" dia"
-cauliflower,head,medium,11135,4,,"5-6"" dia"
-cauliflower,head,large,11135,3,,"6-7"" dia"
-eggplant,each,,11209,2,,"Peeled weight, yield from 1-1/4 lb: matches SR28's refuse (ends and parings), giving 565 g = 1-1/4 lb. The unpeeled weight (548 g) is not used: dividing it by the refuse double-counts"
-sweet-potato,each,,11507,2,,"5"" long"
-potato,each,small,11352,4,10,"Flesh and skin. Refuse set to 10% by the owner (2026-11-11) instead of SR28's 25% (parings), which looked high for flesh and skin"
-potato,each,medium,11352,3,10,Flesh and skin; refuse 10% (see small)
-potato,each,large,11352,2,10,Flesh and skin; refuse 10% (see small)
-acorn-squash,each,,11482,2,,"4"" dia"
-butternut-squash,each,,,,,SR28 has no whole-squash weight: weigh one or capture by the pound
-sweet-corn,ear,small,11167,4,,"5-1/2"" to 6-1/2"" long; kernels, so 64% refuse (husk, silk, cob) gives the ear as bought"
-sweet-corn,ear,medium,11167,3,,"6-3/4"" to 7-1/2"" long"
-sweet-corn,ear,large,11167,2,,"7-3/4"" to 9"" long"
-beet,each,,11080,2,,"2"" dia, without tops"
-turnip,each,small,11564,5,,
-turnip,each,medium,11564,3,,
-turnip,each,large,11564,2,,
-watermelon,each,,09326,3,,"15"" long x 7-1/2"" dia"
-cantaloupe,each,small,09181,8,,"about 4-1/4"" dia"
-cantaloupe,each,medium,09181,6,,"about 5"" dia"
-cantaloupe,each,large,09181,4,,"about 6-1/2"" dia"
-spinach,bunch,,11457,2,,FDC has a bunch weight. The 10 oz package weight is not used: packaged spinach has no refuse to remove
-avocado,each,,09038,2,,"California (Hass), without skin and seed; the crosswalk's FDC food is Hass. The all-varieties row (201 g) includes large Florida avocados"
-mango,each,,09176,2,,1 fruit without refuse
-kiwi,each,,09148,2,,"2"" dia"
-orange,each,small,09200,3,,"2-3/8"" dia"
-orange,each,medium,09200,4,,"2-5/8"" dia (SR28 calls it 1 fruit)"
-orange,each,large,09200,2,,"3-1/16"" dia"
-banana,each,small,09040,4,,"6"" to 6-7/8"" long"
-banana,each,medium,09040,5,,"7"" to 7-7/8"" long"
-banana,each,large,09040,6,,"8"" to 8-7/8"" long"
-grapefruit,each,small,09111,4,,"about 3-1/2"" dia; SR28 weighs half a fruit, so the loader doubles it"
-grapefruit,each,medium,09111,3,,"about 4"" dia; half a fruit in SR28"
-grapefruit,each,large,09111,2,,"about 4-1/2"" dia; half a fruit in SR28"
-plum,each,,09279,2,,"2-1/8"" dia"
-apple,each,small,09003,5,,"2-3/4"" dia; all varieties, with skin"
-apple,each,medium,09003,4,,"3"" dia"
-apple,each,large,09003,3,,"3-1/4"" dia"
-peach,each,small,09236,2,,"2-1/2"" dia"
-peach,each,medium,09236,3,,"2-2/3"" dia"
-peach,each,large,09236,4,,"2-3/4"" dia"
-pear,each,small,09252,3,,
-pear,each,medium,09252,4,,
-pear,each,large,09252,5,,
-nectarine,each,small,09191,2,,"2-1/3"" dia"
-nectarine,each,medium,09191,3,,"2-1/2"" dia"
-nectarine,each,large,09191,4,,"2-3/4"" dia"
-apricot,each,,09021,3,,
-clementine,each,,09433,1,,
-papaya,each,small,09226,3,,SR28 has small and large only
-papaya,each,large,09226,4,,
-pineapple,each,,09266,2,,"Refuse 49%: core, crown, and parings"
-pomegranate,each,,09286,2,,"4"" dia"
-honeydew,each,small,09184,3,,"5-1/4"" dia; SR28 has two melon sizes"
-honeydew,each,large,09184,4,,"6"" to 7"" dia"
-artichoke,each,medium,11007,1,,Globe; refuse 60% (stem and inedible bracts)
-artichoke,each,large,11007,2,,
-iceberg-lettuce,head,small,11252,5,,
-iceberg-lettuce,head,medium,11252,4,,"6"" dia"
-iceberg-lettuce,head,large,11252,3,,
-red-bell-pepper,each,small,11821,6,,
-red-bell-pepper,each,medium,11821,5,,"about 2-3/4"" long, 2-1/2"" dia"
-red-bell-pepper,each,large,11821,4,,"2-1/4 per pound"
-red-cabbage,head,small,11112,6,,"4"" dia"
-red-cabbage,head,medium,11112,5,,"about 5"" dia"
-red-cabbage,head,large,11112,3,,"about 5-1/2"" dia"
-roma-tomato,each,,11529,3,,"SR28's Italian tomato (62 g, the same as its plum tomato)"
-carrot,each,small,11124,6,,"5-1/2"" long"
-carrot,each,medium,11124,5,,
-carrot,each,large,11124,4,,"7-1/4"" to 8-1/2"" long"
-poblano-pepper,each,small,11333,7,,"Stand-in: green bell pepper (SR28 has no poblano); owner judged the sizes similar"
-poblano-pepper,each,medium,11333,5,,Stand-in: green bell pepper
-poblano-pepper,each,large,11333,4,,Stand-in: green bell pepper
+slug,unit,size,sr28_ndb,sr28_seq,refuse_pct_override,grams,notes
+tomato,each,small,11529,9,,,"small whole (2-2/5"" dia)"
+tomato,each,medium,11529,6,,,"medium whole (2-3/5"" dia)"
+tomato,each,large,11529,5,,,"large whole (3"" dia)"
+sweet-pepper,each,small,11333,7,,,Green bell
+sweet-pepper,each,medium,11333,5,,,Green bell
+sweet-pepper,each,large,11333,4,,,Check: SR28 says 2-1/4 per lb (202 g); 164 g edible / 0.82 = 200 g
+hot-pepper,each,,11979,2,,,Jalapeno (the crosswalk's hot pepper)
+cucumber,each,,11205,2,,,"With peel, 8-1/4 inches: SR28's only whole-cucumber weight"
+zucchini,each,small,11477,6,,,
+zucchini,each,medium,11477,4,,,
+zucchini,each,large,11477,3,,,
+yellow-squash,each,small,11641,5,,,"Summer squash, all varieties: same weights as zucchini in SR28"
+yellow-squash,each,medium,11641,3,,,"Summer squash, all varieties"
+yellow-squash,each,large,11641,2,,,"Summer squash, all varieties"
+onion,each,small,11282,8,,,
+onion,each,medium,11282,6,,,"medium (2-1/2"" dia)"
+onion,each,large,11282,4,,,
+cabbage,head,small,11109,7,,,"about 4-1/2"" dia"
+cabbage,head,medium,11109,5,,,"about 5-3/4"" dia"
+cabbage,head,large,11109,3,,,"about 7"" dia"
+lettuce,head,,11251,4,,,Romaine
+broccoli,bunch,,11090,2,,,"FDC has a bunch weight, so no question at capture (D3 covers bunches without one)"
+cauliflower,head,small,11135,5,,,"4"" dia"
+cauliflower,head,medium,11135,4,,,"5-6"" dia"
+cauliflower,head,large,11135,3,,,"6-7"" dia"
+eggplant,each,,11209,2,,,"Peeled weight, yield from 1-1/4 lb: matches SR28's refuse (ends and parings), giving 565 g = 1-1/4 lb. The unpeeled weight (548 g) is not used: dividing it by the refuse double-counts"
+sweet-potato,each,,11507,2,,,"5"" long"
+potato,each,small,11352,4,10,,"Flesh and skin. Refuse set to 10% by the owner (2026-11-11) instead of SR28's 25% (parings), which looked high for flesh and skin"
+potato,each,medium,11352,3,10,,Flesh and skin; refuse 10% (see small)
+potato,each,large,11352,2,10,,Flesh and skin; refuse 10% (see small)
+acorn-squash,each,,11482,2,,,"4"" dia"
+butternut-squash,each,,,,,,SR28 has no whole-squash weight: weigh one or capture by the pound
+sweet-corn,ear,small,11167,4,,,"5-1/2"" to 6-1/2"" long; kernels, so 64% refuse (husk, silk, cob) gives the ear as bought"
+sweet-corn,ear,medium,11167,3,,,"6-3/4"" to 7-1/2"" long"
+sweet-corn,ear,large,11167,2,,,"7-3/4"" to 9"" long"
+beet,each,,11080,2,,,"2"" dia, without tops"
+turnip,each,small,11564,5,,,
+turnip,each,medium,11564,3,,,
+turnip,each,large,11564,2,,,
+watermelon,each,,09326,3,,,"15"" long x 7-1/2"" dia"
+cantaloupe,each,small,09181,8,,,"about 4-1/4"" dia"
+cantaloupe,each,medium,09181,6,,,"about 5"" dia"
+cantaloupe,each,large,09181,4,,,"about 6-1/2"" dia"
+spinach,bunch,,11457,2,,,FDC has a bunch weight. The 10 oz package weight is not used: packaged spinach has no refuse to remove
+avocado,each,,09038,2,,,"California (Hass), without skin and seed; the crosswalk's FDC food is Hass. The all-varieties row (201 g) includes large Florida avocados"
+mango,each,,09176,2,,,1 fruit without refuse
+kiwi,each,,09148,2,,,"2"" dia"
+orange,each,small,09200,3,,,"2-3/8"" dia"
+orange,each,medium,09200,4,,,"2-5/8"" dia (SR28 calls it 1 fruit)"
+orange,each,large,09200,2,,,"3-1/16"" dia"
+banana,each,small,09040,4,,,"6"" to 6-7/8"" long"
+banana,each,medium,09040,5,,,"7"" to 7-7/8"" long"
+banana,each,large,09040,6,,,"8"" to 8-7/8"" long"
+grapefruit,each,small,09111,4,,,"about 3-1/2"" dia; SR28 weighs half a fruit, so the loader doubles it"
+grapefruit,each,medium,09111,3,,,"about 4"" dia; half a fruit in SR28"
+grapefruit,each,large,09111,2,,,"about 4-1/2"" dia; half a fruit in SR28"
+plum,each,,09279,2,,,"2-1/8"" dia"
+apple,each,small,09003,5,,,"2-3/4"" dia; all varieties, with skin"
+apple,each,medium,09003,4,,,"3"" dia"
+apple,each,large,09003,3,,,"3-1/4"" dia"
+peach,each,small,09236,2,,,"2-1/2"" dia"
+peach,each,medium,09236,3,,,"2-2/3"" dia"
+peach,each,large,09236,4,,,"2-3/4"" dia"
+pear,each,small,09252,3,,,
+pear,each,medium,09252,4,,,
+pear,each,large,09252,5,,,
+nectarine,each,small,09191,2,,,"2-1/3"" dia"
+nectarine,each,medium,09191,3,,,"2-1/2"" dia"
+nectarine,each,large,09191,4,,,"2-3/4"" dia"
+apricot,each,,09021,3,,,
+clementine,each,,09433,1,,,
+papaya,each,small,09226,3,,,SR28 has small and large only
+papaya,each,large,09226,4,,,
+pineapple,each,,09266,2,,,"Refuse 49%: core, crown, and parings"
+pomegranate,each,,09286,2,,,"4"" dia"
+honeydew,each,small,09184,3,,,"5-1/4"" dia; SR28 has two melon sizes"
+honeydew,each,large,09184,4,,,"6"" to 7"" dia"
+artichoke,each,medium,11007,1,,,Globe; refuse 60% (stem and inedible bracts)
+artichoke,each,large,11007,2,,,
+iceberg-lettuce,head,small,11252,5,,,
+iceberg-lettuce,head,medium,11252,4,,,"6"" dia"
+iceberg-lettuce,head,large,11252,3,,,
+red-bell-pepper,each,small,11821,6,,,
+red-bell-pepper,each,medium,11821,5,,,"about 2-3/4"" long, 2-1/2"" dia"
+red-bell-pepper,each,large,11821,4,,,2-1/4 per pound
+red-cabbage,head,small,11112,6,,,"4"" dia"
+red-cabbage,head,medium,11112,5,,,"about 5"" dia"
+red-cabbage,head,large,11112,3,,,"about 5-1/2"" dia"
+roma-tomato,each,,11529,3,,,"SR28's Italian tomato (62 g, the same as its plum tomato)"
+carrot,each,small,11124,6,,,"5-1/2"" long"
+carrot,each,medium,11124,5,,,
+carrot,each,large,11124,4,,,"7-1/4"" to 8-1/2"" long"
+poblano-pepper,each,small,11333,7,,,Stand-in: green bell pepper (SR28 has no poblano); owner judged the sizes similar
+poblano-pepper,each,medium,11333,5,,,Stand-in: green bell pepper
+poblano-pepper,each,large,11333,4,,,Stand-in: green bell pepper
+lemon,each,medium,09150,2,,,"Medium 2-1/8"" dia (owner, 2026-11-13: the smaller SR28 lemon is medium, the default)"
+lemon,each,large,09150,3,,,"Large 2-3/8"" dia"
+lime,each,,09159,1,,,"2"" dia; one size, used for any size"
+garlic,head,small,11215,,,35,Owner (2026-11-13): softneck (supermarket) heads 35 to 60 g as bought; SR28 weighs only a clove. Refuse from SR28 (knob and skin)
+garlic,head,medium,11215,,,47.5,Owner (2026-11-13): midpoint of the softneck range; hardneck heads (50 to 70 g) fall between medium and large
+garlic,head,large,11215,,,60,Owner (2026-11-13): top of the softneck range
+elephant-garlic,head,,11215,,,150,Owner (2026-11-13): 100 to 200 g as bought; refuse borrowed from garlic (SR28)

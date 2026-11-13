@@ -44,6 +44,15 @@ ITEMS: dict[str, tuple[str, float | None, float | None]] = {
     "sweet-corn": ("Sweet corn", 0.54, 0.3638),
     "eggplant": ("Eggplant", None, None),
     "broccoli": ("Broccoli", 0.78, 0.3417),
+    # Nuts: shelled kernels, 1 cup chopped = 117 g (SR28 12155); see SHELL.
+    "walnut": ("Walnut", 1.0, 0.2579),
+}
+# slug: shell refuse percent, for nuts bought in the shell (SR28: English walnuts 55%).
+SHELL: dict[str, float] = {"walnut": 55.0}
+# slug: (name, compared by). Items compared per piece, with no cup conversion (spec P1-11).
+PIECE_ITEMS: dict[str, tuple[str, str]] = {
+    "lemon": ("Lemon", "each"),
+    "garlic": ("Garlic", "head"),
 }
 # slug: (name, yield factor, cup pints). Juices are measured by volume.
 JUICES: dict[str, tuple[str, float, float]] = {
@@ -68,6 +77,13 @@ PIECES: dict[str, list[tuple[str, str | None, float]]] = {
     "sweet-pepper": [("each", "medium", 145.1), ("each", "large", 200.0)],
     "lettuce": [("head", None, 666.0)],
     "sweet-corn": [("ear", "medium", 283.3333)],
+    # SR28 lemons as bought (09150); garlic heads from the owner (2026-11-13).
+    "lemon": [("each", "medium", 109.4), ("each", "large", 158.5)],
+    "garlic": [
+        ("head", "small", 35.0),
+        ("head", "medium", 47.5),
+        ("head", "large", 60.0),
+    ],
 }
 
 
@@ -107,6 +123,19 @@ def catalog(db_session: Session) -> dict[str, CatalogItem]:
             storage_days_min=STORAGE.get(slug, (None, None))[0],
             storage_days_max=STORAGE.get(slug, (None, None))[1],
             storage_location="refrigerator" if slug in STORAGE else None,
+            shell_refuse_pct=SHELL.get(slug),
+            produce_cups=slug not in SHELL,
+        )
+        session.add(items[slug])
+    for slug, (name, compared_by) in PIECE_ITEMS.items():
+        items[slug] = CatalogItem(
+            slug=slug,
+            name=name,
+            kind="produce",
+            category="fruit",
+            compared_by=compared_by,
+            produce_cups=False,
+            conversion_source=f"not needed: compared per piece ({compared_by})",
         )
         session.add(items[slug])
     for slug, (name, yield_factor, cup_pints) in JUICES.items():

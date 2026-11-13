@@ -25,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import useCustomToast from "@/hooks/useCustomToast"
-import { money, parseCents, unitPrice } from "@/hooks/useRun"
+import { costPer, money, parseCents, unitPrice } from "@/hooks/useRun"
 import { handleError } from "@/utils"
 
 // Long text wraps instead of widening the table (the cells default to no wrapping).
@@ -82,6 +82,7 @@ function EditRow({
             unit: draft.unit,
             size: price.size ?? null,
             price_cents: cents ?? 0,
+            in_shell: price.in_shell ?? false,
           },
         })
       ).data,
@@ -310,7 +311,7 @@ const PriceBook = () => {
             <TableHead>Amount</TableHead>
             <TableHead>Total paid</TableHead>
             <TableHead>Unit price</TableHead>
-            <TableHead>Per cup</TableHead>
+            <TableHead>Per cup or piece</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -362,6 +363,11 @@ const PriceBook = () => {
                       {price.weight_source} weight
                     </p>
                   )}
+                  {price.in_shell && (
+                    <p className="text-muted-foreground text-xs">
+                      in the shell
+                    </p>
+                  )}
                 </TableCell>
                 <TableCell data-testid="price-amount">
                   {money(price.price_cents)}
@@ -371,9 +377,7 @@ const PriceBook = () => {
                     "-"}
                 </TableCell>
                 <TableCell className={WRAP} data-testid="price-cost-per-cup">
-                  {price.cost_per_cup_cents == null
-                    ? (price.note ?? "-")
-                    : money(price.cost_per_cup_cents)}
+                  {costPer(price)}
                 </TableCell>
               </TableRow>
             ),

@@ -424,7 +424,8 @@ on a phone (moved here from the roadmap unchanged).
 
 ## P1-11: Items compared per piece, and nuts
 
-**Status:** draft for owner review (2026-11-13). Owner decisions so far are marked **Decided**.
+**Status:** approved by the owner and built (2026-11-13). Two changes while building, below:
+elephant garlic has no stand-in, and the coverage report lists the new items as missing a price.
 
 **Why:** dogfooding found lemons, limes, garlic, walnuts, pecans, and hazelnuts missing. None is
 in the ERS price files (the catalog's source), and nuts are not fruit or vegetables. A cup does
@@ -495,7 +496,7 @@ the same as shelled walnuts at $17.78/lb. Add these to `known-answers.md` once b
 | `lemon` | 167746, SR Legacy (Lemons, raw, without peel) | 256 Citrus fruit (refrigerator, 10 to 21) | each: medium 2-1/8" (09150 seq 2, 58 g edible, 109 g as bought), large 2-3/8" (seq 3, 84 g, 159 g); refuse 47% (45% peel, 2% seeds) |
 | `lime` | 168155, SR Legacy (Limes, raw) | 256 Citrus fruit (refrigerator, 10 to 21) | each, any size: 2" (09159 seq 1, 67 g edible, 80 g as bought); refuse 16% (peel and seeds) |
 | `garlic` | 1104647, Foundation (Garlic, raw) | 285 Garlic (pantry, 1 month; FoodKeeper says to refrigerate single cloves) | head, as bought (**owner, 2026-11-13**; SR28 weighs only a clove, 3 g): small 35 g, medium 47.5 g, large 60 g, the softneck (supermarket) range; hardneck (50 to 70 g) falls between medium and large. Refuse 13% (knob and skin, SR28 11215) |
-| `elephant-garlic` | stand-in: garlic | stand-in: garlic | head, as bought: 150 g, any size (**owner**: 100 to 200 g). Its own item, not a size of garlic: a different plant (closer to leeks), and its heads cost far more, so its prices are compared only with each other |
+| `elephant-garlic` | none (no FDC food) | garlic's 285, labeled "as garlic" | head, as bought: 150 g, any size (**owner**: 100 to 200 g); refuse from garlic (SR28 11215). Its own item, not a size of garlic: a different plant (closer to leeks), and its heads cost far more, so its prices are compared only with each other. **Built without a stand-in:** compared per head it needs no conversion, so a stand-in would borrow nothing; its storage borrows garlic's through `storage_as` |
 | `walnut` | 2346394, Foundation (walnuts, English, halves, raw) | 446 Walnuts, shell or no shell (refrigerator, 9 to 12 months) | cup chopped, above |
 | `pecan` | 2346395, Foundation (pecans, halves, raw) | 444 Pecans, no shell (refrigerator, 9 months; in shell is 12) | cup chopped, above |
 | `hazelnut` | 2515375, Foundation (hazelnuts or filberts, raw) | none in FoodKeeper; **owner, 2026-11-13:** walnuts' 446 (refrigerator, 9 to 12 months), labeled as borrowed | cup chopped, above |
@@ -520,7 +521,8 @@ the same as shelled walnuts at $17.78/lb. Add these to `known-answers.md` once b
 - The in-shell words set `in_shell`; the worked pecan and walnut answers exactly.
 - `produce_cups` false for the six; true for every other item.
 - Seed: the six crosswalk rows load, the cup-weight file loads with its sources, and the coverage
-  report lists none of the six as missing a fact.
+  report lists each new item as missing a price only (no ERS row, as for poblano), and
+  elephant garlic as missing nutrients too (FDC has no elephant garlic).
 - Garlic per lb: $4/lb is $0.42 a medium head (453.6 g / 47.5 g = 9.55 heads), and the draft says
   medium was assumed.
 

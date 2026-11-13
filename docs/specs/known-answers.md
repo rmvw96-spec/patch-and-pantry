@@ -83,6 +83,20 @@ Purchased grams = edible grams / (1 - refuse / 100). Source: USDA SR28 `WEIGHT.t
 | Okra, 1 pod (SR28 gives 8 pods = 95 g) | 11.875 | 14% | 13.81 | Divide by the amount first |
 | Potato, medium (flesh and skin) | 213 | 10% (owner; SR28 gives 25%) | 236.7 | Owner override, 2026-11-11 |
 
+## Per piece, and nuts in the shell (spec P1-11)
+
+Lemons and limes are compared per piece, garlic per head; nuts per cup of chopped kernels, with
+an in-shell price converted by SR28's shell refuse. Checked by tests in `tests/tools/`.
+
+| Price | Item facts | Amount | Cost |
+| --- | --- | --- | --- |
+| Lemons, 3 for $1 | compared per lemon | 3 lemons | $0.33 a lemon |
+| Lemons, 2 lb bag, $3 | medium lemon 109.4 g as bought (SR28 09150: 58 g edible, 47% refuse) | 8.29 lemons | $0.36 a lemon |
+| Garlic, $4/lb | medium head 47.5 g (owner, 2026-11-13) | 9.55 heads | $0.42 a head |
+| Pecans in the shell, $5/lb | 47% shell; 1 cup chopped = 109 g (SR28 12142) | 240 g kernels, 2.21 cups | $2.27 a cup |
+| Walnuts in the shell, $8/lb | 55% shell; 1 cup chopped = 117 g (SR28 12155) | 204 g kernels, 1.74 cups | $4.59 a cup (the same as shelled at $17.78/lb) |
+| Lemons, 10 for $2.50, 4 a week, keeps 15.5 days | spoilage in pieces | 8.86 of 10 usable | $0.28 a usable lemon |
+
 ## Garden supplies: unit price and quantities
 
 | Case | Expected |
