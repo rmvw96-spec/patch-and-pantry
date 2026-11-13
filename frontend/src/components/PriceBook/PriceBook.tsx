@@ -28,6 +28,9 @@ import useCustomToast from "@/hooks/useCustomToast"
 import { money, parseCents, unitPrice } from "@/hooks/useRun"
 import { handleError } from "@/utils"
 
+// Long text wraps instead of widening the table (the cells default to no wrapping).
+const WRAP = "min-w-32 max-w-64 whitespace-normal"
+
 const selectClass =
   "border-input bg-transparent dark:bg-input/30 rounded-md border px-2 py-1 text-sm"
 
@@ -92,7 +95,21 @@ function EditRow({
 
   return (
     <TableRow data-testid="price-edit-row">
-      <TableCell />
+      {/* Save and Cancel sit where Edit was: first, so no scrolling (dogfooding). */}
+      <TableCell>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            disabled={!valid || update.isPending}
+            onClick={() => update.mutate()}
+          >
+            Save
+          </Button>
+          <Button size="sm" variant="outline" onClick={onDone}>
+            Cancel
+          </Button>
+        </div>
+      </TableCell>
       <TableCell>
         <Input
           type="date"
@@ -115,8 +132,8 @@ function EditRow({
           ))}
         </select>
       </TableCell>
-      <TableCell>{price.item_name}</TableCell>
-      <TableCell>{price.raw_text}</TableCell>
+      <TableCell className={WRAP}>{price.item_name}</TableCell>
+      <TableCell className={WRAP}>{price.raw_text}</TableCell>
       <TableCell>
         <div className="flex gap-1">
           <Input
@@ -134,7 +151,7 @@ function EditRow({
           />
         </div>
       </TableCell>
-      <TableCell colSpan={2}>
+      <TableCell colSpan={3}>
         {/* The total paid for the amount; the price of one unit is worked out from it. */}
         <Input
           className="w-24"
@@ -151,20 +168,6 @@ function EditRow({
             ? `Total paid. ${unitPrice(cents, quantity, draft.unit)}`
             : "Total paid for the amount"}
         </p>
-      </TableCell>
-      <TableCell colSpan={2}>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            disabled={!valid || update.isPending}
-            onClick={() => update.mutate()}
-          >
-            Save
-          </Button>
-          <Button size="sm" variant="outline" onClick={onDone}>
-            Cancel
-          </Button>
-        </div>
       </TableCell>
     </TableRow>
   )
@@ -287,7 +290,7 @@ const PriceBook = () => {
       <Table data-testid="price-book">
         <TableHeader>
           <TableRow>
-            <TableHead>
+            <TableHead className="w-0">
               <input
                 type="checkbox"
                 aria-label="Select all prices"
@@ -308,9 +311,6 @@ const PriceBook = () => {
             <TableHead>Total paid</TableHead>
             <TableHead>Unit price</TableHead>
             <TableHead>Per cup</TableHead>
-            <TableHead>
-              <span className="sr-only">Actions</span>
-            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -323,40 +323,15 @@ const PriceBook = () => {
               />
             ) : (
               <TableRow key={price.id} data-testid="price-row">
+                {/* Select, Edit, and Delete first: a wide row hid them off to the right. */}
                 <TableCell>
-                  <input
-                    type="checkbox"
-                    aria-label={`Select ${price.raw_text}`}
-                    checked={selected.has(price.id)}
-                    onChange={(e) => toggle(price.id, e.target.checked)}
-                  />
-                </TableCell>
-                <TableCell>{price.observed_on}</TableCell>
-                <TableCell>{price.vendor_name ?? "-"}</TableCell>
-                <TableCell>{price.item_name}</TableCell>
-                <TableCell>{price.raw_text}</TableCell>
-                <TableCell>
-                  {amount(price)}
-                  {price.weight_source && (
-                    <p className="text-muted-foreground text-xs">
-                      {price.weight_source} weight
-                    </p>
-                  )}
-                </TableCell>
-                <TableCell data-testid="price-amount">
-                  {money(price.price_cents)}
-                </TableCell>
-                <TableCell data-testid="price-unit-price">
-                  {unitPrice(price.price_cents, price.quantity, price.unit) ??
-                    "-"}
-                </TableCell>
-                <TableCell data-testid="price-cost-per-cup">
-                  {price.cost_per_cup_cents == null
-                    ? (price.note ?? "-")
-                    : money(price.cost_per_cup_cents)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${price.raw_text}`}
+                      checked={selected.has(price.id)}
+                      onChange={(e) => toggle(price.id, e.target.checked)}
+                    />
                     <Button
                       size="icon"
                       variant="ghost"
@@ -375,6 +350,30 @@ const PriceBook = () => {
                       <Trash2 />
                     </Button>
                   </div>
+                </TableCell>
+                <TableCell>{price.observed_on}</TableCell>
+                <TableCell>{price.vendor_name ?? "-"}</TableCell>
+                <TableCell className={WRAP}>{price.item_name}</TableCell>
+                <TableCell className={WRAP}>{price.raw_text}</TableCell>
+                <TableCell>
+                  {amount(price)}
+                  {price.weight_source && (
+                    <p className="text-muted-foreground text-xs">
+                      {price.weight_source} weight
+                    </p>
+                  )}
+                </TableCell>
+                <TableCell data-testid="price-amount">
+                  {money(price.price_cents)}
+                </TableCell>
+                <TableCell data-testid="price-unit-price">
+                  {unitPrice(price.price_cents, price.quantity, price.unit) ??
+                    "-"}
+                </TableCell>
+                <TableCell className={WRAP} data-testid="price-cost-per-cup">
+                  {price.cost_per_cup_cents == null
+                    ? (price.note ?? "-")
+                    : money(price.cost_per_cup_cents)}
                 </TableCell>
               </TableRow>
             ),
