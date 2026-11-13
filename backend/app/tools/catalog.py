@@ -218,11 +218,43 @@ def find_catalog_item(
 
     # 3. Broader: the same name without some describing words. Before fuzzy, so a different
     # describing word is not taken for a typo ("green tomato" is not Grape tomato).
-    broader = _broader(folded.split(), names, by_id)
+    broader, named_base = _broader(folded.split(), names, by_id)
     if len(broader) == 1:
         return _one_or_question("fuzzy", text, folded, broader, by_id)
 
     # 4. Fuzzy: each item's best score over all its names, in either word order.
+    ranked = _rank(folded, spoken, by_id)
+    if not ranked:
+        return Match("none", text, folded)
+    top = _typo_match(folded, ranked, by_id)
+    # A broader name shared by several items ("delicate squash") is a question, unless the
+    # typo match is one of them (a misspelled "yellow squash" is Yellow squash).
+    if top is not None and (not broader or top.item_id in broader):
+        return Match("fuzzy", text, folded, top, ranked)
+    if broader:
+        return _one_or_question("fuzzy", text, folded, broader, by_id)
+
+    # 5. The item word alone, with its forms, for a misspelled item after describing words
+    # (dogfooding: "bubblegum plumbs" is Plum).
+    words = folded.split()
+    rest = [w for w in words if w not in FORM_WORDS]
+    # Not when the words already named an item that is not sold in that form ("purple hull
+    # peas frozen" is Southern pea, so it is never Frozen peas).
+    if len(rest) > 1 and not named_base:
+        item_word = " ".join([*(w for w in words if w in FORM_WORDS), rest[-1]])
+        head = _typo_match(item_word, _rank(item_word, spoken, by_id), by_id)
+        if head is not None:
+            return Match("fuzzy", text, folded, head, [head])
+    suggestions = [c for c in ranked if c.score >= SUGGEST_FLOOR]
+    return Match("none", text, folded, None, suggestions)
+
+
+def _rank(
+    folded: str,
+    spoken: list[tuple[str, uuid.UUID]],
+    by_id: dict[uuid.UUID, CatalogItem],
+) -> list[Candidate]:
+    """Items by their best typo score over all their names, in either word order."""
     best: dict[uuid.UUID, float] = {}
     for name, item_id in spoken:
         words = _words(name)
@@ -231,24 +263,24 @@ def find_catalog_item(
             SequenceMatcher(None, _key(folded.split()), _key(words)).ratio(),
         )
         best[item_id] = max(best.get(item_id, 0.0), score)
-    ranked = sorted(
+    return sorted(
         (_candidate(by_id[i], s) for i, s in best.items()),
         key=lambda c: (-c.score, c.name),
     )[:MAX_CANDIDATES]
+
+
+def _typo_match(
+    folded: str, ranked: list[Candidate], by_id: dict[uuid.UUID, CatalogItem]
+) -> Candidate | None:
+    """The top candidate if it is close enough, clearly ahead, and in the same form."""
     if not ranked:
-        return Match("none", text, folded)
+        return None
     top = ranked[0]
     runner_up = ranked[1].score if len(ranked) > 1 else 0.0
     same_form = _forms(folded.split()) == _forms(_words(by_id[top.item_id].name))
-    is_match = same_form and top.score >= CUTOFF and top.score - runner_up >= MARGIN
-    # A broader name shared by several items ("delicate squash") is a question, unless the
-    # typo match is one of them (a misspelled "yellow squash" is Yellow squash).
-    if is_match and (not broader or top.item_id in broader):
-        return Match("fuzzy", text, folded, top, ranked)
-    if broader:
-        return _one_or_question("fuzzy", text, folded, broader, by_id)
-    suggestions = [c for c in ranked if c.score >= SUGGEST_FLOOR]
-    return Match("none", text, folded, None, suggestions)
+    if same_form and top.score >= CUTOFF and top.score - runner_up >= MARGIN:
+        return top
+    return None
 
 
 def _in_form(
@@ -289,8 +321,9 @@ def _broader(
     words: list[str],
     names: dict[str, set[uuid.UUID]],
     by_id: dict[uuid.UUID, CatalogItem],
-) -> set[uuid.UUID]:
-    """Items named by the words with the fewest describing words dropped.
+) -> tuple[set[uuid.UUID], bool]:
+    """Items named by the words with the fewest describing words dropped, and whether a base
+    item was named (even one not sold in the line's form).
 
     The last word that is not a form word is the item ("heirloom tomato"), so it is kept, and
     so is every form word. With a form word, a name that matches without it leads to the item
@@ -299,7 +332,7 @@ def _broader(
     forms = [w for w in words if w in FORM_WORDS]
     rest = [w for w in words if w not in FORM_WORDS]
     if not rest:
-        return set()
+        return set(), False
     describing, head = rest[:-1], rest[-1]
     for dropped in range(0, min(len(describing), MAX_DROPPED) + 1):
         found: set[uuid.UUID] = set()
@@ -317,8 +350,8 @@ def _broader(
         # An item named but not sold in that form stops here: "purple hull peas frozen" is
         # Southern pea, and there are no frozen southern peas, so it is not Frozen peas.
         if found or bases:
-            return found
-    return set()
+            return found, bool(bases)
+    return set(), False
 
 
 def remember_alias(

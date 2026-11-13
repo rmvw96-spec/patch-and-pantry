@@ -232,6 +232,8 @@ export type CaptureQuestion = {
      * Item Text
      */
     item_text?: string | null;
+    reading?: ExtractedLine | null;
+    answered?: LineAnswer | null;
 };
 
 /**
@@ -318,6 +320,7 @@ export type DraftPrice = {
      * Size Assumed
      */
     size_assumed?: boolean;
+    piece_weight?: PieceWeight | null;
     /**
      * Piece Grams
      */
@@ -354,6 +357,60 @@ export type DraftPrice = {
      * Note
      */
     note?: string | null;
+};
+
+/**
+ * ExtractedLine
+ *
+ * One typed line, copied as written. No arithmetic: the code converts everything.
+ */
+export type ExtractedLine = {
+    /**
+     * Line
+     *
+     * The line number given in the prompt
+     */
+    line: number;
+    /**
+     * Is Price
+     *
+     * False for a line that is not an item with a price, such as a store name
+     */
+    is_price: boolean;
+    /**
+     * Item Text
+     *
+     * The item words only, as written, without quantity, unit, size, or price
+     */
+    item_text?: string | null;
+    /**
+     * Quantity
+     *
+     * The amount bought as written ('3 lb bag' is 3, '3 for $5' is 3, '$0.29 each (3)' is 3), or null if none is written
+     */
+    quantity?: number | null;
+    /**
+     * Unit
+     *
+     * The unit word as written (lb, oz, each, bunch, head, ear, pint...), or null if none is written
+     */
+    unit?: string | null;
+    /**
+     * Size
+     */
+    size?: 'small' | 'medium' | 'large' | null;
+    /**
+     * Price Text
+     *
+     * The price exactly as written, such as '2.99' or '$5'
+     */
+    price_text?: string | null;
+    /**
+     * Price Is Per Unit
+     *
+     * True when the price is for one unit ('2.49/lb', '1.29 ea'); false when it is for the whole quantity ('3 lb bag 2.99', '3 for $5')
+     */
+    price_is_per_unit?: boolean;
 };
 
 /**
@@ -553,6 +610,27 @@ export type ItemSettingUpdate = {
      * Freeze Extras
      */
     freeze_extras: boolean;
+};
+
+/**
+ * LineAnswer
+ *
+ * The user's answer to one question. Each field replaces what was read, or adds to it.
+ */
+export type LineAnswer = {
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id?: string | null;
+    /**
+     * Unit
+     */
+    unit?: string | null;
+    /**
+     * Size
+     */
+    size?: 'small' | 'medium' | 'large' | null;
+    piece_weight?: PieceWeight | null;
 };
 
 /**
@@ -853,6 +931,31 @@ export type PrivateUserCreate = {
      * Is Verified
      */
     is_verified?: boolean;
+};
+
+/**
+ * QuestionAnswer
+ *
+ * The answer to one question on a price list: an item, a unit, a size, or a weight.
+ */
+export type QuestionAnswer = {
+    /**
+     * Raw Text
+     */
+    raw_text: string;
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id?: string | null;
+    /**
+     * Unit
+     */
+    unit?: string | null;
+    /**
+     * Size
+     */
+    size?: 'small' | 'medium' | 'large' | null;
+    piece_weight?: PieceWeight | null;
 };
 
 /**
@@ -1908,6 +2011,36 @@ export type groceryAnalysisRunsReadGroceryAnalysisRunResponses = {
 };
 
 export type groceryAnalysisRunsReadGroceryAnalysisRunResponse = groceryAnalysisRunsReadGroceryAnalysisRunResponses[keyof groceryAnalysisRunsReadGroceryAnalysisRunResponses];
+
+export type groceryAnalysisRunsAnswerQuestionData = {
+    body: QuestionAnswer;
+    path: {
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/grocery-analysis-runs/{id}/answers';
+};
+
+export type groceryAnalysisRunsAnswerQuestionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type groceryAnalysisRunsAnswerQuestionError = groceryAnalysisRunsAnswerQuestionErrors[keyof groceryAnalysisRunsAnswerQuestionErrors];
+
+export type groceryAnalysisRunsAnswerQuestionResponses = {
+    /**
+     * Successful Response
+     */
+    200: GroceryAnalysisRunPublic;
+};
+
+export type groceryAnalysisRunsAnswerQuestionResponse = groceryAnalysisRunsAnswerQuestionResponses[keyof groceryAnalysisRunsAnswerQuestionResponses];
 
 export type privateCreateUserData = {
     body: PrivateUserCreate;

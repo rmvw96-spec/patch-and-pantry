@@ -2,7 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { catalogReadCatalogData, catalogReadCatalogResponses, groceryAnalysisRunsCreateGroceryAnalysisRunData, groceryAnalysisRunsCreateGroceryAnalysisRunErrors, groceryAnalysisRunsCreateGroceryAnalysisRunResponses, groceryAnalysisRunsReadGroceryAnalysisRunData, groceryAnalysisRunsReadGroceryAnalysisRunErrors, groceryAnalysisRunsReadGroceryAnalysisRunResponses, householdCreateAliasData, householdCreateAliasErrors, householdCreateAliasResponses, householdReadHouseholdData, householdReadHouseholdResponses, householdReadItemSettingsData, householdReadItemSettingsResponses, householdUpdateHouseholdData, householdUpdateHouseholdErrors, householdUpdateHouseholdResponses, householdUpdateItemSettingData, householdUpdateItemSettingErrors, householdUpdateItemSettingResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, pricesCreatePricesData, pricesCreatePricesErrors, pricesCreatePricesResponses, pricesDeletePriceData, pricesDeletePriceErrors, pricesDeletePriceResponses, pricesReadPricesData, pricesReadPricesResponses, pricesUpdateOnePriceData, pricesUpdateOnePriceErrors, pricesUpdateOnePriceResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses, vendorsCreateVendorData, vendorsCreateVendorErrors, vendorsCreateVendorResponses, vendorsReadVendorsData, vendorsReadVendorsResponses } from './types.gen';
+import type { catalogReadCatalogData, catalogReadCatalogResponses, groceryAnalysisRunsAnswerQuestionData, groceryAnalysisRunsAnswerQuestionErrors, groceryAnalysisRunsAnswerQuestionResponses, groceryAnalysisRunsCreateGroceryAnalysisRunData, groceryAnalysisRunsCreateGroceryAnalysisRunErrors, groceryAnalysisRunsCreateGroceryAnalysisRunResponses, groceryAnalysisRunsReadGroceryAnalysisRunData, groceryAnalysisRunsReadGroceryAnalysisRunErrors, groceryAnalysisRunsReadGroceryAnalysisRunResponses, householdCreateAliasData, householdCreateAliasErrors, householdCreateAliasResponses, householdReadHouseholdData, householdReadHouseholdResponses, householdReadItemSettingsData, householdReadItemSettingsResponses, householdUpdateHouseholdData, householdUpdateHouseholdErrors, householdUpdateHouseholdResponses, householdUpdateItemSettingData, householdUpdateItemSettingErrors, householdUpdateItemSettingResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, pricesCreatePricesData, pricesCreatePricesErrors, pricesCreatePricesResponses, pricesDeletePriceData, pricesDeletePriceErrors, pricesDeletePriceResponses, pricesReadPricesData, pricesReadPricesResponses, pricesUpdateOnePriceData, pricesUpdateOnePriceErrors, pricesUpdateOnePriceResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses, vendorsCreateVendorData, vendorsCreateVendorErrors, vendorsCreateVendorResponses, vendorsReadVendorsData, vendorsReadVendorsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -520,6 +520,26 @@ export class GroceryAnalysisRunsService {
             security: [{ scheme: 'bearer', type: 'http' }],
             url: '/api/v1/grocery-analysis-runs/{id}',
             ...options
+        });
+    }
+    
+    /**
+     * Answer Question
+     *
+     * Answer one question on a read price list. The line is completed in code (no model call)
+     * and the question becomes a draft, or the next question. Choosing an item also remembers
+     * the typed words as the household's name for it.
+     */
+    public static answerQuestion<ThrowOnError extends boolean = true>(options: Options<groceryAnalysisRunsAnswerQuestionData, ThrowOnError>) {
+        return (options.client ?? client).post<groceryAnalysisRunsAnswerQuestionResponses, groceryAnalysisRunsAnswerQuestionErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/grocery-analysis-runs/{id}/answers',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
         });
     }
 }

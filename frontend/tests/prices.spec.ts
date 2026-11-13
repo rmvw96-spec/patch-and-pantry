@@ -75,6 +75,14 @@ test.describe("Reading a typed list", () => {
     await expect(save).toHaveText("Save 1 price") // the kale line waits for its weight
 
     await page.getByLabel("Weight of one piece for kale bunch 2.50").fill("0.5")
+    await page.getByRole("button", { name: "Use this weight" }).click()
+
+    // The answered line moves into the table, with the weight it was given.
+    await expect(page.getByTestId("capture-question")).toHaveCount(0)
+    await expect(page.getByTestId("capture-draft")).toHaveCount(2)
+    await expect(page.getByTestId("capture-draft").nth(1)).toContainText(
+      "estimated at capture: 226.796 g",
+    )
     await expect(save).toHaveText("Save 2 prices")
     await save.click()
 
@@ -92,7 +100,7 @@ test.describe("Reading a typed list", () => {
     )
   })
 
-  test("Choosing an item for an unknown name matches it on the next read", async ({
+  test("Choosing an item completes the line, and is remembered", async ({
     page,
   }) => {
     // A made-up name, so the alias it saves cannot collide with an earlier run of this test.
@@ -107,14 +115,45 @@ test.describe("Reading a typed list", () => {
       .getByLabel(`Item for ${line}`)
       .selectOption({ label: "Collards" })
     await page.getByRole("button", { name: "Use this item" }).click()
-    await page.getByRole("button", { name: "Read the list again" }).click()
 
-    await expect(page.getByTestId("run-status")).toHaveText("succeeded", {
-      timeout: 30_000,
-    })
+    // The question becomes a draft in place: no second read.
+    await expect(page.getByTestId("capture-question")).toHaveCount(0)
+    await expect(page.getByTestId("capture-draft")).toContainText(
+      "you chose Collards",
+    )
+    // It is kept on the run, so a refresh shows the draft too.
+    await page.reload()
     await expect(page.getByTestId("capture-draft")).toContainText("Collards")
+
+    // And remembered: the same name matches next time.
+    await readList(page, line)
     await expect(page.getByTestId("capture-draft")).toContainText(
       "as you confirmed before",
+    )
+  })
+
+  test("A unit question has choices and completes the line", async ({
+    page,
+  }) => {
+    await readList(page, "kale 2.50")
+    await expect(page.getByTestId("capture-question")).toContainText(
+      "What did $2.50 buy of kale",
+    )
+    await page.getByLabel("Unit for kale 2.50").selectOption("bunch")
+    await page.getByRole("button", { name: "Use this unit" }).click()
+
+    // A bunch of kale has no weight in CI's data: the next question, for the same line.
+    await expect(page.getByTestId("capture-question")).toContainText(
+      "How much does one bunch of kale weigh?",
+    )
+    await page.getByLabel("Weight of one piece for kale 2.50").fill("12")
+    await page.getByLabel("Weight unit for kale 2.50").selectOption("oz")
+    await page.getByRole("button", { name: "Use this weight" }).click()
+
+    await expect(page.getByTestId("capture-draft")).toContainText("1 bunch")
+    await page.getByRole("button", { name: "Save 1 price" }).click()
+    await expect(page.getByTestId("capture-saved")).toContainText(
+      "Saved 1 price ",
     )
   })
 
@@ -157,36 +196,6 @@ test.describe("Reading a typed list", () => {
     await expect(page.getByTestId("capture-unsaved")).toContainText(
       "qqzzv 1 lb 1.00 (you dropped it)",
     )
-  })
-
-  test("Reading the list again leaves out dropped and unchecked lines", async ({
-    page,
-  }) => {
-    // Made-up names, so the alias this saves cannot collide with an earlier run of this test.
-    const name = `qq${Math.random().toString(36).slice(2, 7).replace(/[0-9]/g, "x")}`
-    const chosen = `${name} 1 lb 2.48`
-    const dropped = "qqzzv 1 lb 1.00"
-    const unchecked = "tomatoes 2.49/lb"
-    await readList(page, `${chosen}\n${dropped}\n${unchecked}`)
-
-    await page.getByRole("button", { name: `Drop ${dropped}` }).click()
-    await page.getByLabel(`Save ${unchecked}`).uncheck()
-    await page
-      .getByLabel(`Item for ${chosen}`)
-      .selectOption({ label: "Collards" })
-    await page.getByRole("button", { name: "Use this item" }).click()
-    await expect(
-      page.getByText("leaves out the 2 lines you dropped or unchecked"),
-    ).toBeVisible()
-    await page.getByRole("button", { name: "Read the list again" }).click()
-
-    await expect(page.getByTestId("run-status")).toHaveText("succeeded", {
-      timeout: 30_000,
-    })
-    await expect(page.getByTestId("run-input")).toHaveText(chosen)
-    await expect(page.getByTestId("capture-question")).toHaveCount(0)
-    await expect(page.getByTestId("capture-draft")).toHaveCount(1)
-    await expect(page.getByTestId("capture-draft")).toContainText("Collards")
   })
 
   test("Saved prices appear in the price book", async ({ page }) => {
