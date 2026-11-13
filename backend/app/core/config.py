@@ -12,6 +12,9 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# How typed lists are read (see CAPTURE_READER).
+CaptureReader = Literal["rules_first", "model"]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -47,6 +50,9 @@ class Settings(BaseSettings):
     # Model for the agents (see app/agents/models.py): "demo" (scripted, no key), "test", or
     # "foundry:deepseek-v3.2[@<deployment>]". Live models run only when set explicitly.
     SIM_MODEL: str = "demo"
+    # How typed lists are read: by rules first, sending only the lines they are not sure of to
+    # the model (owner decision, 2026-11-13), or every line to the model.
+    CAPTURE_READER: CaptureReader = "rules_first"
     # Microsoft Foundry deployment for "foundry:" models: the v1 endpoint from the deployment's page
     # (ending in /openai/v1/) and its key. Read only when a run uses a Foundry model.
     FOUNDRY_ENDPOINT: str | None = None

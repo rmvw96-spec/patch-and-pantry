@@ -1,7 +1,8 @@
 """Typed-list capture (P1-5): a typed shopping list becomes draft prices and questions.
 
-The model only reads: for each numbered line it copies the item words, quantity, unit, size, and
-price as written. Everything after that is deterministic code: matching the item
+Lines are read by rules first (``app.tools.read_line``); only the lines they are not sure of go
+to the model (owner decision, 2026-11-13). Either way the reader only copies: for each line the
+item words, quantity, unit, size, and price as written. Everything after that is deterministic code: matching the item
 (``find_catalog_item``), finding one piece's weight, and the per-cup math (``normalize_price``).
 The model does no arithmetic and chooses nothing (Phase 1 spec, D7).
 
@@ -10,11 +11,11 @@ that would otherwise be a guess: an unclear item, a piece with no known weight o
 price that cannot be read.
 """
 
-import re
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -25,7 +26,7 @@ from sqlmodel import Session
 
 from app.agents.models import build_model
 from app.agents.usage import ModelUsage
-from app.core.config import settings
+from app.core.config import CaptureReader, settings
 from app.models import CatalogItem, Household, PortionSize, Vendor
 from app.prices import PieceWeight, piece_grams
 from app.tools.catalog import Candidate, Match, find_catalog_item
@@ -42,6 +43,11 @@ from app.tools.normalize import (
     normalize_price,
     portion_grams,
 )
+from app.tools.read_line import (
+    needs_model,
+    read_list_line,
+    read_price,
+)
 
 MAX_LINES = 100
 MAX_LINE_LENGTH = 200
@@ -50,6 +56,9 @@ MAX_MODEL_REQUESTS = 4
 
 
 # ---------- what the model returns ----------
+
+
+logger = logging.getLogger(__name__)
 
 
 class ExtractedLine(BaseModel):
@@ -195,6 +204,10 @@ class CaptureResult:
     ignored: list[str] = field(default_factory=list)  # lines that are not prices
     data_snapshot_ids: set[uuid.UUID] = field(default_factory=set)
     usage: ModelUsage = field(default_factory=ModelUsage)
+    # How the lines were read, and how many the model read (with rules first, only the lines
+    # the rules were not sure of; owner decision, 2026-11-13).
+    reader: CaptureReader = "rules_first"
+    model_lines: int = 0
 
 
 class CaptureFailed(Exception):
@@ -206,26 +219,6 @@ class CaptureFailed(Exception):
 
 
 # ---------- deterministic steps ----------
-
-_PRICE = re.compile(r"^\$?\s*(\d+(?:\.\d{1,2})?|\.\d{1,2})\s*$")
-_CENTS = re.compile(r"^(\d{1,2})\s*(?:c|¢|cents?)$")
-
-
-def price_cents(text: str | None) -> int | None:
-    """'2.99', '$5', '.99', '99c' -> integer cents; None if the text is not a plain price."""
-    if text is None:
-        return None
-    cleaned = text.strip().lower().replace(",", "")
-    cents = _CENTS.match(cleaned)
-    if cents:
-        return int(cents.group(1))
-    dollars = _PRICE.match(cleaned)
-    if not dollars:
-        return None
-    try:
-        return int((Decimal(dollars.group(1)) * 100).to_integral_value())
-    except InvalidOperation:  # pragma: no cover - the pattern admits only valid numbers
-        return None
 
 
 def total_cents(per_unit_cents: int, quantity: float) -> int:
@@ -320,7 +313,8 @@ def _process(
     if item is None:  # pragma: no cover - the matcher only returns existing items
         raise RuntimeError(f"catalog item {match.item.item_id} disappeared")
 
-    cents = price_cents(line.price_text)
+    written_price = read_price(line.price_text)
+    cents = written_price.cents
     if cents is None:
         written = f" ('{line.price_text}')" if line.price_text else ""
         result.questions.append(
@@ -333,7 +327,7 @@ def _process(
         return
     # A unit before the item ("Head of lettuce $3") can be missed by the reader: the line's own
     # count word is used when it names exactly one.
-    written_unit = answer.unit or line.unit or count_unit_in(raw)
+    written_unit = answer.unit or line.unit or written_price.per or count_unit_in(raw)
     if written_unit is None:
         options = ["lb", "each", "bunch", "head"]
         result.questions.append(
@@ -355,7 +349,8 @@ def _process(
     # paid for the quantity, so a per-unit price ("$0.29 each (3)") is multiplied out here.
     quantity = 1.0 if line.quantity is None else line.quantity
     price_note = None
-    if line.price_is_per_unit and quantity > 0 and quantity != 1:
+    is_per_unit = line.price_is_per_unit or written_price.per is not None
+    if is_per_unit and quantity > 0 and quantity != 1:
         per_unit = cents
         cents = total_cents(per_unit, quantity)
         price_note = f"${per_unit / 100:.2f} {_per(unit)} x {quantity:g}"
@@ -498,6 +493,42 @@ async def extract_lines(
     return by_number, ModelUsage.of(result.usage)
 
 
+async def read_lines(
+    lines: list[str],
+    model: models.Model | str | None = None,
+    reader: CaptureReader = "rules_first",
+) -> tuple[dict[int, ExtractedLine], ModelUsage, int]:
+    """Read the lines: by the rules first, sending only the ones they are not sure of to the
+    model (``reader="rules_first"``), or every line to the model (``"model"``).
+
+    Returns each line's reading by line number, the model's usage, and how many lines it read.
+    A line missing from the readings becomes an "unreadable" question.
+    """
+    if reader == "model":
+        extracted, usage = await extract_lines(lines, model)
+        return extracted, usage, len(lines)
+    readings: dict[int, ExtractedLine] = {}
+    unsure: list[int] = []
+    for number, raw in enumerate(lines, start=1):
+        entry = read_list_line(raw)
+        if needs_model(raw, entry):
+            unsure.append(number)
+        else:
+            readings[number] = ExtractedLine.model_validate({"line": number, **entry})
+    if not unsure:
+        return readings, ModelUsage(), 0
+    try:
+        extracted, usage = await extract_lines([lines[n - 1] for n in unsure], model)
+    except CaptureFailed as exc:
+        # The rules' readings still stand; the model's lines become questions.
+        logger.warning("The model could not read %d lines: %s", len(unsure), exc.reason)
+        return readings, ModelUsage(), len(unsure)
+    for asked, number in enumerate(unsure, start=1):
+        if asked in extracted:
+            readings[number] = extracted[asked].model_copy(update={"line": number})
+    return readings, usage, len(unsure)
+
+
 async def capture_typed_list(
     session: Session,
     household: Household,
@@ -505,6 +536,7 @@ async def capture_typed_list(
     vendor_id: uuid.UUID,
     observed_on: date,
     model: models.Model | str | None = None,
+    reader: CaptureReader | None = None,
 ) -> CaptureResult:
     """Turn a typed list into drafts and questions. Reads the database; writes nothing."""
     vendor = session.get(Vendor, vendor_id)
@@ -523,10 +555,12 @@ async def capture_typed_list(
         raise CaptureFailed(
             "line_too_long", f"Lines can be up to {MAX_LINE_LENGTH} characters long."
         )
-    result = CaptureResult()
+    result = CaptureResult(reader=reader or settings.CAPTURE_READER)
     if not lines:
         return result
-    extracted, result.usage = await extract_lines(lines, model)
+    extracted, result.usage, result.model_lines = await read_lines(
+        lines, model, result.reader
+    )
     for number, raw in enumerate(lines, start=1):
         _process_line(
             session,

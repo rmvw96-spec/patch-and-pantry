@@ -157,6 +157,8 @@ class Outcome:
     tools_used: list[str]
     data_snapshot_ids: set[uuid.UUID] = field(default_factory=set)
     usage: ModelUsage = field(default_factory=ModelUsage)
+    # False when the rules read every line, so no model was asked (recorded as "rules").
+    model_used: bool = True
 
 
 def model_name(model: models.Model | str | None) -> str:
@@ -195,13 +197,15 @@ async def _price_capture(
             ignored=captured.ignored,
         ),
         tools_used=[
-            "capture_agent",
+            *(["read_list_line"] if captured.reader == "rules_first" else []),
+            *(["capture_agent"] if captured.model_lines else []),
             "find_catalog_item",
             "portion_grams",
             "normalize_price",
         ],
         data_snapshot_ids=captured.data_snapshot_ids,
         usage=captured.usage,
+        model_used=captured.model_lines > 0,
     )
 
 
@@ -322,7 +326,7 @@ async def _execute_run(
             result=outcome.result.model_dump(mode="json"),
             tools_used=outcome.tools_used,
             data_snapshot_ids=sorted(str(i) for i in outcome.data_snapshot_ids),
-            model=model_name(model),
+            model=model_name(model) if outcome.model_used else "rules",
             input_tokens=outcome.usage.input_tokens,
             output_tokens=outcome.usage.output_tokens,
             requests=outcome.usage.requests,
