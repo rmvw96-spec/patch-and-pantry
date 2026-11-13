@@ -55,6 +55,7 @@ squash,acorn-squash,
 pepper,sweet-pepper,Ambiguous on purpose
 pepper,hot-pepper,
 pepper,red-bell-pepper,
+pepper,poblano-pepper,
 bean,snap-bean,Ambiguous on purpose
 bean,black-bean,
 bean,pinto-bean,
@@ -83,3 +84,4 @@ purple hull pea,southern-pea,A southern pea variety (dogfooding)
 cutie,clementine,"A clementine brand (dogfooding: ""Cuties 2 for $1"")"
 tangerine,orange,Owner (2026-11-12): priced as an orange; no size implied,
 satsuma,orange,Owner (2026-11-12): priced as a large orange,large
+poblano,poblano-pepper,

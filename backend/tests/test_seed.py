@@ -341,7 +341,7 @@ def test_every_catalog_item_has_a_conversion_source_and_stand_ins_point_at_their
 ) -> None:
     crosswalk = read_crosswalk()
     catalog = ensure_catalog(session, crosswalk)
-    assert len(catalog) == 168
+    assert len(catalog) == 169
     assert all(item.conversion_source for item in catalog.values())
     for row in crosswalk:
         item = catalog[row.slug]
@@ -1009,6 +1009,7 @@ def test_the_committed_portion_map_is_valid() -> None:
     assert {row.slug for row in rows if row.refuse_override is not None} == {"potato"}
     # Dogfooding: these were priced by count at a market and each asked for a weight.
     priced_by_count = {"avocado", "mango", "kiwi", "clementine", "orange", "grapefruit"}
+    priced_by_count |= {"poblano-pepper"}  # owner: its own item, bell pepper weights
     assert priced_by_count <= {row.slug for row in rows if row.has_source}
 
 
