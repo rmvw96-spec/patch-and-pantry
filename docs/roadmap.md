@@ -91,6 +91,8 @@ week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/
 - [ ] iPhone home-screen icon: replace the stopgap `apple-touch-icon.png` (the app icon with its
       corners squared off, so iOS does not show them black) with a purpose-made 180 px full-bleed
       icon, and check it on a phone.
+- [ ] Items compared per piece (lemons, limes, garlic) and nuts per cup of chopped kernels,
+      with in-shell prices converted; none counts toward produce cups (P1-11, added 2026-11-13).
 - [ ] Agent instructions and tone guide written and reviewed.
 - [ ] Golden evals: extraction field by field; conversions and rankings exact; clarification
       cases; a trace check that every number came from a tool.
@@ -210,3 +212,4 @@ match hand calculations.
 | 2026-11-12 | Pages and shopping list done (P1-7): confirm drafts, price book, best buy with a printable shopping list, household settings. |
 | 2026-11-12 | Dogfooding fixes after P1-7: best-buy table notes, totals for per-unit prices, dropping a line at capture, the Items page removed, and the catalog expanded to every ERS row (not only North Alabama crops). Next: P1-8. |
 | 2026-11-12 | Photo capture (Phase 2) note: the photo agent must output correctly spelled item names for the typed-list matcher, which deliberately does not chase every misspelling. |
+| 2026-11-13 | P1-11 added from dogfooding: lemons, limes, garlic, and nuts were missing (not in ERS). Spec drafted for owner review. |
