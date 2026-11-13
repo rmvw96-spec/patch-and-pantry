@@ -90,6 +90,14 @@ class PricesCreate(BaseModel):
     entries: list[PriceEntry] = Field(min_length=1, max_length=MAX_ENTRIES)
 
 
+class PricesDelete(BaseModel):
+    """Prices to delete together: all of them, or none if any is not yours."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=1000)
+
+
 class PriceUpdate(BaseModel):
     """Edit a saved price. The item and the line as typed stay; the rest can change."""
 
@@ -355,6 +363,25 @@ def _cost_per_cup(
     except NormalizeError as exc:
         return None, str(exc)
     return normalized.cost_per_cup_cents, None
+
+
+def delete_prices(session: Session, household: Household, ids: list[uuid.UUID]) -> int:
+    """Delete the household's prices with these ids, all or none. Flushes; caller commits."""
+    wanted = set(ids)
+    found = list(
+        session.exec(
+            select(PriceObservation).where(
+                col(PriceObservation.id).in_(wanted),
+                PriceObservation.household_id == household.id,
+            )
+        )
+    )
+    if len(found) != len(wanted):
+        raise LookupError("Price not found")
+    for observation in found:
+        session.delete(observation)
+    session.flush()
+    return len(found)
 
 
 def price_book(

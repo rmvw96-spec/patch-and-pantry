@@ -2,7 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { catalogReadCatalogData, catalogReadCatalogResponses, groceryAnalysisRunsAnswerQuestionData, groceryAnalysisRunsAnswerQuestionErrors, groceryAnalysisRunsAnswerQuestionResponses, groceryAnalysisRunsCreateGroceryAnalysisRunData, groceryAnalysisRunsCreateGroceryAnalysisRunErrors, groceryAnalysisRunsCreateGroceryAnalysisRunResponses, groceryAnalysisRunsReadGroceryAnalysisRunData, groceryAnalysisRunsReadGroceryAnalysisRunErrors, groceryAnalysisRunsReadGroceryAnalysisRunResponses, householdCreateAliasData, householdCreateAliasErrors, householdCreateAliasResponses, householdReadHouseholdData, householdReadHouseholdResponses, householdReadItemSettingsData, householdReadItemSettingsResponses, householdUpdateHouseholdData, householdUpdateHouseholdErrors, householdUpdateHouseholdResponses, householdUpdateItemSettingData, householdUpdateItemSettingErrors, householdUpdateItemSettingResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, pricesCreatePricesData, pricesCreatePricesErrors, pricesCreatePricesResponses, pricesDeletePriceData, pricesDeletePriceErrors, pricesDeletePriceResponses, pricesReadPricesData, pricesReadPricesResponses, pricesUpdateOnePriceData, pricesUpdateOnePriceErrors, pricesUpdateOnePriceResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses, vendorsCreateVendorData, vendorsCreateVendorErrors, vendorsCreateVendorResponses, vendorsReadVendorsData, vendorsReadVendorsResponses } from './types.gen';
+import type { catalogReadCatalogData, catalogReadCatalogResponses, groceryAnalysisRunsAnswerQuestionData, groceryAnalysisRunsAnswerQuestionErrors, groceryAnalysisRunsAnswerQuestionResponses, groceryAnalysisRunsCreateGroceryAnalysisRunData, groceryAnalysisRunsCreateGroceryAnalysisRunErrors, groceryAnalysisRunsCreateGroceryAnalysisRunResponses, groceryAnalysisRunsReadGroceryAnalysisRunData, groceryAnalysisRunsReadGroceryAnalysisRunErrors, groceryAnalysisRunsReadGroceryAnalysisRunResponses, householdCreateAliasData, householdCreateAliasErrors, householdCreateAliasResponses, householdReadHouseholdData, householdReadHouseholdResponses, householdReadItemSettingsData, householdReadItemSettingsResponses, householdUpdateHouseholdData, householdUpdateHouseholdErrors, householdUpdateHouseholdResponses, householdUpdateItemSettingData, householdUpdateItemSettingErrors, householdUpdateItemSettingResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, pricesCreatePricesData, pricesCreatePricesErrors, pricesCreatePricesResponses, pricesDeletePriceData, pricesDeletePriceErrors, pricesDeletePriceResponses, pricesDeleteSeveralPricesData, pricesDeleteSeveralPricesErrors, pricesDeleteSeveralPricesResponses, pricesReadPricesData, pricesReadPricesResponses, pricesUpdateOnePriceData, pricesUpdateOnePriceErrors, pricesUpdateOnePriceResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses, vendorsCreateVendorData, vendorsCreateVendorErrors, vendorsCreateVendorResponses, vendorsReadVendorsData, vendorsReadVendorsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -479,6 +479,24 @@ export class PricesService {
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
             url: '/api/v1/prices/{id}',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Delete Several Prices
+     *
+     * Delete several of your prices at once: all of them, or none if any is not yours.
+     */
+    public static deleteSeveralPrices<ThrowOnError extends boolean = true>(options: Options<pricesDeleteSeveralPricesData, ThrowOnError>) {
+        return (options.client ?? client).post<pricesDeleteSeveralPricesResponses, pricesDeleteSeveralPricesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/prices/delete',
             ...options,
             headers: {
                 'Content-Type': 'application/json',
