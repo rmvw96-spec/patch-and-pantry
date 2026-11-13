@@ -23,8 +23,9 @@ from app.tools.normalize import (
     WrongMeasure,
     canonical_unit,
     catalog_facts,
-    needs_piece,
+    measure_name,
     normalize_price,
+    piece_unit,
     portion_grams,
 )
 
@@ -244,11 +245,12 @@ def test_produce_by_volume_is_the_wrong_measure(unit: str) -> None:
 
 
 def test_a_pint_is_a_container_for_produce_and_a_volume_for_juice() -> None:
-    assert needs_piece("pint", ONION) and not needs_piece("pint", ORANGE_JUICE)
-    assert not needs_piece(
-        "each", ORANGE_JUICE
+    assert piece_unit("pint", ONION) == "pint"
+    assert piece_unit("pint", ORANGE_JUICE) is None
+    assert (
+        piece_unit("each", ORANGE_JUICE) is None
     )  # normalize refuses it instead of asking
-    assert not needs_piece("lb", ONION)
+    assert piece_unit("lb", ONION) is None
     # A pint of blueberries goes by its weight.
     assert (
         normalize_price(399, 1, "pint", ONION, portion_grams=340.0).grams_purchased
@@ -529,3 +531,99 @@ def test_a_weighed_piece_beats_a_loaded_one(session: Session) -> None:
 def test_weight_units_need_no_portion(session: Session) -> None:
     with pytest.raises(ValueError, match="weight unit"):
         portion_grams(session, _item(session), "lb")
+
+
+# ---------- items compared per piece, and nuts in the shell (spec P1-11) ----------
+
+LEMON = CatalogFacts("Lemon", None, None, "not needed", compared_by="each")
+GARLIC = CatalogFacts("Garlic", None, None, "not needed", compared_by="head")
+# SR28 12155 and 12142: 1 cup chopped kernels (117 g, 109 g); shell refuse 55% and 47%.
+WALNUT = CatalogFacts("Walnut", 1.0, 117 / GRAMS_PER_LB, "SR28", shell_refuse_pct=55)
+PECAN = CatalogFacts("Pecan", 1.0, 109 / GRAMS_PER_LB, "SR28", shell_refuse_pct=47)
+
+
+def test_a_count_price_of_a_piece_item_is_pieces() -> None:
+    """ "3 for $1" is 3 lemons at 33 cents; no cups (owner, 2026-11-13)."""
+    result = normalize_price(100, 3, "each", LEMON)
+    assert (result.pieces, result.cups, result.cost_per_cup_cents) == (3, None, None)
+    assert result.cost_per_piece_cents == pytest.approx(100 / 3)
+    assert (result.amount, result.cost_per_measure_cents) == (
+        3,
+        result.cost_per_piece_cents,
+    )
+
+
+def test_each_garlic_is_a_head() -> None:
+    assert normalize_price(89, 1, "each", GARLIC).pieces == 1
+    assert normalize_price(178, 2, "head", GARLIC).cost_per_piece_cents == 89
+
+
+def test_a_weight_price_of_a_piece_item_counts_pieces_by_their_weight() -> None:
+    # A 2 lb bag of medium lemons (109.4 g as bought) for $3: 8.29 lemons, $0.36 each.
+    bag = normalize_price(300, 2, "lb", LEMON, portion_grams=109.4)
+    assert bag.pieces == pytest.approx(2 * GRAMS_PER_LB / 109.4)
+    assert bag.cost_per_piece_cents == pytest.approx(36.18, abs=0.01)
+    # Spec worked answer: garlic $4/lb is 9.55 medium heads (47.5 g), $0.42 a head.
+    garlic = normalize_price(400, 1, "lb", GARLIC, portion_grams=47.5)
+    assert garlic.pieces == pytest.approx(9.55, abs=0.005)
+    assert garlic.cost_per_piece_cents == pytest.approx(41.89, abs=0.01)
+
+
+def test_a_weight_price_of_a_piece_item_needs_one_piece_weight() -> None:
+    with pytest.raises(NeedsPortion) as raised:
+        normalize_price(300, 2, "lb", LEMON)
+    assert raised.value.unit == "each"
+    with pytest.raises(NeedsPortion, match="head of garlic"):
+        normalize_price(400, 1, "lb", GARLIC)
+
+
+@pytest.mark.parametrize("unit", ["bunch", "ear", "quart"])
+def test_a_piece_item_is_not_sold_by_other_units(unit: str) -> None:
+    with pytest.raises(WrongMeasure):
+        normalize_price(100, 1, unit, LEMON)
+
+
+def test_a_piece_item_needs_a_piece_weight_only_for_a_weight_price() -> None:
+    assert piece_unit("lb", LEMON) == "each"
+    assert piece_unit("oz", GARLIC) == "head"
+    assert piece_unit("each", LEMON) is None
+    assert piece_unit("head", GARLIC) is None
+
+
+@pytest.mark.parametrize(
+    ("facts", "dollars", "cups", "per_cup"),
+    [
+        # Spec P1-11 worked answers (owner's market, 2026-11-12), per pound in the shell.
+        (WALNUT, 8.00, 1.74, 4.59),
+        (PECAN, 5.00, 2.21, 2.27),
+    ],
+)
+def test_nuts_in_the_shell_count_only_the_kernels(
+    facts: CatalogFacts, dollars: float, cups: float, per_cup: float
+) -> None:
+    result = normalize_price(dollars * 100, 1, "lb", facts, in_shell=True)
+    assert result.cups == pytest.approx(cups, abs=0.005)
+    assert result.cost_per_cup_cents is not None
+    assert result.cost_per_cup_cents / 100 == pytest.approx(per_cup, abs=0.005)
+
+
+def test_shelled_nuts_and_the_same_cost_in_the_shell() -> None:
+    """Walnuts at $8/lb in the shell cost a cup what shelled ones do at $17.78/lb."""
+    shelled = normalize_price(1778, 1, "lb", WALNUT)
+    in_shell = normalize_price(800, 1, "lb", WALNUT, in_shell=True)
+    assert shelled.cups == pytest.approx(GRAMS_PER_LB / 117)
+    assert shelled.cost_per_cup_cents == pytest.approx(
+        in_shell.cost_per_cup_cents or 0, abs=0.5
+    )
+
+
+def test_in_shell_means_nothing_for_an_item_without_a_shell() -> None:
+    assert normalize_price(299, 3, "lb", ONION, in_shell=True) == normalize_price(
+        299, 3, "lb", ONION
+    )
+
+
+def test_measure_names() -> None:
+    assert measure_name("Lemon", "each") == "lemon"
+    assert measure_name("Garlic", "head") == "head"
+    assert measure_name("Onion", "cup") == "cup"

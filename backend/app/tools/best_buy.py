@@ -2,13 +2,16 @@
 
 For each item the household needs, one row per price: the household's own prices from the last
 30 days, the ERS national average as a labeled reference (or as the priced row when the household
-has none), or a "no price" row. Each row gives the price, cups bought, usable cups after
-spoilage, and cost per usable cup, with the source of every factor. The lowest cost per usable
-cup is marked (the Lowest cost preset).
+has none), or a "no price" row. Each row gives the price, the amount bought, the usable amount
+after spoilage, and the cost per usable amount, with the source of every factor. The lowest cost
+per usable amount is marked (the Lowest cost preset).
+
+Amounts are in the item's own measure (spec P1-11, D8): cups for most produce, pieces for items
+compared per piece (a lemon, a head of garlic). Rows of one item share its measure.
 
 Spoilage (Phase 1 spec, D4):
 
-    usable cups = min(cups bought, cups used per day x storage days)
+    usable = min(amount bought, amount used per day x storage days)
 
 Storage days are the midpoint of the item's FoodKeeper range; with "cook and freeze extras" on,
 the midpoint of FoodKeeper's cooked-leftovers freezer range. The arithmetic is in pure functions
@@ -39,8 +42,9 @@ from app.tools.normalize import (
     NormalizeError,
     canonical_unit,
     catalog_facts,
-    needs_piece,
+    measure_name,
     normalize_price,
+    piece_unit,
     portion_grams,
 )
 
@@ -61,21 +65,24 @@ def midpoint(days_min: int | None, days_max: int | None) -> float | None:
 
 
 def spoilage(
-    cups_bought: float, cups_per_week: float, storage_days: float | None
+    bought: float, per_week: float, storage_days: float | None
 ) -> tuple[float, float]:
-    """(usable cups, spoiled share 0-1). No storage time means no spoilage is counted."""
-    if cups_bought <= 0:
+    """(usable amount, spoiled share 0-1), in cups or pieces alike. No storage time means no
+    spoilage is counted."""
+    if bought <= 0:
         return 0.0, 0.0
     if storage_days is None:
-        return cups_bought, 0.0
-    usable = min(cups_bought, cups_per_week / DAYS_PER_WEEK * storage_days)
-    return usable, 1 - usable / cups_bought
+        return bought, 0.0
+    usable = min(bought, per_week / DAYS_PER_WEEK * storage_days)
+    return usable, 1 - usable / bought
 
 
 @dataclass(frozen=True)
 class Need:
+    """How much of an item the household uses a week, in the item's measure (cups, pieces)."""
+
     catalog_item_id: uuid.UUID
-    cups_per_week: float
+    per_week: float
 
 
 @dataclass(frozen=True)
@@ -102,9 +109,10 @@ class PriceInput:
     unit: str
     piece_grams: float | None = None
     piece_note: str | None = None  # where the piece weight came from
-    problem: str | None = None  # why there is no per-cup figure (a missing weight, say)
+    problem: str | None = None  # why there is no cost figure (a missing weight, say)
     observation_id: uuid.UUID | None = None
     vendor_id: uuid.UUID | None = None
+    in_shell: bool = False  # nuts weighed in the shell
 
 
 @dataclass
@@ -112,18 +120,20 @@ class BestBuyRow:
     item_name: str
     kind: RowKind
     label: str
-    cups_per_week: float
+    per_week: float
+    # What one unit of the amounts is: "cup", or a piece ("lemon", "head").
+    measure: str = "cup"
     observed_on: date | None = None
     raw_text: str | None = None
     price_cents: float | None = None
     quantity: float | None = None
     unit: str | None = None
-    cups_bought: float | None = None
-    usable_cups: float | None = None
+    amount_bought: float | None = None
+    usable_amount: float | None = None
     spoiled_share: float | None = None
     storage_days: float | None = None
-    cost_per_cup_cents: float | None = None  # before spoilage
-    cost_per_usable_cup_cents: float | None = None
+    cost_per_amount_cents: float | None = None  # before spoilage
+    cost_per_usable_cents: float | None = None
     marked: bool = False
     notes: list[str] = field(default_factory=list)
     sources: dict[str, str] = field(default_factory=dict)
@@ -179,6 +189,13 @@ def national_average_note(version: str) -> str:
     )
 
 
+def in_shell_note(shell_refuse_pct: float) -> str:
+    return (
+        f"Weighed in the shell: {100 - shell_refuse_pct:g}% of the weight is kernels "
+        "(USDA SR28)."
+    )
+
+
 def item_note(
     item_name: str, facts: CatalogFacts, storage: Storage, rows: list[BestBuyRow]
 ) -> ItemNote:
@@ -199,13 +216,15 @@ def build_rows(
     prices: list[PriceInput],
 ) -> list[BestBuyRow]:
     """The table rows for one item. Pure: the same inputs always give the same rows."""
+    measure = measure_name(item_name, facts.compared_by)
     if not prices:
         return [
             BestBuyRow(
                 item_name=item_name,
                 kind="no_price",
                 label="no price",
-                cups_per_week=need.cups_per_week,
+                per_week=need.per_week,
+                measure=measure,
                 notes=["No price yet: add one from a store, market, or farm."],
             )
         ]
@@ -215,7 +234,8 @@ def build_rows(
             item_name=item_name,
             kind=price.kind,
             label=price.label,
-            cups_per_week=need.cups_per_week,
+            per_week=need.per_week,
+            measure=measure,
             observed_on=price.observed_on,
             raw_text=price.raw_text,
             price_cents=price.price_cents,
@@ -239,36 +259,44 @@ def build_rows(
             continue
         try:
             normalized = normalize_price(
-                price.price_cents, price.quantity, price.unit, facts, price.piece_grams
+                price.price_cents,
+                price.quantity,
+                price.unit,
+                facts,
+                price.piece_grams,
+                in_shell=price.in_shell,
             )
         except NormalizeError as exc:
             row.notes.append(str(exc))
             rows.append(row)
             continue
+        bought = normalized.amount
+        if bought is None:  # pragma: no cover - normalize_price gives cups or pieces
+            raise RuntimeError(f"{item_name}: no amount from normalize_price")
         row.sources["conversion"] = normalized.conversion_source
-        usable, spoiled = spoilage(normalized.cups, need.cups_per_week, storage.days)
-        row.cups_bought = normalized.cups
-        row.usable_cups = usable
+        if price.in_shell and facts.shell_refuse_pct is not None:
+            row.notes.append(in_shell_note(facts.shell_refuse_pct))
+        usable, spoiled = spoilage(bought, need.per_week, storage.days)
+        row.amount_bought = bought
+        row.usable_amount = usable
         row.spoiled_share = spoiled
-        row.cost_per_cup_cents = normalized.cost_per_cup_cents
-        row.cost_per_usable_cup_cents = (
-            price.price_cents / usable if usable > 0 else None
-        )
+        row.cost_per_amount_cents = normalized.cost_per_measure_cents
+        row.cost_per_usable_cents = price.price_cents / usable if usable > 0 else None
         rows.append(row)
 
-    # Mark the lowest cost per usable cup among the rows that are priced for buying: the
+    # Mark the lowest cost per usable amount among the rows that are priced for buying: the
     # household's own, or the ERS fallback. A reference row is never the pick.
     candidates = [
         r
         for r in rows
         if r.kind in ("household", "ers_fallback")
-        and r.cost_per_usable_cup_cents is not None
+        and r.cost_per_usable_cents is not None
     ]
     if candidates:
         best = min(
             candidates,
             key=lambda r: (
-                r.cost_per_usable_cup_cents,
+                r.cost_per_usable_cents,
                 -(r.observed_on or date.min).toordinal(),
                 r.label,
             ),
@@ -335,10 +363,12 @@ def item_storage(session: Session, household: Household, item: CatalogItem) -> S
     days = midpoint(item.storage_days_min, item.storage_days_max)
     where = item.storage_location or "storage"
     kept = _days_text(item.storage_days_min, high)
+    # Storage borrowed from another food's entry says so ("as walnuts"; owner, 2026-11-13).
+    origin = f"FoodKeeper, as {item.storage_as}" if item.storage_as else "FoodKeeper"
     return Storage(
         days=days,
-        source=f"FoodKeeper, {where}: {kept}",
-        note=f"Keeps {kept} in the {where} (FoodKeeper), counted as {days:g} days.",
+        source=f"{origin}, {where}: {kept}",
+        note=f"Keeps {kept} in the {where} ({origin}), counted as {days:g} days.",
         snapshot_id=item.storage_snapshot_id,
     )
 
@@ -382,9 +412,10 @@ def _price_input(
     except NormalizeError as exc:
         unit, problem = observation.unit, str(exc)
     else:
-        if needs_piece(unit, facts):
+        counted = piece_unit(unit, facts)
+        if counted is not None:
             piece, piece_note, problem, snapshot = _piece(
-                session, item, observation, unit
+                session, item, observation, counted
             )
             if snapshot:
                 snapshots.add(snapshot)
@@ -407,6 +438,7 @@ def _price_input(
         problem=problem,
         observation_id=observation.id,
         vendor_id=observation.vendor_id,
+        in_shell=observation.in_shell,
     )
 
 
@@ -433,8 +465,8 @@ def compare_best_buy(
     table = BestBuyTable(on=on)
     since = on - timedelta(days=PRICE_WINDOW_DAYS)
     for need in needs:
-        if need.cups_per_week <= 0:
-            raise ValueError("cups per week must be more than zero")
+        if need.per_week <= 0:
+            raise ValueError("the amount a week must be more than zero")
         item = session.get(CatalogItem, need.catalog_item_id)
         if item is None or item.kind != "produce":
             raise ValueError(f"unknown produce item {need.catalog_item_id}")
@@ -508,9 +540,10 @@ class ShoppingLine:
     item_name: str
     purchase: str  # the price as written, or "1 lb" for a national average; "" if none
     price_cents: float | None
-    cups_per_week: float
-    usable_cups: float | None
+    per_week: float
+    usable_amount: float | None
     note: str | None = None
+    measure: str = "cup"  # what the amounts count: cups, or pieces ("lemon", "head")
 
 
 @dataclass
@@ -537,9 +570,16 @@ def shopping_list(table: BestBuyTable) -> list[ShoppingGroup]:
     for name, rows in items.items():
         best = next((row for row in rows if row.marked), None)
         if best is None:
-            reason = "no price yet" if rows[0].kind == "no_price" else "no cost per cup"
+            first = rows[0]
+            reason = (
+                "no price yet"
+                if first.kind == "no_price"
+                else f"no cost per {first.measure}"
+            )
             not_compared.lines.append(
-                ShoppingLine(name, "", None, rows[0].cups_per_week, None, reason)
+                ShoppingLine(
+                    name, "", None, first.per_week, None, reason, first.measure
+                )
             )
             continue
         purchase = (
@@ -548,7 +588,12 @@ def shopping_list(table: BestBuyTable) -> list[ShoppingGroup]:
             else f"{best.quantity:g} {best.unit}"
         )
         line = ShoppingLine(
-            name, purchase, best.price_cents, best.cups_per_week, best.usable_cups
+            name,
+            purchase,
+            best.price_cents,
+            best.per_week,
+            best.usable_amount,
+            measure=best.measure,
         )
         if best.kind == "ers_fallback":
             fallback.lines.append(line)
@@ -576,8 +621,8 @@ def money(cents: float | None) -> str:
     return "n/a" if cents is None else f"${cents / 100:.2f}"
 
 
-def cups_text(cups: float | None) -> str:
-    return "n/a" if cups is None else f"{cups:.2f}"
+def amount_text(amount: float | None) -> str:
+    return "n/a" if amount is None else f"{amount:.2f}"
 
 
 def percent(share: float | None) -> str:
@@ -586,12 +631,12 @@ def percent(share: float | None) -> str:
 
 def _row_numbers(row: BestBuyRow) -> Iterable[str]:
     yield money(row.price_cents)
-    yield money(row.cost_per_cup_cents)
-    yield money(row.cost_per_usable_cup_cents)
-    yield cups_text(row.cups_bought)
-    yield cups_text(row.usable_cups)
+    yield money(row.cost_per_amount_cents)
+    yield money(row.cost_per_usable_cents)
+    yield amount_text(row.amount_bought)
+    yield amount_text(row.usable_amount)
     yield percent(row.spoiled_share)
-    yield f"{row.cups_per_week:g}"
+    yield f"{row.per_week:g}"
     if row.storage_days is not None:
         yield f"{row.storage_days:g}"
     if row.quantity is not None:

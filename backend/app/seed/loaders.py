@@ -32,13 +32,16 @@ from app.models import (
 from app.seed import sources
 from app.seed.crosswalk import (
     CrosswalkRow,
+    CupWeightRow,
     PortionMapRow,
     crosswalk_fingerprint,
     ensure_catalog,
     read_crosswalk,
+    read_cup_weights,
     read_portion_map,
 )
 from app.seed.snapshots import LoadResult, SourceInfo, register_snapshot
+from app.tools.normalize import GRAMS_PER_LB
 
 # ---------- USDA ERS fruit and vegetable prices ----------
 
@@ -382,6 +385,7 @@ def load_foodkeeper(
         days = storage_range(product, entry.foodkeeper_location)
         item.storage_days_min, item.storage_days_max = days if days else (None, None)
         item.storage_location = entry.foodkeeper_location
+        item.storage_as = entry.storage_as or None
         item.storage_snapshot_id = snapshot.id
         written += 1
     for reference in _cooked_leftovers(products, snapshot.id):
@@ -505,17 +509,25 @@ def load_sr28_portions(
     info: SourceInfo = sources.SR28,
     crosswalk: list[CrosswalkRow] | None = None,
     portions: list[PortionMapRow] | None = None,
+    cup_weights: list[CupWeightRow] | None = None,
 ) -> LoadResult:
-    """Weight of one purchased unit for each portion-map row (the SR28 ASCII zip as downloaded).
+    """Weight of one purchased unit for each portion-map row, and the cup weight and shell refuse
+    of each cup-weight row (the SR28 ASCII zip as downloaded).
 
     SR28 gives household measures as edible weight; the weight as purchased divides out the food's
-    refuse percentage (SR28's, or the portion map's override). The source text records the
-    measure and the arithmetic.
+    refuse percentage (SR28's, or the portion map's override). A portion weight someone gave
+    (``grams``) is as purchased, and SR28's refuse gives its edible weight. The source text
+    records the measure and the arithmetic.
     """
     crosswalk = crosswalk if crosswalk is not None else read_crosswalk()
     portions = (
         portions if portions is not None else read_portion_map(crosswalk=crosswalk)
     )
+    if cup_weights is None:
+        # The file is checked against the whole crosswalk; a load through part of it (tests)
+        # uses the rows for its items.
+        slugs = {row.slug for row in crosswalk}
+        cup_weights = [row for row in read_cup_weights() if row.slug in slugs]
     mapped = [row for row in portions if row.has_source]
     with zipfile.ZipFile(path) as archive:
         if not is_sr28(archive):
@@ -523,7 +535,8 @@ def load_sr28_portions(
         refuse: dict[str, str] = {}
         for fields in _sr28_rows(archive, "FOOD_DES.txt"):
             refuse[fields[0]] = fields[8]
-        wanted = {(row.sr28_ndb, row.sr28_seq) for row in mapped}
+        wanted = {(row.sr28_ndb, row.sr28_seq) for row in mapped if row.sr28_seq}
+        wanted |= {(row.sr28_ndb, row.sr28_seq) for row in cup_weights}
         weights = {
             (fields[0], fields[1]): fields
             for fields in _sr28_rows(archive, "WEIGHT.txt")
@@ -534,7 +547,13 @@ def load_sr28_portions(
         raise ValueError(
             f"SR28 weights named in the portion map are not in {path.name}: {missing}"
         )
-    no_refuse = sorted({ndb for ndb, _ in wanted if refuse.get(ndb, "") == ""})
+    foods = {row.sr28_ndb for row in mapped} | {ndb for ndb, _ in wanted}
+    unknown = sorted(foods - set(refuse))
+    if unknown:
+        raise ValueError(
+            f"SR28 foods named in the seed data are not in {path.name}: {unknown}"
+        )
+    no_refuse = sorted({ndb for ndb in foods if refuse[ndb] == ""})
     if no_refuse:
         raise ValueError(f"SR28 foods without a refuse value: {no_refuse}")
     snapshot, created = register_snapshot(
@@ -543,12 +562,35 @@ def load_sr28_portions(
         path=path,
         info=info,
         row_count=len(refuse),
-        crosswalk_sha256=crosswalk_fingerprint(crosswalk, portions),
+        crosswalk_sha256=crosswalk_fingerprint(
+            crosswalk, portions, cup_weights=cup_weights
+        ),
     )
     if not created:
         return LoadResult(snapshot, False, 0)
     catalog = ensure_catalog(session, crosswalk)
     for row in mapped:
+        given = row.given_grams
+        if given is not None:
+            refuse_pct = int(refuse[row.sr28_ndb])
+            size = f"{row.size} " if row.size else ""
+            session.add(
+                CatalogPortion(
+                    catalog_item_id=catalog[row.slug].id,
+                    unit=row.count_unit,
+                    size=row.portion_size,
+                    grams=given,
+                    edible_grams=given * (1 - refuse_pct / 100),
+                    refuse_pct=refuse_pct,
+                    description=f"{size}{row.unit} ({given:g} g as bought)",
+                    source=(
+                        f"One {size}{row.unit} = {given:g} g as bought; {refuse_pct}% refuse "
+                        f"from USDA SR28 NDB {row.sr28_ndb}. {row.notes}"
+                    )[:500],
+                    snapshot_id=snapshot.id,
+                )
+            )
+            continue
         _, _, amount, description, gram_weight, *_ = weights[
             (row.sr28_ndb, row.sr28_seq)
         ]
@@ -578,8 +620,26 @@ def load_sr28_portions(
                 snapshot_id=snapshot.id,
             )
         )
+    for cup in cup_weights:
+        _, _, amount, description, gram_weight, *_ = weights[
+            (cup.sr28_ndb, cup.sr28_seq)
+        ]
+        grams = float(gram_weight) / float(amount)
+        shell = int(refuse[cup.sr28_ndb])
+        item = catalog[cup.slug]
+        # Shelled kernels: all of the weight bought is eaten. In the shell, normalize_price
+        # takes out the shell refuse (spec P1-11, D9).
+        item.preparation_yield_factor = 1.0
+        item.cup_equivalent_lb = grams / GRAMS_PER_LB
+        item.cup_equivalent_pints = None
+        item.shell_refuse_pct = shell or None
+        item.conversion_source = (
+            f"USDA SR28 NDB {cup.sr28_ndb}, weight {cup.sr28_seq}: {amount} {description} "
+            f"= {gram_weight} g of kernels; {shell}% shell refuse"
+        )
+        item.snapshot_id = snapshot.id
     session.flush()
-    return LoadResult(snapshot, True, len(mapped))
+    return LoadResult(snapshot, True, len(mapped) + len(cup_weights))
 
 
 def load_usda_zip(session: Session, path: Path) -> LoadResult:

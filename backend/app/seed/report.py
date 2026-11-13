@@ -27,7 +27,10 @@ class Coverage:
 
 
 def _has_conversion(item: CatalogItem, by_id: dict[object, CatalogItem]) -> bool:
-    """Conversions are present on the item itself, or on the item it stands in for."""
+    """Conversions are present on the item itself, or on the item it stands in for. An item
+    compared per piece needs none (spec P1-11)."""
+    if item.compared_by != "cup":
+        return True
     cup_size = item.cup_equivalent_lb or item.cup_equivalent_pints
     if item.preparation_yield_factor is not None and cup_size is not None:
         return True

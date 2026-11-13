@@ -10,6 +10,7 @@ from sqlmodel import col, or_, select
 from app.api.deps import CurrentUser, SessionDep
 from app.households import get_or_create_household
 from app.models import CatalogItem
+from app.tools.normalize import measure_name
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
 
@@ -19,6 +20,9 @@ class CatalogItemPublic(BaseModel):
     slug: str
     name: str
     category: str
+    # What the item is compared by and a need is entered in: "cup", or a piece ("lemon",
+    # "head"; spec P1-11).
+    measure: str = "cup"
 
 
 @router.get("/", response_model=list[CatalogItemPublic])
@@ -38,6 +42,12 @@ def read_catalog(session: SessionDep, current_user: CurrentUser) -> Any:
     # Sorted here, not by the database, so the order is the same under any collation:
     # case-insensitive, so "Frozen Brussels sprouts" sits among the other frozen items.
     return [
-        CatalogItemPublic(id=i.id, slug=i.slug, name=i.name, category=i.category)
+        CatalogItemPublic(
+            id=i.id,
+            slug=i.slug,
+            name=i.name,
+            category=i.category,
+            measure=measure_name(i.name, i.compared_by),
+        )
         for i in sorted(items, key=lambda i: (i.name.casefold(), i.name))
     ]

@@ -12,6 +12,7 @@ price that cannot be read.
 """
 
 import logging
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import date
@@ -39,8 +40,9 @@ from app.tools.normalize import (
     canonical_unit,
     catalog_facts,
     count_unit_in,
-    needs_piece,
+    measure_name,
     normalize_price,
+    piece_unit,
     portion_grams,
 )
 from app.tools.read_line import (
@@ -157,6 +159,14 @@ class DraftPrice:
     conversion_source: str | None = None
     stand_in_name: str | None = None
     note: str | None = None  # for example "no cup conversion yet"
+    # What the item is compared by (spec P1-11): "cup", or a piece ("lemon", "head"), and for a
+    # piece, how many were bought and the cost of one.
+    measure: str = "cup"
+    pieces: float | None = None
+    cost_per_piece_cents: float | None = None
+    # Nuts bought in the shell: the price is converted to kernels with SR28's shell refuse.
+    in_shell: bool = False
+    shell_note: str | None = None
 
 
 QuestionKind = Literal[
@@ -239,6 +249,20 @@ def numbered_lines(lines: list[str]) -> str:
     return "\n".join(f"{n}: {line}" for n, line in enumerate(lines, start=1))
 
 
+# Words that say nuts were bought in the shell ("walnuts with shell"; spec P1-11, D9).
+_IN_SHELL = re.compile(
+    r"\b(?:(?:with|in)\s+(?:the\s+)?shells?|in-shell|unshelled)\b", re.IGNORECASE
+)
+
+
+def shell_words(item_text: str) -> tuple[str, bool]:
+    """The item words without any in-shell words, and whether there were any."""
+    found = _IN_SHELL.search(item_text)
+    if not found:
+        return item_text, False
+    return " ".join(_IN_SHELL.sub(" ", item_text).split()), True
+
+
 def _question_for_match(raw: str, match: Match) -> CaptureQuestion:
     names = [c.name for c in match.candidates]
     if match.kind == "ambiguous":
@@ -305,7 +329,8 @@ def _process(
             Candidate(chosen.id, chosen.slug, chosen.name, 1.0),
         )
     else:
-        match = find_catalog_item(session, line.item_text or "", household)
+        words, _ = shell_words(line.item_text or "")
+        match = find_catalog_item(session, words, household)
     if match.item is None:
         result.questions.append(_question_for_match(raw, match))
         return
@@ -371,17 +396,26 @@ def _process(
         price_note=price_note,
     )
     facts = catalog_facts(session, item)
+    draft.measure = measure_name(item.name, facts.compared_by)
+    # In the shell only means something for nuts (an item with a shell refuse).
+    shell = facts.shell_refuse_pct
+    if shell is not None and shell_words(line.item_text or "")[1]:
+        draft.in_shell = True
+        draft.shell_note = (
+            f"In the shell: {100 - shell:g}% of the weight is kernels (USDA SR28)."
+        )
+    counted = piece_unit(unit, facts)
     piece: float | None = None
-    if needs_piece(unit, facts) and answer.piece_weight is not None:
+    if counted is not None and answer.piece_weight is not None:
         piece = piece_grams(answer.piece_weight)
         how = answer.piece_weight.source
         draft.piece_grams, draft.piece_source = piece, f"{how} at capture: {piece:g} g"
         draft.piece_weight = answer.piece_weight
-    elif needs_piece(unit, facts):
+    elif counted is not None:
         try:
             # An answered size, then one on the line, then one an alias implies ("satsuma").
             size = answer.size or line.size or match.size
-            choice = portion_grams(session, item, unit, size)
+            choice = portion_grams(session, item, counted, size)
         except NeedsPortion as exc:
             kind: QuestionKind = "needs_size" if exc.sizes else "needs_weight"
             result.questions.append(
@@ -395,7 +429,9 @@ def _process(
             result.data_snapshot_ids.add(choice.snapshot_id)
 
     try:
-        normalized = normalize_price(cents, quantity, unit, facts, piece)
+        normalized = normalize_price(
+            cents, quantity, unit, facts, piece, in_shell=draft.in_shell
+        )
     except NoConversion as exc:
         draft.note = str(exc)
     except InvalidAmount as exc:
@@ -411,6 +447,8 @@ def _process(
         draft.grams_edible = normalized.grams_edible
         draft.cups = normalized.cups
         draft.cost_per_cup_cents = normalized.cost_per_cup_cents
+        draft.pieces = normalized.pieces
+        draft.cost_per_piece_cents = normalized.cost_per_piece_cents
         draft.conversion_source = normalized.conversion_source
         draft.stand_in_name = normalized.stand_in_name
         if facts.snapshot_id:

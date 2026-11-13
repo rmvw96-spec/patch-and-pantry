@@ -180,6 +180,9 @@ Visibility = Literal["private", "shared"]
 # Units sold by count: priced per piece, so they need the weight of one piece (catalog_portion).
 CountUnit = Literal["each", "bunch", "head", "ear", "pint"]
 PortionSize = Literal["small", "medium", "large"]
+# How an item is compared: per cup (most produce), or per piece in a count unit (lemons each,
+# garlic by the head; owner, 2026-11-13, spec P1-11).
+ComparedBy = Literal["cup", "each", "head"]
 # How a user gave the weight of one unit at capture (Phase 1 spec, D3).
 WeightSource = Literal["weighed", "estimated"]
 StorageLocation = Literal["refrigerator", "freezer", "pantry"]
@@ -396,6 +399,11 @@ class CatalogItem(SQLModel, table=True):
         CheckConstraint(
             "storage_days_min >= 0", name="ck_catalog_item_storage_days_min"
         ),
+        _literal_check("compared_by", ComparedBy, "ck_catalog_item_compared_by"),
+        CheckConstraint(
+            "shell_refuse_pct > 0 AND shell_refuse_pct < 100",
+            name="ck_catalog_item_shell_refuse_pct",
+        ),
         CheckConstraint(
             "storage_days_max >= storage_days_min",
             name="ck_catalog_item_storage_days_max",
@@ -421,6 +429,21 @@ class CatalogItem(SQLModel, table=True):
     # FoodKeeper ranges: spoilage uses the midpoint (Phase 1 spec, D4).
     storage_days_max: int | None = None
     storage_location: str | None = Field(default=None, max_length=40)
+    # When the storage time is another food's FoodKeeper entry ("walnuts" for hazelnuts).
+    storage_as: str | None = Field(default=None, max_length=100)
+    # The measure the item is compared by (spec P1-11, D8), and whether its cups count toward
+    # the household's produce cups (false for lemons, limes, garlic, and nuts).
+    compared_by: ComparedBy = Field(
+        default="cup",
+        sa_type=AutoString(length=10),
+        sa_column_kwargs={"server_default": "cup"},
+    )
+    produce_cups: bool = Field(
+        default=True, sa_column_kwargs={"server_default": text("true")}
+    )
+    # Nuts: the share of the weight bought in the shell that is shell (SR28 refuse), so an
+    # in-shell price converts to kernels (D9).
+    shell_refuse_pct: float | None = None
     # Storage facts come from a different dataset (FoodKeeper) than conversions (ERS).
     storage_snapshot_id: uuid.UUID | None = Field(
         default=None, foreign_key="data_snapshot.id"
@@ -691,6 +714,10 @@ class PriceObservation(SQLModel, table=True):
     )
     # The piece size written on the line ("large tomatoes"), for count units.
     size: PortionSize | None = Field(default=None, sa_type=AutoString(length=10))
+    # Nuts bought in the shell ("walnuts with shell"): weighed with the shell (spec P1-11, D9).
+    in_shell: bool = Field(
+        default=False, sa_column_kwargs={"server_default": text("false")}
+    )
     observed_on: date
     captured_via: CapturedVia = Field(sa_type=AutoString(length=20))
     source_type: PriceSourceType = Field(sa_type=AutoString(length=20))

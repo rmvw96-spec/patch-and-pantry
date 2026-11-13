@@ -62,7 +62,8 @@ def demo_capture_model() -> FunctionModel:
 
 _ITEM_HEADER = re.compile(r"^(?P<item>.+) \(needs ")
 _MARKED = re.compile(
-    r"^- MARKED BEST: (?P<label>.+?), .*?(?P<cost>\$\d+\.\d{2}) per usable cup"
+    r"^- MARKED BEST: (?P<label>.+?), .*?(?P<cost>\$\d+\.\d{2}) per usable "
+    r"(?P<measure>[a-z ]+?)\."
 )
 
 
@@ -80,14 +81,16 @@ async def _demo_explain(
         marked = _MARKED.match(line)
         if marked and item:
             label, cost = marked.group("label"), marked.group("cost")
+            measure = marked.group("measure")
             if label.startswith("National average"):
                 sentences.append(
                     f"For {item.lower()} there is no store price yet; the national average "
-                    f"works out to **{cost} per usable cup**, which is not a store price."
+                    f"works out to **{cost} per usable {measure}**, which is not a store price."
                 )
             else:
                 sentences.append(
-                    f"For {item.lower()}, {label} is the best buy at **{cost} per usable cup**."
+                    f"For {item.lower()}, {label} is the best buy at **{cost} per usable "
+                    f"{measure}**."
                 )
     text = " ".join(sentences) or "There is no priced row to recommend yet."
     return ModelResponse(parts=[TextPart(text)])

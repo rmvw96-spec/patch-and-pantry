@@ -288,7 +288,7 @@ def test_best_buy_returns_the_table_and_an_explanation(
     use_model(build_model("demo", role="best_buy"))
     body = {
         "kind": "best_buy",
-        "needs": [{"catalog_item_id": str(own_onion.id), "cups_per_week": 2}],
+        "needs": [{"catalog_item_id": str(own_onion.id), "per_week": 2}],
         "on": "2026-11-11",
     }
 
@@ -299,7 +299,7 @@ def test_best_buy_returns_the_table_and_an_explanation(
     result = run["result"]
     (row,) = result["rows"]
     assert row["marked"] and row["label"] == "Corner store"
-    assert row["cost_per_usable_cup_cents"] == pytest.approx(39.06, abs=0.01)
+    assert row["cost_per_usable_cents"] == pytest.approx(39.06, abs=0.01)
     assert "$0.39 per usable cup" in result["explanation"]
     assert run["tools_used"] == ["compare_best_buy", "best_buy_agent"]
 
@@ -314,7 +314,7 @@ def test_best_buy_stands_without_an_explanation(
     use_model(FunctionModel(invents_numbers))
     body = {
         "kind": "best_buy",
-        "needs": [{"catalog_item_id": str(own_onion.id), "cups_per_week": 2}],
+        "needs": [{"catalog_item_id": str(own_onion.id), "per_week": 2}],
     }
 
     r = client.post(RUNS_URL, headers=normal_user_token_headers, json=body)
@@ -344,7 +344,7 @@ def test_another_households_vendor_is_rejected(
     ("needs", "detail"),
     [
         (
-            [{"catalog_item_id": str(uuid.uuid4()), "cups_per_week": 2}],
+            [{"catalog_item_id": str(uuid.uuid4()), "per_week": 2}],
             "Unknown produce item.",
         ),
     ],
@@ -369,7 +369,7 @@ def test_items_listed_twice_are_rejected(
     normal_user_token_headers: dict[str, str],
     own_onion: CatalogItem,
 ) -> None:
-    need = {"catalog_item_id": str(own_onion.id), "cups_per_week": 2}
+    need = {"catalog_item_id": str(own_onion.id), "per_week": 2}
     r = client.post(
         RUNS_URL,
         headers=normal_user_token_headers,
@@ -382,7 +382,7 @@ def test_items_listed_twice_are_rejected(
 def test_another_households_private_item_is_rejected(
     client: TestClient, superuser_token_headers: dict[str, str], own_onion: CatalogItem
 ) -> None:
-    need = {"catalog_item_id": str(own_onion.id), "cups_per_week": 2}
+    need = {"catalog_item_id": str(own_onion.id), "per_week": 2}
     r = client.post(
         RUNS_URL,
         headers=superuser_token_headers,
@@ -398,7 +398,7 @@ def test_another_households_private_item_is_rejected(
         {"kind": "price_capture", "text": "", "vendor_id": str(uuid.uuid4()), "observed_on": "2026-11-11"},
         {"kind": "price_capture", "text": "x", "vendor_id": str(uuid.uuid4()), "observed_on": "2026-11-11", "name": "Riley"},
         {"kind": "best_buy", "needs": []},
-        {"kind": "best_buy", "needs": [{"catalog_item_id": str(uuid.uuid4()), "cups_per_week": 0}]},
+        {"kind": "best_buy", "needs": [{"catalog_item_id": str(uuid.uuid4()), "per_week": 0}]},
     ],
 )  # fmt: skip
 def test_malformed_requests_are_rejected(
@@ -566,7 +566,7 @@ def test_missing_run_returns_404(
 def test_runs_require_authentication(client: TestClient) -> None:
     body = {
         "kind": "best_buy",
-        "needs": [{"catalog_item_id": str(uuid.uuid4()), "cups_per_week": 2}],
+        "needs": [{"catalog_item_id": str(uuid.uuid4()), "per_week": 2}],
     }
     assert client.post(RUNS_URL, json=body).status_code == 401
     assert client.get(f"{RUNS_URL}{uuid.uuid4()}").status_code == 401

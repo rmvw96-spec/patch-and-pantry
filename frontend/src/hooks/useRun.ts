@@ -45,6 +45,25 @@ export function money(cents: number | null | undefined): string {
   return cents == null ? "-" : `$${(cents / 100).toFixed(2)}`
 }
 
+/**
+ * The cost of one cup, or of one piece for an item compared per piece ("$0.33 per lemon";
+ * spec P1-11). Falls back to the reason there is none, then "-".
+ */
+export function costPer(figures: {
+  cost_per_cup_cents?: number | null
+  cost_per_piece_cents?: number | null
+  measure?: string
+  note?: string | null
+}): string {
+  const measure = figures.measure ?? "cup"
+  if (measure !== "cup" && figures.cost_per_piece_cents != null) {
+    return `${money(figures.cost_per_piece_cents)} per ${measure}`
+  }
+  if (figures.cost_per_cup_cents != null)
+    return money(figures.cost_per_cup_cents)
+  return figures.note ?? "-"
+}
+
 /** A typed price ("2.99" or "$2.99") as integer cents; null if it is not a plain price. */
 export function parseCents(text: string): number | null {
   const match = text.trim().match(/^\$?(\d+(?:\.\d{1,2})?|\.\d{1,2})$/)

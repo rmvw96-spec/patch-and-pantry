@@ -71,7 +71,8 @@ class NeedRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     catalog_item_id: uuid.UUID
-    cups_per_week: float = Field(gt=0, le=1000)
+    # In the item's measure: cups, or pieces for an item compared per piece (spec P1-11).
+    per_week: float = Field(gt=0, le=1000)
 
 
 class BestBuyRequest(BaseModel):
@@ -217,7 +218,7 @@ async def _best_buy(
 ) -> Outcome:
     household = get_or_create_household(session, owner_id)
     on = request.on or get_datetime_utc().date()
-    needs = [Need(n.catalog_item_id, n.cups_per_week) for n in request.needs]
+    needs = [Need(n.catalog_item_id, n.per_week) for n in request.needs]
     try:
         table = compare_best_buy(session, household, needs, on)
     except ValueError as exc:

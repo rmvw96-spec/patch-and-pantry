@@ -21,8 +21,14 @@ import {
 } from "@/components/ui/table"
 import { isFinished, money, RUN_BADGE, useRun } from "@/hooks/useRun"
 
-function cups(value: number | null | undefined): string {
+function amount(value: number | null | undefined): string {
   return value == null ? "-" : value.toFixed(2)
+}
+
+/** A cost per usable cup shows as money alone; per piece it names the piece (spec P1-11). */
+function perMeasure(cents: number | null | undefined, measure: string): string {
+  if (cents == null) return "-"
+  return measure === "cup" ? money(cents) : `${money(cents)} per ${measure}`
 }
 
 function percent(share: number | null | undefined): string {
@@ -37,10 +43,10 @@ function TradeOffTable({ rows }: { rows: BestBuyRow[] }) {
           <TableHead>Item</TableHead>
           <TableHead>Where</TableHead>
           <TableHead>Price</TableHead>
-          <TableHead>Cups bought</TableHead>
+          <TableHead>Bought</TableHead>
           <TableHead>Usable</TableHead>
           <TableHead>Spoils</TableHead>
-          <TableHead>Per usable cup</TableHead>
+          <TableHead>Per usable cup or piece</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -70,11 +76,14 @@ function TradeOffTable({ rows }: { rows: BestBuyRow[] }) {
                 ? "-"
                 : `${money(row.price_cents)} for ${row.quantity} ${row.unit}`}
             </TableCell>
-            <TableCell>{cups(row.cups_bought)}</TableCell>
-            <TableCell>{cups(row.usable_cups)}</TableCell>
+            <TableCell>
+              {amount(row.amount_bought)}
+              {row.amount_bought != null && ` ${row.measure ?? "cup"}s`}
+            </TableCell>
+            <TableCell>{amount(row.usable_amount)}</TableCell>
             <TableCell>{percent(row.spoiled_share)}</TableCell>
             <TableCell data-testid="best-buy-cost">
-              {money(row.cost_per_usable_cup_cents)}
+              {perMeasure(row.cost_per_usable_cents, row.measure ?? "cup")}
             </TableCell>
           </TableRow>
         ))}
@@ -198,7 +207,7 @@ const BestBuyStatus = ({ runId }: { runId: string }) => {
           {result && (
             <CardDescription>
               Prices from the 30 days before {result.on}; the cheapest per
-              usable cup is starred
+              usable cup (or piece, for items counted by the piece) is starred
             </CardDescription>
           )}
         </CardHeader>

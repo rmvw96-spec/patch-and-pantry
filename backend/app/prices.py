@@ -31,8 +31,9 @@ from app.tools.normalize import (
     WrongMeasure,
     canonical_unit,
     catalog_facts,
-    needs_piece,
+    measure_name,
     normalize_price,
+    piece_unit,
     portion_grams,
 )
 
@@ -78,6 +79,8 @@ class PriceEntry(BaseModel):
     size: PortionSize | None = None
     price_cents: int = Field(ge=0, le=MAX_PRICE_CENTS)
     piece_weight: PieceWeight | None = None
+    # Nuts bought in the shell (spec P1-11): ignored for an item with no shell.
+    in_shell: bool = False
     # Set when the user confirms a fuzzy match: the typed words become a household alias.
     remember_text: str | None = Field(default=None, max_length=200)
 
@@ -110,6 +113,7 @@ class PriceUpdate(BaseModel):
     size: PortionSize | None = None
     price_cents: int = Field(ge=0, le=MAX_PRICE_CENTS)
     piece_weight: PieceWeight | None = None
+    in_shell: bool = False
 
 
 # ---------- responses ----------
@@ -130,7 +134,12 @@ class PricePublic(BaseModel):
     unit_grams: float | None
     weight_source: WeightSource | None
     cost_per_cup_cents: float | None
-    note: str | None  # why there is no cost per cup, when there is none
+    note: str | None  # why there is no cost figure, when there is none
+    # What the item is compared by (spec P1-11): "cup", or a piece ("lemon", "head"), and the
+    # cost of one piece for an item compared per piece.
+    measure: str = "cup"
+    cost_per_piece_cents: float | None = None
+    in_shell: bool = False
     # Set when saving: the line was already saved for this store and day, and was updated.
     replaced: bool = False
 
@@ -175,6 +184,7 @@ class Checked:
     unit_grams: float | None
     weight_source: WeightSource | None
     grams_edible: float | None
+    in_shell: bool = False
 
 
 def _check(
@@ -185,6 +195,7 @@ def _check(
     size: PortionSize | None,
     price_cents: int,
     weight: PieceWeight | None,
+    in_shell: bool = False,
 ) -> Checked:
     """The unit spelled one way, the piece weight, and edible grams; or why it cannot be saved."""
     try:
@@ -192,17 +203,21 @@ def _check(
     except NormalizeError as exc:
         raise PriceError(str(exc)) from exc
     facts = catalog_facts(session, item)
+    in_shell = in_shell and facts.shell_refuse_pct is not None
+    counted = piece_unit(canonical, facts)
     unit_grams = piece_grams(weight) if weight is not None else None
-    if not needs_piece(canonical, facts):
-        unit_grams = None  # a weight or volume needs no piece weight
+    if counted is None:
+        unit_grams = None  # this price needs no piece weight
     piece = unit_grams
-    if needs_piece(canonical, facts) and piece is None:
+    if counted is not None and piece is None:
         try:
-            piece = portion_grams(session, item, canonical, size).grams
+            piece = portion_grams(session, item, counted, size).grams
         except NormalizeError as exc:
             raise PriceError(str(exc)) from exc
     try:
-        normalized = normalize_price(price_cents, quantity, canonical, facts, piece)
+        normalized = normalize_price(
+            price_cents, quantity, canonical, facts, piece, in_shell=in_shell
+        )
         grams_edible: float | None = normalized.grams_edible
     except WrongMeasure as exc:
         raise PriceError(str(exc)) from exc
@@ -213,6 +228,7 @@ def _check(
         unit_grams=unit_grams,
         weight_source=weight.source if unit_grams is not None and weight else None,
         grams_edible=grams_edible,
+        in_shell=in_shell,
     )
 
 
@@ -250,6 +266,7 @@ def save_prices(
             entry.size,
             entry.price_cents,
             entry.piece_weight,
+            entry.in_shell,
         )
         raw = line_text(entry.raw_text)
         existing = session.exec(
@@ -282,6 +299,7 @@ def save_prices(
         observation.unit_grams = checked.unit_grams
         observation.weight_source = checked.weight_source
         observation.grams_edible = checked.grams_edible
+        observation.in_shell = checked.in_shell
         session.add(observation)
         if entry.remember_text:
             remember_alias(session, household, entry.remember_text, item)
@@ -319,6 +337,7 @@ def update_price(
         update.size,
         update.price_cents,
         weight,
+        update.in_shell,
     )
     clash = session.exec(
         select(PriceObservation.id).where(
@@ -343,26 +362,44 @@ def update_price(
     observation.unit_grams = checked.unit_grams
     observation.weight_source = checked.weight_source
     observation.grams_edible = checked.grams_edible
+    observation.in_shell = checked.in_shell
     session.add(observation)
     session.flush()
     return observation
 
 
-def _cost_per_cup(
-    session: Session, item: CatalogItem, observation: PriceObservation
-) -> tuple[float | None, str | None]:
+@dataclass(frozen=True)
+class Costs:
+    """A saved price's cost per cup, or per piece for an item compared per piece."""
+
+    measure: str
+    per_cup_cents: float | None = None
+    per_piece_cents: float | None = None
+    note: str | None = None  # why there is no cost figure
+
+
+def _costs(session: Session, item: CatalogItem, observation: PriceObservation) -> Costs:
+    facts = catalog_facts(session, item)
+    measure = measure_name(item.name, facts.compared_by)
     try:
         unit = canonical_unit(observation.unit)
-        facts = catalog_facts(session, item)
+        counted = piece_unit(unit, facts)
         piece = observation.unit_grams
-        if needs_piece(unit, facts) and piece is None:
-            piece = portion_grams(session, item, unit, observation.size).grams
+        if counted is not None and piece is None:
+            piece = portion_grams(session, item, counted, observation.size).grams
         normalized = normalize_price(
-            observation.price_cents, observation.quantity, unit, facts, piece
+            observation.price_cents,
+            observation.quantity,
+            unit,
+            facts,
+            piece,
+            in_shell=observation.in_shell,
         )
     except NormalizeError as exc:
-        return None, str(exc)
-    return normalized.cost_per_cup_cents, None
+        return Costs(measure, note=str(exc))
+    return Costs(
+        measure, normalized.cost_per_cup_cents, normalized.cost_per_piece_cents
+    )
 
 
 def delete_prices(session: Session, household: Household, ids: list[uuid.UUID]) -> int:
@@ -401,7 +438,7 @@ def price_book(
     ).all()
     book = []
     for observation, item, vendor in rows:
-        cost, note = _cost_per_cup(session, item, observation)
+        costs = _costs(session, item, observation)
         book.append(
             PricePublic(
                 id=observation.id,
@@ -417,8 +454,11 @@ def price_book(
                 price_cents=observation.price_cents,
                 unit_grams=observation.unit_grams,
                 weight_source=observation.weight_source,
-                cost_per_cup_cents=cost,
-                note=note,
+                cost_per_cup_cents=costs.per_cup_cents,
+                note=costs.note,
+                measure=costs.measure,
+                cost_per_piece_cents=costs.per_piece_cents,
+                in_shell=observation.in_shell,
             )
         )
     return book

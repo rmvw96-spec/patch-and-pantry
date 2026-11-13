@@ -106,9 +106,13 @@ export type BestBuyRow = {
      */
     label: string;
     /**
-     * Cups Per Week
+     * Per Week
      */
-    cups_per_week: number;
+    per_week: number;
+    /**
+     * Measure
+     */
+    measure?: string;
     /**
      * Observed On
      */
@@ -130,13 +134,13 @@ export type BestBuyRow = {
      */
     unit?: string | null;
     /**
-     * Cups Bought
+     * Amount Bought
      */
-    cups_bought?: number | null;
+    amount_bought?: number | null;
     /**
-     * Usable Cups
+     * Usable Amount
      */
-    usable_cups?: number | null;
+    usable_amount?: number | null;
     /**
      * Spoiled Share
      */
@@ -146,13 +150,13 @@ export type BestBuyRow = {
      */
     storage_days?: number | null;
     /**
-     * Cost Per Cup Cents
+     * Cost Per Amount Cents
      */
-    cost_per_cup_cents?: number | null;
+    cost_per_amount_cents?: number | null;
     /**
-     * Cost Per Usable Cup Cents
+     * Cost Per Usable Cents
      */
-    cost_per_usable_cup_cents?: number | null;
+    cost_per_usable_cents?: number | null;
     /**
      * Marked
      */
@@ -256,6 +260,10 @@ export type CatalogItemPublic = {
      * Category
      */
     category: string;
+    /**
+     * Measure
+     */
+    measure?: string;
 };
 
 /**
@@ -357,6 +365,26 @@ export type DraftPrice = {
      * Note
      */
     note?: string | null;
+    /**
+     * Measure
+     */
+    measure?: string;
+    /**
+     * Pieces
+     */
+    pieces?: number | null;
+    /**
+     * Cost Per Piece Cents
+     */
+    cost_per_piece_cents?: number | null;
+    /**
+     * In Shell
+     */
+    in_shell?: boolean;
+    /**
+     * Shell Note
+     */
+    shell_note?: string | null;
 };
 
 /**
@@ -672,9 +700,9 @@ export type NeedRequest = {
      */
     catalog_item_id: string;
     /**
-     * Cups Per Week
+     * Per Week
      */
-    cups_per_week: number;
+    per_week: number;
 };
 
 /**
@@ -789,6 +817,10 @@ export type PriceEntry = {
     price_cents: number;
     piece_weight?: PieceWeight | null;
     /**
+     * In Shell
+     */
+    in_shell?: boolean;
+    /**
      * Remember Text
      */
     remember_text?: string | null;
@@ -859,6 +891,18 @@ export type PricePublic = {
      */
     note: string | null;
     /**
+     * Measure
+     */
+    measure?: string;
+    /**
+     * Cost Per Piece Cents
+     */
+    cost_per_piece_cents?: number | null;
+    /**
+     * In Shell
+     */
+    in_shell?: boolean;
+    /**
      * Replaced
      */
     replaced?: boolean;
@@ -895,6 +939,10 @@ export type PriceUpdate = {
      */
     price_cents: number;
     piece_weight?: PieceWeight | null;
+    /**
+     * In Shell
+     */
+    in_shell?: boolean;
 };
 
 /**
@@ -1011,17 +1059,21 @@ export type ShoppingLine = {
      */
     price_cents: number | null;
     /**
-     * Cups Per Week
+     * Per Week
      */
-    cups_per_week: number;
+    per_week: number;
     /**
-     * Usable Cups
+     * Usable Amount
      */
-    usable_cups: number | null;
+    usable_amount: number | null;
     /**
      * Note
      */
     note?: string | null;
+    /**
+     * Measure
+     */
+    measure?: string;
 };
 
 /**

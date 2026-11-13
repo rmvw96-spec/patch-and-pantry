@@ -126,13 +126,11 @@ def test_spec_worked_example(
     (row,) = build_rows(
         facts.name, Need(uuid.uuid4(), per_week), facts, _storage(days), [price]
     )
-    assert row.usable_cups == pytest.approx(usable, abs=0.005)
+    assert row.usable_amount == pytest.approx(usable, abs=0.005)
     assert row.spoiled_share is not None
     assert round(row.spoiled_share * 100) == spoiled_pct
-    assert row.cost_per_usable_cup_cents is not None
-    assert row.cost_per_usable_cup_cents / 100 == pytest.approx(
-        per_usable_cup, abs=0.005
-    )
+    assert row.cost_per_usable_cents is not None
+    assert row.cost_per_usable_cents / 100 == pytest.approx(per_usable_cup, abs=0.005)
     assert row.marked
 
 
@@ -161,8 +159,8 @@ def test_spoilage_can_change_the_best_buy() -> None:
     )
     by_label = {r.label: r for r in rows}
     assert (
-        by_label["Big bag"].cost_per_cup_cents
-        < by_label["Small bunch"].cost_per_cup_cents
+        by_label["Big bag"].cost_per_amount_cents
+        < by_label["Small bunch"].cost_per_amount_cents
     )  # type: ignore[operator]
     assert by_label["Small bunch"].marked and not by_label["Big bag"].marked
 
@@ -174,7 +172,7 @@ def test_a_reference_row_is_never_marked() -> None:
     )
     reference = next(r for r in rows if r.kind == "ers_reference")
     assert not reference.marked
-    assert reference.cost_per_usable_cup_cents < rows[0].cost_per_usable_cup_cents  # type: ignore[operator]
+    assert reference.cost_per_usable_cents < rows[0].cost_per_usable_cents  # type: ignore[operator]
     # What a national average is, is said once under the table, not on every row.
     assert reference.notes == []
 
@@ -220,12 +218,12 @@ def test_ties_go_to_the_newest_price_then_the_name() -> None:
 def test_an_empty_price_book_is_a_no_price_row() -> None:
     (row,) = _rows([])
     assert row.kind == "no_price" and not row.marked
-    assert row.cost_per_usable_cup_cents is None
+    assert row.cost_per_usable_cents is None
 
 
 def test_an_item_without_a_conversion_shows_its_price_unmarked() -> None:
     (row,) = _rows([_price(199, 1)], facts=EGGPLANT)
-    assert row.price_cents == 199 and row.cost_per_usable_cup_cents is None
+    assert row.price_cents == 199 and row.cost_per_usable_cents is None
     assert not row.marked
     assert "no cup conversion" in " ".join(row.notes)
 
@@ -358,7 +356,7 @@ def test_the_household_prices_come_first_with_ers_as_reference(
     assert [r.kind for r in kale] == ["ers_fallback"] and kale[0].marked
     # The ERS row uses the full-precision price from its raw text, not the rounded cents.
     assert kale[0].price_cents == pytest.approx(357.112371)
-    assert kale[0].cost_per_usable_cup_cents / 100 == pytest.approx(2.08, abs=0.005)  # type: ignore[operator]
+    assert kale[0].cost_per_usable_cents / 100 == pytest.approx(2.08, abs=0.005)  # type: ignore[operator]
 
 
 @pytest.mark.usefixtures("ers")
@@ -460,7 +458,7 @@ def test_cook_and_freeze_extras(
 
     assert plain.storage_days == 2.5 and round(plain.spoiled_share * 100) == 74  # type: ignore[operator]
     assert frozen.storage_days == 45.0 and frozen.spoiled_share == 0
-    assert frozen.cost_per_usable_cup_cents / 100 == pytest.approx(0.61, abs=0.005)  # type: ignore[operator]
+    assert frozen.cost_per_usable_cents / 100 == pytest.approx(0.61, abs=0.005)  # type: ignore[operator]
     (note,) = table.items
     assert note.storage == (
         "Cook and freeze extras: cooked leftovers keep 30-60 days frozen (FoodKeeper), "
@@ -533,14 +531,14 @@ def test_prices_by_count_use_the_size_or_the_weight_given(
     tomatoes = {r.price_cents: r for r in rows if r.item_name == "Tomato"}
     large, unsized = tomatoes[500], tomatoes[400]
     assert large.sources["piece"].startswith("test piece: tomato large")
-    assert large.cups_bought is not None and large.marked
+    assert large.amount_bought is not None and large.marked
     assert unsized.sources["piece"] == (
         "test piece: tomato medium each (no size given: medium assumed)"
     )
-    assert unsized.cups_bought is not None
+    assert unsized.amount_bought is not None
     (bunch,) = (r for r in rows if r.item_name == "Kale")
     assert bunch.sources["piece"] == "estimated at capture: 280 g"
-    assert bunch.cups_bought is not None
+    assert bunch.amount_bought is not None
 
 
 def test_an_unreadable_stored_unit_is_shown_not_guessed(
@@ -548,7 +546,7 @@ def test_an_unreadable_stored_unit_is_shown_not_guessed(
 ) -> None:
     _own_price(db_session, household, vendor, catalog["onion"], 299, 1, "sack")
     (row,) = _table(db_session, household, (catalog["onion"], 2)).rows
-    assert row.cost_per_usable_cup_cents is None
+    assert row.cost_per_usable_cents is None
     assert "Unknown unit 'sack'" in " ".join(row.notes)
 
 
@@ -566,8 +564,8 @@ def test_a_juice_priced_by_the_pint_needs_no_piece_weight(
     _own_price(db_session, household, vendor, catalog["orange-juice"], 199, 1, "pint")
     (row,) = _table(db_session, household, (catalog["orange-juice"], 4)).rows
     assert not any("weigh" in note for note in row.notes) and "piece" not in row.sources
-    assert row.cups_bought == pytest.approx(2.0)  # a pint is 2 cups
-    assert row.cost_per_usable_cup_cents == pytest.approx(99.5)
+    assert row.amount_bought == pytest.approx(2.0)  # a pint is 2 cups
+    assert row.cost_per_usable_cents == pytest.approx(99.5)
     assert row.marked
 
 
@@ -728,10 +726,116 @@ def test_the_shopping_list_groups_marked_rows_by_store() -> None:
 def test_a_shopping_line_carries_the_need_and_usable_cups() -> None:
     kroger = next(g for g in shopping_list(_list_table()) if g.label == "Kroger")
     (onion,) = kroger.lines
-    assert onion.cups_per_week == 2
-    assert onion.usable_cups == pytest.approx(7.66, abs=0.01)
+    assert onion.per_week == 2
+    assert onion.usable_amount == pytest.approx(7.66, abs=0.01)
     assert onion.price_cents == 299
 
 
 def test_an_empty_table_has_an_empty_list() -> None:
     assert shopping_list(BestBuyTable(on=ON)) == []
+
+
+# ---------- items compared per piece, and nuts in the shell (spec P1-11) ----------
+
+LEMON = CatalogFacts("Lemon", None, None, "not needed", compared_by="each")
+WALNUT = CatalogFacts("Walnut", 1.0, 0.2579, "SR28 12155", shell_refuse_pct=55)
+
+
+def test_a_piece_item_is_ranked_per_usable_piece() -> None:
+    """Lemons: 4 a week, keep 15.5 days; a 10-lemon bag spoils some, 3 for $1 does not."""
+    rows = build_rows(
+        "Lemon",
+        Need(uuid.uuid4(), 4),
+        LEMON,
+        _storage(15.5),
+        [
+            _price(100, 3, "each", label="Market"),
+            _price(250, 10, "each", label="Kroger"),
+        ],
+    )
+    market, kroger = rows
+    assert (market.measure, market.per_week) == ("lemon", 4)
+    assert market.amount_bought == 3 and market.usable_amount == 3
+    assert market.cost_per_usable_cents == pytest.approx(33.33, abs=0.01)
+    # 4 a week for 15.5 days is 8.86 lemons used of the 10 bought.
+    assert kroger.usable_amount == pytest.approx(4 / 7 * 15.5)
+    assert kroger.cost_per_amount_cents == 25
+    assert kroger.cost_per_usable_cents == pytest.approx(250 / (4 / 7 * 15.5))
+    assert kroger.marked and not market.marked
+
+
+def test_nuts_in_the_shell_are_ranked_by_kernels_and_noted() -> None:
+    rows = build_rows(
+        "Walnut",
+        Need(uuid.uuid4(), 1),
+        WALNUT,
+        _storage(None),
+        [
+            _price(800, 1, label="Market", in_shell=True),
+            _price(1500, 1, label="Kroger"),
+        ],
+    )
+    market, kroger = rows
+    assert market.measure == "cup"
+    assert market.cost_per_amount_cents == pytest.approx(459, abs=1)
+    assert (
+        "Weighed in the shell: 45% of the weight is kernels (USDA SR28)."
+        in market.notes
+    )
+    assert (
+        kroger.notes == [] and kroger.marked
+    )  # shelled at $15/lb beats $8/lb in the shell
+
+
+def test_a_piece_item_needs_and_lists_its_measure(
+    db_session: Session, catalog: Catalog, household: Household, vendor: Vendor
+) -> None:
+    lemon, garlic = catalog["lemon"], catalog["garlic"]
+    _own_price(db_session, household, vendor, lemon, 300, 2)  # a 2 lb bag
+    _own_price(db_session, household, vendor, garlic, 89, 1, "each")
+    table = _table(db_session, household, (lemon, 4), (garlic, 1))
+
+    bag, head = table.rows
+    assert (bag.measure, head.measure) == ("lemon", "head")
+    assert bag.sources["piece"] == (
+        "test piece: lemon medium each (no size given: medium assumed)"
+    )
+    assert bag.amount_bought == pytest.approx(2 * 453.59237 / 109.4)
+    assert head.amount_bought == 1 and head.cost_per_amount_cents == 89
+    assert "piece" not in head.sources  # a head priced by the head needs no weight
+    lines = [line for group in shopping_list(table) for line in group.lines]
+    assert [(line.item_name, line.measure) for line in lines] == [
+        ("Lemon", "lemon"),
+        ("Garlic", "head"),
+    ]
+    text = format_table(table)
+    assert "Lemon (needs 4 lemons a week)" in text
+    assert "per usable head" in text
+
+
+def test_demo_mode_names_the_measure(
+    db_session: Session,
+    catalog: Catalog,
+    household: Household,
+    vendor: Vendor,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "SIM_MODEL", "demo")
+    _own_price(db_session, household, vendor, catalog["lemon"], 100, 3, "each")
+    table = _table(db_session, household, (catalog["lemon"], 4))
+    text = asyncio.run(explain_best_buy(table)).text
+    assert "best buy at **$0.33 per usable lemon**" in text
+    assert unsupported_numbers(text, table) == []
+
+
+def test_borrowed_storage_says_whose_it_is(
+    db_session: Session, catalog: Catalog, household: Household, vendor: Vendor
+) -> None:
+    """Hazelnuts keep as walnuts do (owner, 2026-11-13): the note says so."""
+    kale = catalog["kale"]
+    kale.storage_as = "walnuts"
+    _own_price(db_session, household, vendor, kale, 250, 1)
+    (note,) = _table(db_session, household, (kale, 3)).items
+    assert note.storage == (
+        "Keeps 3-5 days in the refrigerator (FoodKeeper, as walnuts), counted as 4 days."
+    )

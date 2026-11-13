@@ -34,10 +34,12 @@ from app.seed import sources
 from app.seed.crosswalk import (
     CROSSWALK_PATH,
     CrosswalkRow,
+    CupWeightRow,
     PortionMapRow,
     crosswalk_fingerprint,
     ensure_catalog,
     read_crosswalk,
+    read_cup_weights,
     read_portion_map,
 )
 from app.seed.loaders import (
@@ -182,7 +184,7 @@ def _sr28_zip(
 def _portion(
     slug: str, unit: str, size: str, ndb: str, seq: str, refuse: str = ""
 ) -> PortionMapRow:
-    return PortionMapRow(slug, unit, size, ndb, seq, refuse, "")
+    return PortionMapRow(slug, unit, size, ndb, seq, refuse, "", "")
 
 
 @pytest.fixture
@@ -341,7 +343,7 @@ def test_every_catalog_item_has_a_conversion_source_and_stand_ins_point_at_their
 ) -> None:
     crosswalk = read_crosswalk()
     catalog = ensure_catalog(session, crosswalk)
-    assert len(catalog) == 169
+    assert len(catalog) == 176
     assert all(item.conversion_source for item in catalog.values())
     for row in crosswalk:
         item = catalog[row.slug]
@@ -1016,22 +1018,172 @@ def test_the_committed_portion_map_is_valid() -> None:
 @pytest.mark.parametrize(
     ("line", "message"),
     [
-        ("kumquat,each,,11529,6,,", "not in the crosswalk"),
-        ("tomato,dozen,,11529,6,,", "unknown unit 'dozen'"),
-        ("tomato,each,huge,11529,6,,", "unknown size 'huge'"),
-        ("tomato,each,,11529,,,", "give both sr28_ndb and sr28_seq"),
-        ("tomato,each,medium,11529,9,,", "listed twice"),
-        ("tomato,each,large,11529,5,100,", "must be 0 to 99"),
-        ("tomato,each,large,11529,5,ten,", "must be 0 to 99"),
-        ("tomato,each,large,,,10,", "needs an SR28 weight"),
+        ("kumquat,each,,11529,6,,,", "not in the crosswalk"),
+        ("tomato,dozen,,11529,6,,,", "unknown unit 'dozen'"),
+        ("tomato,each,huge,11529,6,,,", "unknown size 'huge'"),
+        ("tomato,each,,11529,,,,", "give both sr28_ndb and sr28_seq"),
+        ("tomato,each,medium,11529,9,,,", "listed twice"),
+        ("tomato,each,large,11529,5,100,,", "must be 0 to 99"),
+        ("tomato,each,large,11529,5,ten,,", "must be 0 to 99"),
+        ("tomato,each,large,,,10,,", "needs an SR28 weight"),
+        # A weight someone gave: SR28 names the food for its refuse only (owner, 2026-11-13).
+        ("tomato,each,large,11529,,,abc,", "grams must be a weight above 0"),
+        ("tomato,each,large,11529,,,0,", "grams must be a weight above 0"),
+        ("tomato,each,large,,,,50,", "grams needs sr28_ndb"),
+        ("tomato,each,large,11529,5,,50,", "grams needs sr28_ndb"),
     ],
 )
 def test_portion_map_rejects_bad_rows(tmp_path: Path, line: str, message: str) -> None:
     path = tmp_path / "catalog_portions.csv"
     path.write_text(
-        "slug,unit,size,sr28_ndb,sr28_seq,refuse_pct_override,notes\n"
-        "tomato,each,medium,11529,6,,\n" + line + "\n",
+        "slug,unit,size,sr28_ndb,sr28_seq,refuse_pct_override,grams,notes\n"
+        "tomato,each,medium,11529,6,,,\n" + line + "\n",
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match=message):
         read_portion_map(path)
+
+
+# ---------- items compared per piece, and nuts (spec P1-11) ----------
+
+FOODKEEPER_SOURCE = REPO / "data" / "sources" / "usda-fsis" / "foodkeeper.json"
+P1_11 = {"lemon", "lime", "garlic", "elephant-garlic", "walnut", "pecan", "hazelnut"}
+
+
+def test_the_committed_crosswalk_marks_the_items_not_counted_in_cups() -> None:
+    """Owner (2026-11-13): lemons and limes each, garlic by the head; none of these (or nuts)
+    counts toward produce cups. Every other item stays compared by the cup and counted."""
+    rows = {row.slug: row for row in read_crosswalk()}
+    assert P1_11 <= set(rows)
+    measures = {slug: rows[slug].measure for slug in P1_11}
+    assert measures == {
+        "lemon": "each", "lime": "each", "garlic": "head", "elephant-garlic": "head",
+        "walnut": "cup", "pecan": "cup", "hazelnut": "cup",
+    }  # fmt: skip
+    assert {s for s, row in rows.items() if not row.counts_toward_produce_cups} == P1_11
+    assert all(rows[s].measure == "cup" for s in set(rows) - P1_11)
+    assert rows["hazelnut"].storage_as == "walnuts"
+    assert rows["hazelnut"].foodkeeper_id == rows["walnut"].foodkeeper_id
+
+
+def test_the_committed_cup_weights_are_for_the_nuts() -> None:
+    assert {row.slug for row in read_cup_weights()} == {"walnut", "pecan", "hazelnut"}
+
+
+@pytest.mark.parametrize(
+    ("line", "message"),
+    [
+        ("kumquat,1,1,", "not in the crosswalk"),
+        ("tomato,11529,1,", "has an ERS row or a stand-in"),
+        ("lemon,09150,1,", "compared per piece"),
+        ("walnut,12155,,", "give sr28_ndb and sr28_seq"),
+    ],
+)
+def test_cup_weights_reject_bad_rows(tmp_path: Path, line: str, message: str) -> None:
+    path = tmp_path / "catalog_cup_weights.csv"
+    path.write_text("slug,sr28_ndb,sr28_seq,notes\n" + line + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match=message):
+        read_cup_weights(path)
+
+
+@pytest.mark.parametrize(
+    ("column", "value", "message"),
+    [
+        ("compared_by", "dozen", "unknown compared_by"),
+        ("produce_cups", "yes", "blank or 'no'"),
+    ],
+)
+def test_the_crosswalk_rejects_unknown_measures(
+    tmp_path: Path, column: str, value: str, message: str
+) -> None:
+    rows = list(csv.DictReader(CROSSWALK_PATH.open(encoding="utf-8")))
+    rows[0][column] = value
+    path = tmp_path / "catalog_crosswalk.csv"
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+    with pytest.raises(ValueError, match=message):
+        read_crosswalk(path)
+
+
+def test_given_weights_and_nut_cups_load_with_their_arithmetic(
+    session: Session, tmp_path: Path
+) -> None:
+    crosswalk = [row for row in read_crosswalk() if row.slug in {"garlic", "walnut"}]
+    portions = [
+        PortionMapRow(
+            "garlic", "head", "medium", "11215", "", "", "47.5", "Owner: softneck"
+        )
+    ]
+    cups = [CupWeightRow("walnut", "12155", "1", "")]
+    zip_path = _sr28_zip(
+        tmp_path,
+        foods=[("11215", "13"), ("12155", "55")],
+        weights=[("12155", "1", "1", "cup, chopped", "117")],
+    )
+    result = load_sr28_portions(
+        session, zip_path, crosswalk=crosswalk, portions=portions, cup_weights=cups
+    )
+    assert result.rows_written == 2
+    garlic = session.exec(select(CatalogItem).where(CatalogItem.slug == "garlic")).one()
+    (head,) = session.exec(
+        select(CatalogPortion).where(CatalogPortion.catalog_item_id == garlic.id)
+    ).all()
+    assert (head.unit, head.size, head.grams, head.refuse_pct) == (
+        "head",
+        "medium",
+        47.5,
+        13,
+    )
+    assert head.edible_grams == pytest.approx(47.5 * 0.87)
+    assert head.source == (
+        "One medium head = 47.5 g as bought; 13% refuse from USDA SR28 NDB 11215. "
+        "Owner: softneck"
+    )
+    assert (garlic.compared_by, garlic.produce_cups) == ("head", False)
+    assert (
+        garlic.conversion_source == "not needed: compared per piece (head), not per cup"
+    )
+    # Compared per piece, so no cup conversion is missing (the coverage report).
+    gaps = {
+        gap.slug: gap.missing for gap in coverage_gaps(session, crosswalk, portions)
+    }
+    assert "conversion" not in gaps.get("garlic", [])
+    walnut = session.exec(select(CatalogItem).where(CatalogItem.slug == "walnut")).one()
+    assert walnut.preparation_yield_factor == 1.0
+    assert walnut.cup_equivalent_lb == pytest.approx(117 / 453.59237)
+    assert walnut.shell_refuse_pct == 55 and walnut.produce_cups is False
+    assert walnut.snapshot_id == result.snapshot.id
+    assert walnut.conversion_source == (
+        "USDA SR28 NDB 12155, weight 1: 1 cup, chopped = 117 g of kernels; 55% shell refuse"
+    )
+
+
+def test_a_changed_cup_weight_file_is_a_new_snapshot() -> None:
+    crosswalk = read_crosswalk()
+    one = crosswalk_fingerprint(
+        crosswalk, [], cup_weights=[CupWeightRow("walnut", "12155", "1", "")]
+    )
+    two = crosswalk_fingerprint(
+        crosswalk, [], cup_weights=[CupWeightRow("walnut", "12155", "4", "")]
+    )
+    assert one != two
+
+
+def test_storage_borrowed_from_another_food_is_named(session: Session) -> None:
+    crosswalk = [row for row in read_crosswalk() if row.slug in {"walnut", "hazelnut"}]
+    load_foodkeeper(session, FOODKEEPER_SOURCE, crosswalk=crosswalk)
+    items = {
+        item.slug: item
+        for item in session.exec(
+            select(CatalogItem).where(col(CatalogItem.slug).in_(["walnut", "hazelnut"]))
+        )
+    }
+    assert (
+        items["hazelnut"].storage_as == "walnuts" and items["walnut"].storage_as is None
+    )
+    assert (items["hazelnut"].storage_days_min, items["hazelnut"].storage_days_max) == (
+        items["walnut"].storage_days_min,
+        items["walnut"].storage_days_max,
+    )
