@@ -916,6 +916,18 @@ export type PricesCreate = {
 };
 
 /**
+ * PricesDelete
+ *
+ * Prices to delete together: all of them, or none if any is not yours.
+ */
+export type PricesDelete = {
+    /**
+     * Ids
+     */
+    ids: Array<string>;
+};
+
+/**
  * PrivateUserCreate
  */
 export type PrivateUserCreate = {
@@ -1947,6 +1959,31 @@ export type pricesUpdateOnePriceResponses = {
 };
 
 export type pricesUpdateOnePriceResponse = pricesUpdateOnePriceResponses[keyof pricesUpdateOnePriceResponses];
+
+export type pricesDeleteSeveralPricesData = {
+    body: PricesDelete;
+    path?: never;
+    query?: never;
+    url: '/api/v1/prices/delete';
+};
+
+export type pricesDeleteSeveralPricesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type pricesDeleteSeveralPricesError = pricesDeleteSeveralPricesErrors[keyof pricesDeleteSeveralPricesErrors];
+
+export type pricesDeleteSeveralPricesResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type pricesDeleteSeveralPricesResponse = pricesDeleteSeveralPricesResponses[keyof pricesDeleteSeveralPricesResponses];
 
 export type groceryAnalysisRunsCreateGroceryAnalysisRunData = {
     /**

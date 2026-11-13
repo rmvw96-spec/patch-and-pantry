@@ -4,7 +4,18 @@ import { useState } from "react"
 
 import { type PricePublic, PricesService, VendorsService } from "@/client"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { LoadingButton } from "@/components/ui/loading-button"
 import {
   Table,
   TableBody,
@@ -81,6 +92,7 @@ function EditRow({
 
   return (
     <TableRow data-testid="price-edit-row">
+      <TableCell />
       <TableCell>
         <Input
           type="date"
@@ -162,6 +174,9 @@ const PriceBook = () => {
   const { showSuccessToast, showErrorToast } = useCustomToast()
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<string | null>(null)
+  // Prices ticked for "Delete selected" (dogfooding: clearing out several at once).
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [confirming, setConfirming] = useState(false)
   const prices = useQuery({
     queryKey: ["prices"],
     queryFn: async () => (await PricesService.readPrices()).data,
@@ -173,6 +188,18 @@ const PriceBook = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prices"] })
       showSuccessToast("Price deleted")
+    },
+    onError: handleError.bind(showErrorToast),
+  })
+
+  const removeSeveral = useMutation({
+    mutationFn: async (ids: string[]) =>
+      (await PricesService.deleteSeveralPrices({ body: { ids } })).data,
+    onSuccess: (result) => {
+      setSelected(new Set())
+      setConfirming(false)
+      queryClient.invalidateQueries({ queryKey: ["prices"] })
+      showSuccessToast(result.message)
     },
     onError: handleError.bind(showErrorToast),
   })
@@ -195,83 +222,166 @@ const PriceBook = () => {
     )
   }
 
+  // Only prices still in the book count: one deleted by its own button drops out.
+  const shown = prices.data.map((price) => price.id)
+  const chosen = shown.filter((id) => selected.has(id))
+  const allChosen = chosen.length === shown.length
+  const toggle = (id: string, on: boolean) => {
+    const next = new Set(selected)
+    if (on) next.add(id)
+    else next.delete(id)
+    setSelected(next)
+  }
+
   return (
-    <Table data-testid="price-book">
-      <TableHeader>
-        <TableRow>
-          <TableHead>Date</TableHead>
-          <TableHead>Store</TableHead>
-          <TableHead>Item</TableHead>
-          <TableHead>As typed</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Total paid</TableHead>
-          <TableHead>Unit price</TableHead>
-          <TableHead>Per cup</TableHead>
-          <TableHead>
-            <span className="sr-only">Actions</span>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {prices.data.map((price) =>
-          editing === price.id ? (
-            <EditRow
-              key={price.id}
-              price={price}
-              onDone={() => setEditing(null)}
-            />
-          ) : (
-            <TableRow key={price.id} data-testid="price-row">
-              <TableCell>{price.observed_on}</TableCell>
-              <TableCell>{price.vendor_name ?? "-"}</TableCell>
-              <TableCell>{price.item_name}</TableCell>
-              <TableCell>{price.raw_text}</TableCell>
-              <TableCell>
-                {amount(price)}
-                {price.weight_source && (
-                  <p className="text-muted-foreground text-xs">
-                    {price.weight_source} weight
-                  </p>
-                )}
-              </TableCell>
-              <TableCell data-testid="price-amount">
-                {money(price.price_cents)}
-              </TableCell>
-              <TableCell data-testid="price-unit-price">
-                {unitPrice(price.price_cents, price.quantity, price.unit) ??
-                  "-"}
-              </TableCell>
-              <TableCell data-testid="price-cost-per-cup">
-                {price.cost_per_cup_cents == null
-                  ? (price.note ?? "-")
-                  : money(price.cost_per_cup_cents)}
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={`Edit ${price.raw_text}`}
-                    onClick={() => setEditing(price.id)}
-                  >
-                    <Pencil />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={`Delete ${price.raw_text}`}
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate(price.id)}
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ),
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Dialog open={confirming} onOpenChange={setConfirming}>
+          <DialogTrigger asChild>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={chosen.length === 0}
+            >
+              <Trash2 className="mr-1" />
+              Delete selected ({chosen.length})
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Delete {chosen.length}{" "}
+                {chosen.length === 1 ? "price" : "prices"}?
+              </DialogTitle>
+              <DialogDescription>
+                They are removed from your price book and from best-buy
+                comparisons. This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline" disabled={removeSeveral.isPending}>
+                  Cancel
+                </Button>
+              </DialogClose>
+              <LoadingButton
+                variant="destructive"
+                loading={removeSeveral.isPending}
+                onClick={() => removeSeveral.mutate(chosen)}
+              >
+                Delete
+              </LoadingButton>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {chosen.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelected(new Set())}
+          >
+            Clear selection
+          </Button>
         )}
-      </TableBody>
-    </Table>
+      </div>
+      <Table data-testid="price-book">
+        <TableHeader>
+          <TableRow>
+            <TableHead>
+              <input
+                type="checkbox"
+                aria-label="Select all prices"
+                checked={allChosen}
+                ref={(box) => {
+                  if (box) box.indeterminate = chosen.length > 0 && !allChosen
+                }}
+                onChange={(e) =>
+                  setSelected(e.target.checked ? new Set(shown) : new Set())
+                }
+              />
+            </TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Store</TableHead>
+            <TableHead>Item</TableHead>
+            <TableHead>As typed</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Total paid</TableHead>
+            <TableHead>Unit price</TableHead>
+            <TableHead>Per cup</TableHead>
+            <TableHead>
+              <span className="sr-only">Actions</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {prices.data.map((price) =>
+            editing === price.id ? (
+              <EditRow
+                key={price.id}
+                price={price}
+                onDone={() => setEditing(null)}
+              />
+            ) : (
+              <TableRow key={price.id} data-testid="price-row">
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${price.raw_text}`}
+                    checked={selected.has(price.id)}
+                    onChange={(e) => toggle(price.id, e.target.checked)}
+                  />
+                </TableCell>
+                <TableCell>{price.observed_on}</TableCell>
+                <TableCell>{price.vendor_name ?? "-"}</TableCell>
+                <TableCell>{price.item_name}</TableCell>
+                <TableCell>{price.raw_text}</TableCell>
+                <TableCell>
+                  {amount(price)}
+                  {price.weight_source && (
+                    <p className="text-muted-foreground text-xs">
+                      {price.weight_source} weight
+                    </p>
+                  )}
+                </TableCell>
+                <TableCell data-testid="price-amount">
+                  {money(price.price_cents)}
+                </TableCell>
+                <TableCell data-testid="price-unit-price">
+                  {unitPrice(price.price_cents, price.quantity, price.unit) ??
+                    "-"}
+                </TableCell>
+                <TableCell data-testid="price-cost-per-cup">
+                  {price.cost_per_cup_cents == null
+                    ? (price.note ?? "-")
+                    : money(price.cost_per_cup_cents)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Edit ${price.raw_text}`}
+                      onClick={() => setEditing(price.id)}
+                    >
+                      <Pencil />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Delete ${price.raw_text}`}
+                      disabled={remove.isPending}
+                      onClick={() => remove.mutate(price.id)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ),
+          )}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
 

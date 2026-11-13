@@ -442,6 +442,51 @@ def test_a_price_can_be_edited_and_deleted(
     assert price["id"] not in ids
 
 
+def test_several_prices_can_be_deleted_at_once(
+    client: TestClient, normal_user_token_headers: dict[str, str], mine: dict[str, Any]
+) -> None:
+    headers, onion = normal_user_token_headers, mine["onion"]
+    saved = _save(
+        client, headers, mine,
+        *(_entry(onion, raw_text=f"onions {n} lb 2.99") for n in range(3)),
+    ).json()  # fmt: skip
+    gone, kept = [p["id"] for p in saved[:2]], saved[2]["id"]
+
+    r = client.post(f"{PRICES}delete", headers=headers, json={"ids": gone})
+
+    assert r.status_code == 200, r.text
+    assert r.json()["message"] == "Deleted 2 prices"
+    assert [p["id"] for p in _book(client, headers, onion)] == [kept]
+
+
+def test_deleting_several_is_all_or_none(
+    client: TestClient,
+    normal_user_token_headers: dict[str, str],
+    superuser_token_headers: dict[str, str],
+    mine: dict[str, Any],
+) -> None:
+    """One price that is not yours (or does not exist) and nothing is deleted."""
+    headers, onion = normal_user_token_headers, mine["onion"]
+    (mine_price,) = _save(client, headers, mine, _entry(onion)).json()
+    unknown = str(uuid.uuid4())
+    r = client.post(
+        f"{PRICES}delete", headers=headers, json={"ids": [mine_price["id"], unknown]}
+    )
+    assert r.status_code == 404
+    # Someone else cannot delete it, even listed alone.
+    r = client.post(
+        f"{PRICES}delete",
+        headers=superuser_token_headers,
+        json={"ids": [mine_price["id"]]},
+    )
+    assert r.status_code == 404
+    assert [p["id"] for p in _book(client, headers, onion)] == [mine_price["id"]]
+    assert (
+        client.post(f"{PRICES}delete", headers=headers, json={"ids": []}).status_code
+        == 422
+    )
+
+
 def test_editing_a_bunch_keeps_its_weight(
     client: TestClient, normal_user_token_headers: dict[str, str], mine: dict[str, Any]
 ) -> None:

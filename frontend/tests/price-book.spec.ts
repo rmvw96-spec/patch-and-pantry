@@ -42,4 +42,44 @@ test.describe("Editing prices", () => {
       page.getByTestId("price-row").filter({ hasText: store }),
     ).toHaveCount(0)
   })
+
+  test("Several prices can be selected and deleted together", async ({
+    page,
+  }) => {
+    const store = await savePrices(
+      page,
+      "onions 3 lb bag 2.99\ntomatoes 2.49/lb\nonions 1.29/lb",
+    )
+    await page.goto("/price-book")
+    const rows = page.getByTestId("price-row").filter({ hasText: store })
+    await expect(rows).toHaveCount(3)
+    const remove = page.getByRole("button", { name: /^Delete selected/ })
+    await expect(remove).toBeDisabled()
+
+    // Only this test's rows: other tests share the price book.
+    await rows
+      .filter({ hasText: "onions 3 lb bag 2.99" })
+      .getByRole("checkbox")
+      .check()
+    await rows
+      .filter({ hasText: "tomatoes 2.49/lb" })
+      .getByRole("checkbox")
+      .check()
+    await expect(remove).toHaveText("Delete selected (2)")
+
+    // Cancel keeps everything.
+    await remove.click()
+    await expect(page.getByRole("dialog")).toContainText("Delete 2 prices?")
+    await page.getByRole("button", { name: "Cancel" }).click()
+    await expect(rows).toHaveCount(3)
+
+    await remove.click()
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Delete", exact: true })
+      .click()
+    await expect(rows).toHaveCount(1)
+    await expect(rows).toContainText("onions 1.29/lb")
+    await expect(remove).toHaveText("Delete selected (0)")
+  })
 })

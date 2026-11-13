@@ -12,7 +12,9 @@ from app.prices import (
     PriceError,
     PricePublic,
     PricesCreate,
+    PricesDelete,
     PriceUpdate,
+    delete_prices,
     own_price,
     price_book,
     save_prices,
@@ -70,6 +72,21 @@ def update_one_price(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     session.commit()
     return _by_ids(price_book(session, household, limit=1000), {id})[0]
+
+
+@router.post("/delete", response_model=Message)
+def delete_several_prices(
+    session: SessionDep, current_user: CurrentUser, body: PricesDelete
+) -> Any:
+    """Delete several of your prices at once: all of them, or none if any is not yours."""
+    household = get_or_create_household(session, current_user.id)
+    try:
+        count = delete_prices(session, household, body.ids)
+    except LookupError as exc:
+        session.rollback()
+        raise HTTPException(status_code=404, detail="Price not found") from exc
+    session.commit()
+    return Message(message=f"Deleted {count} {'price' if count == 1 else 'prices'}")
 
 
 @router.delete("/{id}", response_model=Message)

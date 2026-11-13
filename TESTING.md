@@ -7,11 +7,11 @@ A living record of this repository's test layers, CI timings, and changes to the
 
 | Measure | Template baseline | Now |
 | --- | --- | --- |
-| Backend tests | 58 | 575 |
+| Backend tests | 58 | 577 |
 | Backend statements measured | 570 | 2,682 |
 | Backend coverage | 92% | 97% |
 | Backend suite, local run | 16.4 s | 21.4 s |
-| Browser E2E specs | 6 files | 10 files (adds `prices.spec.ts` 14, `price-book.spec.ts` 2, `best-buy.spec.ts` 3, `household.spec.ts` 3) |
+| Browser E2E specs | 6 files | 10 files (adds `prices.spec.ts` 14, `price-book.spec.ts` 3, `best-buy.spec.ts` 3, `household.spec.ts` 3) |
 
 Local times are single runs on one development machine, not CI. Most of the backend increase is
 the food planner's tests; the Prefect test server no longer starts for the run tests (the
@@ -78,7 +78,7 @@ The three workflows run in parallel, so a PR waits on the slowest one. Target: P
 | Backend: run job and its tracing | `backend/tests/test_grocery_analysis_job_tracing.py` | 10 | `execute_run` against real Postgres: the run span as the trace root, failures and crashes on the span, deleted runs, job-side failures, the recorded model name, cascade on user deletion |
 | Backend: template API and CRUD | `backend/tests/api/routes/`, `backend/tests/crud/` | 47 | Login, users, private routes, user CRUD |
 | Browser E2E: Prices page | `frontend/tests/prices.spec.ts` | 14 | Full stack in demo mode with reference data loaded and a 1 s demo delay: add a store, read a list, drafts with cost per cup, questions, set-aside lines, refresh, answering a weight question, skipping a draft, choosing an item (completed in place, kept on refresh, remembered), a unit question then a weight question, a price for one with a count, dropping a line, saving the same lines again updates them, saved prices in the book |
-| Browser E2E: Price book, Best buy, Household | `frontend/tests/price-book.spec.ts`, `best-buy.spec.ts`, `household.spec.ts`; steps in `tests/utils/prices.ts` | 8 | Edit and delete a price (cost per cup recomputed); compare with a starred store price, the ERS reference, explanation, and shopping list; the national-average fallback; budget and people saved and refused |
+| Browser E2E: Price book, Best buy, Household | `frontend/tests/price-book.spec.ts`, `best-buy.spec.ts`, `household.spec.ts`; steps in `tests/utils/prices.ts` | 9 | Edit and delete a price (cost per cup recomputed); select several and delete them together; compare with a starred store price, the ERS reference, explanation, and shopping list; the national-average fallback; budget and people saved and refused |
 | Browser E2E: template | `frontend/tests/*.spec.ts` | 5 files | Admin, login, reset password, sign-up, user settings |
 | Stack smoke check | `.github/workflows/test-docker-compose.yml` | 2 HTTP checks | Health endpoint and served frontend |
 
@@ -254,3 +254,4 @@ for it.
 | 2026-11-12 | Dogfooding: answers complete a line in place (`POST /grocery-analysis-runs/{id}/answers`; no model call), a unit question with choices, item-word typo matching, units read from the line, each as one ear or head. New `test_capture_answers.py`: answers chain item, unit, then weight; refusals (two answers, no answer, unknown line, unknown item, another user's run, a line with nothing read). Checked that six put-back bugs each fail a test (no item-word step, no named-base guard, unit not read from the line, each never an ear or head, answers not merged, reading not kept), and that the item E2E test fails when the page keeps the old result. Replaced the E2E test for rereading with one for a unit question | +7 backend, E2E 13 (one replaced) | ___ |
 | 2026-11-12 | Poblano pepper item (stand-in sweet pepper): catalog count 169; the committed portion map must weigh it. Loaded with the real zips into a scratch database: "Poblano pepper $0.89 each" is a medium (145 g), $0.90 a cup, no question | No count change (assertions updated) | ___ |
 | 2026-11-12 | One price per line, store, and day (owner decision): saves update by key, a partial unique index, and a migration that keeps the newest copy. Checked that four put-back bugs each fail a test (always inserting, spacing not collapsed, no edit clash check, replaced never set). Ran the migration on a copy of the owner's dev database: 102 typed prices became 52 (the newest of each line; corrected readings kept), reference rows, users, and runs unchanged; downgrade, upgrade, and `alembic check` pass | +4 backend, +1 E2E | ___ |
+| 2026-11-12 | Price book: select several prices and delete them together. Checked that two put-back bugs each fail a backend test (a partial delete allowed, no ownership check) and that the E2E test fails when the page deletes every shown row instead of the selected ones | +2 backend, +1 E2E | ___ |
