@@ -1,0 +1,55 @@
+# Lines that must become a question, never a guess (agent guide: ask, don't guess). Exact cases:
+# every field right in every run. Expected answers need owner review. Format: see
+# 1-owner-lists.yaml.
+
+cases:
+  - name: ambiguous-items
+    group: clarification
+    why: A word that names several catalog items ("squash", "greens") is asked about.
+    source: owner's market list, plus a line written for the eval
+    lines:
+      - text: "Squash $3/lb"
+        expect: {ask: which_item, options: [Zucchini, Yellow squash]}
+      - text: "Greens $2 a bunch"
+        expect: {ask: which_item, options: [Collards, Kale]}
+
+  - name: not-in-the-catalog
+    group: clarification
+    why: >-
+      Items the catalog does not have are asked about (and can be dropped), never matched to a
+      look-alike (dogfooding, Post P1-7 notes).
+    source: owner's ALDI list, plus a line written for the eval
+    lines:
+      - text: "Cilantro bunch $0.89 each"
+        expect: {ask: no_match}
+      - text: "Green onions 5.5 oz $1.05"
+        why: Scallions, not onion bulbs.
+        expect: {ask: no_match}
+      - text: "Dragon fruit $4 each"
+        expect: {ask: no_match}
+
+  - name: units-that-need-a-weight
+    group: clarification
+    why: >-
+      A box, basket, or package of unknown size is asked about, not guessed. Either question
+      about the unit is fine.
+    source: owner's market and Publix lists, plus a line written for the eval
+    lines:
+      - text: "Yellow potato’s $20 per box"
+        expect: [{ask: unknown_unit}, {ask: missing_unit}]
+      - text: "Peaches $12 a basket"
+        expect: [{ask: unknown_unit}, {ask: missing_unit}]
+      - text: "Blackberries package $5.53"
+        expect:
+          - {ask: missing_unit}
+          - {ask: unknown_unit}
+
+  - name: missing-price
+    group: clarification
+    why: An item with an amount but no price is asked about, not dropped or priced.
+    source: written for the eval
+    lines:
+      - text: "Tomatoes 3 lb"
+        expect: {ask: missing_price}
+      - text: "Onions, 2 lb bag"
+        expect: {ask: missing_price}

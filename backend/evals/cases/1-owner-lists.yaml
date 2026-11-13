@@ -1,0 +1,196 @@
+# The owner's real lists, whole (2026-11-12 and 2026-11-13). Extraction cases:
+# at least 95% of fields right in every run. Expected answers need owner review.
+#
+# Each line lists what should happen once it is read and matched: a price (item, quantity, unit,
+# total price in cents), a question (`ask`, with items it should offer), or a note. Several
+# `expect` entries mean any of them is fine; the closest is scored. Sizes are not scored here:
+# whether a size is kept depends on the piece weights loaded, which CI does not have.
+
+cases:
+  - name: aldi-list
+    group: extraction
+    why: A store list from ALDI's weekly prices, with "3 ct" bags and per-lb prices.
+    source: owner's ALDI list, 2026-11-13
+    lines:
+      - {text: "Bananas $0.16/lb", expect: {item: Banana, quantity: 1, unit: lb, price: 16}}
+      - {text: "Baby bella mushrooms 8 oz $1.69", expect: {item: Mushroom, quantity: 8, unit: oz, price: 169}}
+      - {text: "Large avocados $0.49 each", expect: {item: Avocado, quantity: 1, unit: each, price: 49}}
+      - {text: "Cucumber $0.75 each", expect: {item: Cucumber, quantity: 1, unit: each, price: 75}}
+      - text: "Cilantro bunch $0.89 each"
+        why: Herbs are not in the catalog.
+        expect: {ask: no_match}
+      - {text: "Celery $0.95 each", expect: {item: Celery, quantity: 1, unit: each, price: 95}}
+      - text: "Green onions 5.5 oz $1.05"
+        why: Green onions (scallions) are not onion bulbs and are not in the catalog.
+        expect: {ask: no_match}
+      - text: "Garlic 3 ct $1.49"
+        why: '"ct" is a count: a bag of 3 heads.'
+        expect:
+          - {item: Garlic, quantity: 3, unit: each, price: 149}
+          - {item: Garlic, quantity: 3, unit: head, price: 149}
+      - {text: "Red grapes $1.69 each", expect: {item: Grape, quantity: 1, unit: each, price: 169}}
+      - {text: "Sweet potatoes 3 lb $1.95", expect: {item: Sweet potato, quantity: 3, unit: lb, price: 195}}
+      - text: "Fresh whole carrots 2 lb $1.99"
+        expect:
+          - {item: Carrot, quantity: 2, unit: lb, price: 199}
+          - {ask: which_item, options: [Carrot]}
+      - {text: "Honeycrisp apples 2 lb $2.09", expect: {item: Apple, quantity: 2, unit: lb, price: 209}}
+      - {text: "Red onions 2 lb $2.19", expect: {item: Onion, quantity: 2, unit: lb, price: 219}}
+      - text: "Broccoli crowns $2.29/lb"
+        why: Crowns are fresh broccoli heads.
+        expect:
+          - {item: Broccoli, quantity: 1, unit: lb, price: 229}
+          - {ask: which_item, options: [Broccoli]}
+          - {ask: no_match, options: [Broccoli]}
+      - {text: "Raspberries 6 oz $2.29", expect: {item: Raspberry, quantity: 6, unit: oz, price: 229}}
+      - {text: "Fresh yellow onions 3 lb $2.39", expect: {item: Onion, quantity: 3, unit: lb, price: 239}}
+      - text: "Multi-colored peppers 3 ct $2.69"
+        why: A bag of 3 bell peppers in mixed colors.
+        expect:
+          - {item: Sweet pepper, quantity: 3, unit: each, price: 269}
+          - {item: Red bell pepper, quantity: 3, unit: each, price: 269}
+          - {ask: which_item}
+          - {ask: no_match}
+      - text: "Mandarin oranges 3 lb $2.69"
+        expect:
+          - {item: Clementine, quantity: 3, unit: lb, price: 269}
+          - {item: Orange, quantity: 3, unit: lb, price: 269}
+      - {text: "Fresh navel oranges 4 lb $2.69", expect: {item: Orange, quantity: 4, unit: lb, price: 269}}
+      - text: "Green peppers 3 ct $2.69"
+        expect: {item: Sweet pepper, quantity: 3, unit: each, price: 269}
+      - {text: "Asparagus 1 lb $3.85", expect: {item: Asparagus, quantity: 1, unit: lb, price: 385}}
+      - {text: "Green grapes $4.03/lb", expect: {item: Grape, quantity: 1, unit: lb, price: 403}}
+
+  - name: family-dollar-list
+    group: extraction
+    why: Canned vegetables, each matched to its canned catalog item, not the fresh one.
+    source: owner's Family Dollar list, 2026-11-13
+    lines:
+      - {text: "Canned green cut beans 14.5 oz $0.99", expect: {item: Canned green beans, quantity: 14.5, unit: oz, price: 99}}
+      - {text: "Canned whole potatoes 15 oz $0.99", expect: {item: Canned potatoes, quantity: 15, unit: oz, price: 99}}
+      - text: "Canned sweet peas 15 oz $0.99"
+        expect:
+          - {item: Canned peas, quantity: 15, unit: oz, price: 99}
+          - {ask: no_match, options: [Canned peas]}
+          - {ask: which_item, options: [Canned peas]}
+      - {text: "Canned sliced beets 15 oz $0.99", expect: {item: Canned beets, quantity: 15, unit: oz, price: 99}}
+
+  - name: publix-list
+    group: extraction
+    why: A store list with prices per piece and per package.
+    source: owner's Publix list, 2026-11-13
+    lines:
+      - {text: "Red onion $1.86 each", expect: {item: Onion, quantity: 1, unit: each, price: 186}}
+      - {text: "Lemon $0.98 each", expect: {item: Lemon, quantity: 1, unit: each, price: 98}}
+      - text: "Banana 0.43 lb $0.23"
+        why: The price is for 0.43 lb, not per pound.
+        expect: {item: Banana, quantity: 0.43, unit: lb, price: 23}
+      - {text: "Hass avocado $1.09 each", expect: {item: Avocado, quantity: 1, unit: each, price: 109}}
+      - {text: "Sweet potato (yam) $1.30 each", expect: {item: Sweet potato, quantity: 1, unit: each, price: 130}}
+      - {text: "Baby cut carrots 16 oz $1.75", expect: {item: Baby carrots, quantity: 16, unit: oz, price: 175}}
+      - {text: "Acorn squash $1.92 each", expect: {item: Acorn squash, quantity: 1, unit: each, price: 192}}
+      - text: "Broccoli crowns $2.35 each"
+        expect:
+          - {item: Broccoli, quantity: 1, unit: each, price: 235}
+          - {ask: which_item, options: [Broccoli]}
+          - {ask: no_match, options: [Broccoli]}
+      - {text: "Iceberg lettuce $2.37 each", expect: {item: Iceberg lettuce, quantity: 1, unit: each, price: 237}}
+      - {text: "Brussels sprouts 16 oz $2.77", expect: {item: Brussels sprouts, quantity: 16, unit: oz, price: 277}}
+      - text: "Blackberries package $5.53"
+        why: A package of unknown size is asked about, not guessed.
+        expect:
+          - {ask: missing_unit}
+          - {ask: unknown_unit}
+      - text: "Strawberries $5.53 each"
+        expect:
+          - {item: Strawberry, quantity: 1, unit: each, price: 553}
+          - {ask: missing_unit}
+      - {text: "Red raspberries 6 oz $5.53", expect: {item: Raspberry, quantity: 6, unit: oz, price: 553}}
+
+  - name: shoals-market-list
+    group: extraction
+    why: A farmers market board, typed as written, with misspellings, two prices, and N for $M.
+    source: owner's Shoals farm market list, 2026-11-12
+    lines:
+      - {text: "Sweet potato’s 99 cents/lb", expect: {item: Sweet potato, quantity: 1, unit: lb, price: 99}}
+      - text: "Apples (Fuji, evercrisp, golden delicious) 1/2 bushel $20 or $2/lb"
+        why: Two prices; the per-pound one can be compared, a bushel is not a unit yet.
+        expect:
+          - {item: Apple, quantity: 1, unit: lb, price: 200}
+          - {ask: unknown_unit}
+      - text: "Yellow potato’s $20 per box"
+        expect: [{ask: unknown_unit}, {ask: missing_unit}]
+      - {text: "Amish (medium) tomato’s  $4/lb", expect: {item: Tomato, quantity: 1, unit: lb, price: 400}}
+      - {text: "Roma tomato’s $2/lb", expect: {item: Roma tomato, quantity: 1, unit: lb, price: 200}}
+      - {text: "Heirloom tomatoes $3/lb", expect: {item: Tomato, quantity: 1, unit: lb, price: 300}}
+      - {text: "Hot peppers 3 for $1", expect: {item: Hot pepper, quantity: 3, unit: each, price: 100}}
+      - {text: "Bell pepper $2 each", expect: {item: Sweet pepper, quantity: 1, unit: each, price: 200}}
+      - {text: "Pablano pepper 89 cents each", expect: {item: Poblano pepper, quantity: 1, unit: each, price: 89}}
+      - {text: "Green tomato’s $4/lb", expect: {item: Tomato, quantity: 1, unit: lb, price: 400}}
+      - {text: "Pickling cucumbers $3/lb", expect: {item: Cucumber, quantity: 1, unit: lb, price: 300}}
+      - text: "Squash $3/lb"
+        expect: {ask: which_item, options: [Zucchini, Yellow squash]}
+      - text: "Zuchinna $3/lb"
+        expect:
+          - {item: Zucchini, quantity: 1, unit: lb, price: 300}
+          - {ask: no_match, options: [Zucchini]}
+      - {text: "Sweet, purple yellow onions $2/lb", expect: {item: Onion, quantity: 1, unit: lb, price: 200}}
+      - {text: "Baking potatos $1.50/lb", expect: {item: Potato, quantity: 1, unit: lb, price: 150}}
+      - {text: "New potatoes $3/lb", expect: {item: Potato, quantity: 1, unit: lb, price: 300}}
+      - {text: "Red potatoes $1.50/lb", expect: {item: Potato, quantity: 1, unit: lb, price: 150}}
+      - text: "Delicate squash $2 each"
+        why: Delicata squash is not in the catalog.
+        expect:
+          - {ask: no_match}
+          - {ask: which_item}
+      - {text: "Frozen peas $8/lb", expect: {item: Frozen peas, quantity: 1, unit: lb, price: 800}}
+      - {text: "Turnips $2/lb", expect: {item: Turnip, quantity: 1, unit: lb, price: 200}}
+      - {text: "Head of lettuce $3", expect: {item: Lettuce, quantity: 1, unit: head, price: 300}}
+      - {text: "Grapes $3/lb", expect: {item: Grape, quantity: 1, unit: lb, price: 300}}
+      - text: "Limes, lemons $1 each"
+        why: Two items at one price; either one, or a question.
+        expect:
+          - {item: Lime, quantity: 1, unit: each, price: 100}
+          - {item: Lemon, quantity: 1, unit: each, price: 100}
+          - {ask: which_item, options: [Lime, Lemon]}
+      - text: "Avacoda $2 each"
+        expect:
+          - {item: Avocado, quantity: 1, unit: each, price: 200}
+          - {ask: no_match, options: [Avocado]}
+      - {text: "Kiwi 2 for$1", expect: {item: Kiwi, quantity: 2, unit: each, price: 100}}
+      - {text: "Mango $3 each", expect: {item: Mango, quantity: 1, unit: each, price: 300}}
+      - text: "Cuties 2 for $1"
+        why: Cuties are a clementine brand.
+        expect:
+          - {item: Clementine, quantity: 2, unit: each, price: 100}
+          - {ask: no_match, options: [Clementine]}
+      - text: "Tangerine $1 each"
+        expect:
+          - {item: Orange, quantity: 1, unit: each, price: 100}
+          - {item: Clementine, quantity: 1, unit: each, price: 100}
+      - {text: "Valencia orange $1 each", expect: {item: Orange, quantity: 1, unit: each, price: 100}}
+      - {text: "Cantaloupe $5 each", expect: {item: Cantaloupe, quantity: 1, unit: each, price: 500}}
+      - text: "Satsuma $1 each"
+        why: Owner, 2026-11-12, a satsuma is a large orange.
+        expect: {item: Orange, quantity: 1, unit: each, price: 100}
+      - {text: "Diamond sweet, red Phoenix, bubblegum plumbs $4/lb", expect: {item: Plum, quantity: 1, unit: lb, price: 400}}
+      - {text: "Corn on the cob 5 for $6", expect: {item: Sweet corn, quantity: 5, unit: each, price: 600}}
+      - {text: "Butter beans frozen $8/lb", expect: {item: Frozen lima beans, quantity: 1, unit: lb, price: 800}}
+      - text: "Purple hull peas frozen $8/lb"
+        why: Frozen southern peas are not in the catalog.
+        expect:
+          - {ask: no_match, options: [Southern pea]}
+          - {ask: which_item, options: [Southern pea]}
+      - {text: "Lima beans frozen $8/lb", expect: {item: Frozen lima beans, quantity: 1, unit: lb, price: 800}}
+      - {text: "Walnuts with shell $8/lb", expect: {item: Walnut, quantity: 1, unit: lb, price: 800}}
+      - {text: "Hazelnuts $5/lb", expect: {item: Hazelnut, quantity: 1, unit: lb, price: 500}}
+      - {text: "Pecans $5/lb", expect: {item: Pecan, quantity: 1, unit: lb, price: 500}}
+      - {text: "Raw peanuts $4/lb", expect: {item: Peanut, quantity: 1, unit: lb, price: 400}}
+      - {text: "Bananas 69 cents a pound", expect: {item: Banana, quantity: 1, unit: lb, price: 69}}
+      - text: "Garlic head 89 cents each"
+        expect:
+          - {item: Garlic, quantity: 1, unit: each, price: 89}
+          - {item: Garlic, quantity: 1, unit: head, price: 89}
+      - {text: "Carrots $1.5/lb", expect: {item: Carrot, quantity: 1, unit: lb, price: 150}}
+      - {text: "Grapefruit $2 each", expect: {item: Grapefruit, quantity: 1, unit: each, price: 200}}
+      - {text: "Cut okra frozen $6/lb", expect: {item: Frozen okra, quantity: 1, unit: lb, price: 600}}
