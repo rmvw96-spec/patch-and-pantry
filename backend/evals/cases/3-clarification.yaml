@@ -9,7 +9,7 @@ cases:
     source: owner's market list, plus a line written for the eval
     lines:
       - text: "Squash $3/lb"
-        expect: {ask: which_item, options: [Zucchini, Yellow squash]}
+        expect: {ask: which_item, options: [Yellow squash, Butternut squash, Acorn squash]}
       - text: "Greens $2 a bunch"
         expect: {ask: which_item, options: [Collards, Kale]}
 

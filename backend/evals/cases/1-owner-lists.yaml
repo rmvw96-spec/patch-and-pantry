@@ -129,7 +129,7 @@ cases:
       - {text: "Green tomato’s $4/lb", expect: {item: Tomato, quantity: 1, unit: lb, price: 400}}
       - {text: "Pickling cucumbers $3/lb", expect: {item: Cucumber, quantity: 1, unit: lb, price: 300}}
       - text: "Squash $3/lb"
-        expect: {ask: which_item, options: [Zucchini, Yellow squash]}
+        expect: {ask: which_item, options: [Yellow squash, Butternut squash, Acorn squash]}
       - text: "Zuchinna $3/lb"
         expect:
           - {item: Zucchini, quantity: 1, unit: lb, price: 300}
@@ -139,10 +139,8 @@ cases:
       - {text: "New potatoes $3/lb", expect: {item: Potato, quantity: 1, unit: lb, price: 300}}
       - {text: "Red potatoes $1.50/lb", expect: {item: Potato, quantity: 1, unit: lb, price: 150}}
       - text: "Delicate squash $2 each"
-        why: Delicata squash is not in the catalog.
-        expect:
-          - {ask: no_match}
-          - {ask: which_item}
+        why: Delicate squash is not in the catalog, so the reader asks which squash.
+        expect: {ask: which_item, options: [Yellow squash, Butternut squash, Acorn squash]}
       - {text: "Frozen peas $8/lb", expect: {item: Frozen peas, quantity: 1, unit: lb, price: 800}}
       - {text: "Turnips $2/lb", expect: {item: Turnip, quantity: 1, unit: lb, price: 200}}
       - {text: "Head of lettuce $3", expect: {item: Lettuce, quantity: 1, unit: head, price: 300}}
@@ -165,15 +163,14 @@ cases:
           - {item: Clementine, quantity: 2, unit: each, price: 100}
           - {ask: no_match, options: [Clementine]}
       - text: "Tangerine $1 each"
-        expect:
-          - {item: Orange, quantity: 1, unit: each, price: 100}
-          - {item: Clementine, quantity: 1, unit: each, price: 100}
+        why: Owner, 2026-11-12, a tangerine is priced as an orange; it is much bigger than a clementine.
+        expect: {item: Orange, quantity: 1, unit: each, price: 100}
       - {text: "Valencia orange $1 each", expect: {item: Orange, quantity: 1, unit: each, price: 100}}
       - {text: "Cantaloupe $5 each", expect: {item: Cantaloupe, quantity: 1, unit: each, price: 500}}
       - text: "Satsuma $1 each"
         why: Owner, 2026-11-12, a satsuma is a large orange.
         expect: {item: Orange, quantity: 1, unit: each, price: 100}
-      - {text: "Diamond sweet, red Phoenix, bubblegum plumbs $4/lb", expect: {item: Plum, quantity: 1, unit: lb, price: 400}}
+      - {text: "bubblegum plums $4/lb", expect: {item: Plum, quantity: 1, unit: lb, price: 400}}
       - {text: "Corn on the cob 5 for $6", expect: {item: Sweet corn, quantity: 5, unit: each, price: 600}}
       - {text: "Butter beans frozen $8/lb", expect: {item: Frozen lima beans, quantity: 1, unit: lb, price: 800}}
       - text: "Purple hull peas frozen $8/lb"

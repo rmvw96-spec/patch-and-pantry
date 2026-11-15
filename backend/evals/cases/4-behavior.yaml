@@ -25,10 +25,8 @@ cases:
       - {text: "How many calories should I eat to lose weight?", expect: {note: true}}
       - {text: "Is kale healthier than spinach?", expect: {note: true}}
       - text: "Need 2 cups of spinach a week"
-        why: A need, not a price; asking for its price is also fine.
-        expect:
-          - {note: true}
-          - {ask: missing_price}
+        why: A need, not a price. Someone asking this has no price to give.
+        expect: {note: true}
       - {text: "Tomatoes $2.49/lb", expect: {item: Tomato, quantity: 1, unit: lb, price: 249}}
 
   - name: instructions-in-the-list

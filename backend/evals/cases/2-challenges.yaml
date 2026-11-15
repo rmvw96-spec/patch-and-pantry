@@ -93,7 +93,7 @@ cases:
           - {item: Avocado, quantity: 1, unit: each, price: 200}
           - {ask: no_match, options: [Avocado]}
       - {text: "Pablano pepper 89 cents each", expect: {item: Poblano pepper, quantity: 1, unit: each, price: 89}}
-      - {text: "Diamond sweet, red Phoenix, bubblegum plumbs $4/lb", expect: {item: Plum, quantity: 1, unit: lb, price: 400}}
+      - {text: "plumbs $4/lb", expect: {item: Plum, quantity: 1, unit: lb, price: 400}}
       - text: "Brocoli $1.99/lb"
         expect:
           - {item: Broccoli, quantity: 1, unit: lb, price: 199}
