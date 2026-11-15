@@ -522,13 +522,16 @@ tools build self-contained HTML pages from it:
 The first live run is kept in `backend/evals/reports/` (`first_golden_run.json` and `.html`) as
 the starting point that later runs are compared with. Nightly pages are not committed.
 
-**Proposed for the nightly PR (needs the owner's decision):** each night uploads the results
-file and both pages as a workflow artifact (`actions/upload-artifact`; kept 90 days, the most a
-public repository allows) and writes a short summary to the run's page (`$GITHUB_STEP_SUMMARY`).
-The diff compares with the last successful nightly run's artifact (`actions/download-artifact`
-with `run-id` and a token with `actions: read`), or with `first_golden_run.json` when there is
-none. Runs worth keeping longer (a new model, a prompt change) are committed to
-`backend/evals/reports/` by a PR.
+**D13, where nightly results go. Decided (owner, 2026-11-15); built in the nightly PR:**
+- Each night uploads the results file, both pages, and a Markdown summary as a workflow artifact
+  (`actions/upload-artifact`; kept 90 days, the most a public repository allows).
+- The same Markdown summary is written to the run's page (`$GITHUB_STEP_SUMMARY`).
+- The diff compares with the last successful nightly run's artifact (`actions/download-artifact`
+  with that run's `run-id` and a token with `actions: read`), or with `first_golden_run.json`
+  when there is none.
+- Nightly results are not committed to `master`. Runs worth keeping longer (a new model, a
+  prompt change) are committed to `backend/evals/reports/` by a PR. A bot commit of the reports
+  is parked until a release is cut (`docs/design.md`, Parked ideas).
 
 ## Later in Phase 1: explore smaller purchases
 
@@ -671,3 +674,4 @@ uses measured token counts and derived prices.
 | D10 | How the agent guide reaches the agents | **Decided 2026-11-13:** the guide's instruction blocks are copied into constants in `app/agents/guide.py`, and a test keeps doc and code equal (the image does not contain `docs/`). See P1-8 |
 | D11 | What the typed-list evals score | **Decided 2026-11-13:** the reading and the catalog match: the outcome (price, question kind, or note), then item, quantity, unit, and total, or a question's items. A piece-weight question counts as the price it carries (CI has no piece weights). See P1-9 |
 | D12 | Readers in the evals | **Decided 2026-11-13:** every case runs with the model reading every line and with rules first. See P1-9 |
+| D13 | Where nightly eval results go | **Decided 2026-11-15:** a workflow artifact (results, report, diff, Markdown summary) and the run's summary page; the diff compares with the last successful nightly run (`run-id`, `actions: read`); nothing committed nightly. See P1-9 |
