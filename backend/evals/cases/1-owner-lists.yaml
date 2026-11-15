@@ -1,5 +1,5 @@
-# The owner's real lists, whole (2026-11-12 and 2026-11-13). Extraction cases:
-# at least 95% of fields right in every run. Expected answers need owner review.
+# The owner's real lists, whole (2026-11-12 and 2026-11-13). Extraction cases: at least 95% of
+# fields right in every run. Expected answers reviewed by the owner (PR #38, 2026-11-15).
 #
 # Each line lists what should happen once it is read and matched: a price (item, quantity, unit,
 # total price in cents), a question (`ask`, with items it should offer), or a note. Several

@@ -172,7 +172,10 @@ def test_a_rate_limit_is_waited_out() -> None:
         asyncio.run(agent.run("hi"))
 
 
-def test_the_command_line_scores_and_writes_results(tmp_path: Path) -> None:
+def test_the_command_line_scores_and_writes_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GITHUB_SHA", "c0ffee")
     # Notes need no catalog, so this runs on CI's empty one. The demo reader is free.
     (tmp_path / "cases.yaml").write_text(
         """
@@ -215,6 +218,7 @@ cases:
         {"text": "Aldi", "wrong": 2, "expected": "asks no_match", "got": ["note"]}
     ]
     assert results["started"] and results["seconds"] is not None
+    assert results["commit"] == "c0ffee"
 
     assert asyncio.run(main([*argv, "--case", "notes", "--reader", "model"])) == 0
     assert asyncio.run(main([*argv, "--case", "nothing"])) == 2

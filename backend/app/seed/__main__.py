@@ -1,10 +1,10 @@
 # ruff: noqa: T201  -- a command-line entry point: printing is its output
-"""Run seed loaders by hand. Never runs in CI.
+"""Run seed loaders. From backend/:
 
-From backend/:
-
+    uv run python -m app.seed all                # every committed source, USDA zips included
+    uv run python -m app.seed all --no-usda      # without the USDA zips (Playwright CI)
+    uv run python -m app.seed all ~/Downloads/FoodData_Central_*.zip   # other zips instead
     uv run python -m app.seed ers_prices ../data/sources/usda-ers/all-vegetables-average-prices.csv
-    uv run python -m app.seed all ~/Downloads/FoodData_Central_*.zip ~/Downloads/sr28asc.zip
     uv run python -m app.seed report
 
 Each file is loaded inside a Prefect flow and committed on its own; loading the same file again
@@ -48,13 +48,26 @@ LOADERS: dict[str, Loader] = {
 
 REPO = Path(__file__).resolve().parents[3]
 SOURCES = REPO / "data" / "sources"
-# Files committed to the repository, in load order. USDA zips (FDC, SR28) are not committed.
+# Files committed to the repository, in load order.
 COMMITTED: list[tuple[str, Path]] = [
     ("ers_prices", SOURCES / "usda-ers" / "all-vegetables-average-prices.csv"),
     ("ers_prices", SOURCES / "usda-ers" / "all-fruits-average-prices.csv"),
     ("planting_calendar", SEED_DATA / "north_alabama_planting_calendar.csv"),
     ("garden_yields", SEED_DATA / "minnesota_home_garden_yields.csv"),
     ("foodkeeper", SOURCES / "usda-fsis" / "foodkeeper.json"),
+]
+# The committed USDA zips (owner, 2026-11-15), loaded after the files above: FDC nutrients, then
+# SR28 piece weights, refuse, and nut cup weights. About 16 MB, kept byte for byte.
+USDA_ZIPS: list[tuple[str, Path]] = [
+    (
+        "usda_zip",
+        SOURCES / "usda-fdc" / "FoodData_Central_foundation_food_csv_2026-04-30.zip",
+    ),
+    (
+        "usda_zip",
+        SOURCES / "usda-fdc" / "FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    ),
+    ("usda_zip", SOURCES / "usda-ars" / "sr28asc.zip"),
 ]
 
 SessionFactory = Callable[[], Session]
@@ -91,9 +104,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         command = commands.add_parser(name, help=f"load {name} from local files")
         command.add_argument("paths", nargs="+", type=Path)
     everything = commands.add_parser(
-        "all", help="load every committed source, then USDA zips (FDC and SR28)"
+        "all", help="load every committed source, the USDA zips (FDC and SR28) included"
     )
-    everything.add_argument("zips", nargs="*", type=Path)
+    everything.add_argument(
+        "zips",
+        nargs="*",
+        type=Path,
+        help="USDA zips to load instead of the committed ones",
+    )
+    everything.add_argument(
+        "--no-usda",
+        action="store_true",
+        help="skip the USDA zips: no nutrients or piece weights (Playwright CI)",
+    )
     commands.add_parser("report", help="list catalog produce items with gaps")
     args = parser.parse_args(argv)
 
@@ -102,7 +125,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(format_report(coverage_gaps(session)))
         return 0
     if args.command == "all":
-        jobs = COMMITTED + [("usda_zip", path) for path in args.zips]
+        if args.no_usda and args.zips:
+            parser.error("--no-usda with zips: give one or the other")
+        zips = [("usda_zip", path) for path in args.zips] or USDA_ZIPS
+        jobs = COMMITTED + ([] if args.no_usda else zips)
     else:
         jobs = [(args.command, path) for path in args.paths]
     for summary in seed_flow(jobs):

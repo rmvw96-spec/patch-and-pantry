@@ -1,6 +1,6 @@
 # Lines that must become a question, never a guess (agent guide: ask, don't guess). Exact cases:
-# every field right in every run. Expected answers need owner review. Format: see
-# 1-owner-lists.yaml.
+# every field right in every run. Expected answers reviewed by the owner (PR #38, 2026-11-15).
+# Format: see 1-owner-lists.yaml.
 
 cases:
   - name: ambiguous-items

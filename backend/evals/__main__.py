@@ -15,6 +15,8 @@ is saved: each run is rolled back. Exit status 1 when a case fails.
 
 import argparse
 import asyncio
+import os
+import subprocess
 import sys
 import time
 from collections import defaultdict
@@ -144,16 +146,31 @@ def print_report(tallies: list[Tally], repeat: int, verbose: bool) -> None:
                 print(f"      got      {got}")
 
 
+def current_commit() -> str | None:
+    """The commit under test: GitHub's for a workflow run, else the checkout's."""
+    if sha := os.environ.get("GITHUB_SHA"):
+        return sha
+    try:
+        done = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+        )
+    except OSError, subprocess.CalledProcessError:
+        return None
+    return done.stdout.strip() or None
+
+
 def summary(
     tallies: list[Tally],
     model: str,
     repeat: int,
     started: datetime | None = None,
     seconds: float | None = None,
+    commit: str | None = None,
 ) -> Results:
     return Results(
         model=model,
         repeat=repeat,
+        commit=commit,
         started=started,
         seconds=seconds,
         cases={
@@ -254,7 +271,9 @@ async def main(argv: list[str] | None = None) -> int:
     print(f"{len(cases)} cases, readers: {', '.join(readers)}, model: {args.model}")
     print_report(tallies, args.repeat, args.verbose)
     if args.json:
-        results = summary(tallies, args.model, args.repeat, started, seconds)
+        results = summary(
+            tallies, args.model, args.repeat, started, seconds, current_commit()
+        )
         args.json.write_text(results.model_dump_json(indent=2) + "\n")
     return 0 if all(t.passed == t.runs for t in tallies) else 1
 

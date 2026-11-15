@@ -30,7 +30,7 @@ uv run python -m evals --json results.json                 # per-case results, f
 
 ## Cases
 
-Cases are in `cases/*.yaml`. The expected answers need the owner's review.
+Cases are in `cases/*.yaml`. The expected answers were reviewed by the owner (PR #38, 2026-11-15).
 
 | File | Group | What it holds |
 | --- | --- | --- |
@@ -71,7 +71,7 @@ cents, for the whole amount bought. `ask` is a question kind: `which_item`, `no_
 ```bash
 uv run python -m evals --json results.json
 uv run python -m evals.generate_evals_report results.json -o report.html
-uv run python -m evals.generate_evals_report_diff reports/first_golden_run.json results.json -o diff.html
+uv run python -m evals.generate_evals_report_diff reports/baseline_run.json results.json -o diff.html
 ```
 
 `generate_evals_report` builds one run's page: scores by case and reader, and every line that
@@ -81,8 +81,27 @@ lines, or used 20% more or fewer output tokens, and each line newly wrong, now r
 differently. Both pages are single HTML files. `--title` names a page, and `--note` adds a note
 to a report.
 
-`reports/` keeps runs worth comparing with: `first_golden_run` (DeepSeek-V3.2, 2026-11-13) is
-the starting point. Its page is the one published after that run.
+`reports/` keeps runs worth comparing with: `baseline_run` (DeepSeek-V3.2, 2026-11-15, the
+reviewed cases, 5 runs a case), which `baseline.json` was made from. The nightly diff compares
+with it when there is no earlier nightly run.
+
+## The nightly run and the baseline
+
+`.github/workflows/nightly-evals.yml` runs every case at 09:00 UTC on `master` (and by hand from
+the Actions tab), then checks the results against `baseline.json`:
+
+```bash
+uv run python -m evals.check_baseline results.json --previous last-night.json --markdown summary.md
+uv run python -m evals --repeat 5 --json results.json && uv run python -m evals.make_baseline results.json
+```
+
+The baseline (D15) sorts every case and reader, and every line, into **stable** (right in every
+run: a drop is a regression), **flaky** (right in some runs: tracked), and **broken** (wrong in
+every run: the bar to reach). A stable case is a regression when it passes two runs fewer, one
+run fewer two nights in a row, or with rules first any run fewer; a stable line likewise. An
+extraction case regresses when its share of fields falls more than 3 points; a failed run always
+does (D14). The check exits 1 only with `--enforce`, which the workflow leaves off during the
+report-only weeks. The baseline changes only by a reviewed PR.
 
 `scripts/compare_readers.py` still scores the reading alone (no catalog) against
 `evals/lists/*.csv`.

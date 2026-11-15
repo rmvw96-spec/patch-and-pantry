@@ -45,6 +45,7 @@ class Results(BaseModel):
 
     model: str
     repeat: int
+    commit: str | None = None  # the code the run tested
     started: datetime | None = None
     seconds: float | None = None  # wall time for the whole run
     cases: dict[str, CaseResult]

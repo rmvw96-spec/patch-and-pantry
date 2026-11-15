@@ -65,7 +65,7 @@ uv sync                                     # Python dependencies
 
 cd backend
 uv run bash scripts/prestart.sh             # migrations and the admin user
-uv run python -m app.seed all               # committed reference data (add USDA zips for more)
+uv run python -m app.seed all               # committed reference data, USDA zips included
 SIM_MODEL=demo uv run fastapi dev           # API at http://localhost:8000/docs
 ```
 

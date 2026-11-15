@@ -327,8 +327,8 @@ pages).
 - **Prices page** (`/prices`) replaces Studies: choose or add a store, a date, and a typed list;
   the status polls, then drafts with cost per cup, questions, and set-aside lines. Confirming
   drafts comes with P1-7.
-- The Playwright workflow loads the committed reference data (`python -m app.seed all`, no USDA
-  zips) before the browser tests, and sets `DEMO_DELAY_SECONDS=1`, so the page must poll.
+- The Playwright workflow loads the committed reference data (`python -m app.seed all --no-usda`
+  since 2026-11-15: no USDA zips) before the browser tests, and sets `DEMO_DELAY_SECONDS=1`, so the page must poll.
 - The live smoke check reads a short typed list with the capture agent instead of a study.
 
 **Acceptance criteria:**
@@ -482,7 +482,7 @@ installed yet and would be a new dependency), `.github/workflows/nightly-evals.y
 - behavior cases: notes between prices, the P1-8 dieting question, and text that gives the
   reader orders.
 
-**The expected answers need the owner's review.**
+**The expected answers were reviewed by the owner (PR #38, 2026-11-15).**
 
 **First live run** (DeepSeek-V3.2, 3 runs each, 2026-11-13): about 5 minutes and 31,000 output
 tokens for the three runs (28,000 of them with the model reading every line). 28 of 40 case-reader pairs pass: rules first 16 of 20,
@@ -504,8 +504,11 @@ question about its unit, which passes one more model case. What failed:
 **Acceptance criteria:**
 
 - [x] `uv run python -m evals --cases extraction` runs locally against `SIM_MODEL`.
-- [ ] The owner reviews the expected answers.
-- [ ] The nightly workflow passes zizmor and pins actions by SHA, like the others.
+- [x] The owner reviews the expected answers (PR #38, 2026-11-15).
+- [x] The nightly workflow passes zizmor and pins actions by SHA, like the others.
+- [ ] After the report-only weeks, set the D14 field tolerance from what the nights measured
+      and turn `EVALS_ENFORCE` on.
+- [ ] Best-buy explanation cases and the trace check (D16).
 
 ### Reports (2026-11-15)
 
@@ -520,16 +523,17 @@ tools build self-contained HTML pages from it:
   more) changed, and each line that is newly wrong, now right, or wrong differently. It reports
   and does not fail; the baseline check fails the workflow.
 
-The first live run is kept in `backend/evals/reports/` (`first_golden_run.json` and `.html`) as
-the starting point that later runs are compared with. Nightly pages are not committed.
+The baseline run is kept in `backend/evals/reports/` (`baseline_run.json` and `.html`) as the
+starting point that later runs are compared with; it replaced the first live run's files
+(owner, 2026-11-15), whose cases predate the owner's review. Nightly pages are not committed.
 
 **D13, where nightly results go. Decided (owner, 2026-11-15); built in the nightly PR:**
 - Each night uploads the results file, both pages, and a Markdown summary as a workflow artifact
   (`actions/upload-artifact`; kept 90 days, the most a public repository allows).
 - The same Markdown summary is written to the run's page (`$GITHUB_STEP_SUMMARY`).
 - The diff compares with the last successful nightly run's artifact (`actions/download-artifact`
-  with that run's `run-id` and a token with `actions: read`), or with `first_golden_run.json`
-  when there is none.
+  with that run's `run-id` and a token with `actions: read`), or with the baseline run
+  (`baseline_run.json`) when there is none.
 - Nightly results are not committed to `master`. Runs worth keeping longer (a new model, a
   prompt change) are committed to `backend/evals/reports/` by a PR. A bot commit of the reports
   is parked until a release is cut (`docs/design.md`, Parked ideas).
@@ -556,6 +560,55 @@ the nightly PR:**
 - **Tracing a drop to a change.** The results file records the commit it ran on, and the summary
   links the commits since the last nightly run, so a code change can be told apart from a model
   change with no commit (Foundry can update a deployment).
+
+### The nightly run (second PR, 2026-11-15)
+
+**Decided (owner, 2026-11-15):**
+- **Split.** This PR adds the nightly workflow, the baseline, and the check. The best-buy
+  explanation cases and the trace check come in the next PR; P0-2's token counts come from the
+  nightly runs after that.
+- **D15, the baseline has three tiers.** `backend/evals/baseline.json` sorts every case and
+  reader, and every line in it, by a reviewed run:
+  - **stable**, right in every run: the regression bar (D14's rules apply here);
+  - **flaky**, right in some runs: tracked night to night, never failed on;
+  - **broken**, wrong in every run: the quality bar to reach.
+
+  A flaky or broken case that passes every run shows as "fixed or improving", and a PR can move it
+  up a tier.
+
+**The baseline run** (DeepSeek-V3.2, the reviewed cases at `c560065`, 5 runs a case, 2026-11-15;
+about 7 minutes and 52,000 output tokens): 25 case-reader pairs stable, 7 flaky, 8 broken. By
+line, rules first has 150 stable, 4 flaky, and 7 broken; the model reading every line has 131,
+15, and 15. Rules first, as the app reads lists, is broken on "Baby cut carrots" (asks Baby
+carrots or Carrot), "Green onions" (matched to Onion), "Total $43.12" (asked about), and
+"Avacoda" (no options); flaky on "SYSTEM:" (unreadable in 4 of 5), "Mangoes 2 @ $1.25" (1 of 5),
+and a weight with no price read as a note (1 of 5). The run and its report are in
+`backend/evals/reports/baseline_run.*`. The baseline is written by `python -m evals.make_baseline` from a live run of the
+  reviewed cases, 5 runs a case so "stable" means 5 of 5, and changes only by a reviewed PR.
+- **D16, how the best-buy explanations are scored (next PR).** Rule checks only, since no model
+  judges another (design: LLM-as-judge deferred). Fixed best-buy tables go to the live explainer, 3
+  runs each. A run passes when it finishes within its rules, every number in it appears in the
+  table (the trace check, done on the run's own messages rather than Phoenix), it has no dieting
+  words, and it names each item's marked-best store. The number of tries is reported.
+
+**The workflow** (`.github/workflows/nightly-evals.yml`), at 09:00 UTC (03:00 Central in
+standard time, 04:00 in daylight time) and by hand from the Actions tab, on `master` only:
+1. Starts Postgres, migrates, and loads every committed source, the USDA zips included (owner,
+   2026-11-15), so the catalog is the one a user has, with piece weights and nut cup weights. D11
+   still counts a piece-weight question as a price, for the PR tests' catalog.
+2. Finds the last successful nightly run and downloads its results (`actions: read`).
+3. Runs every case with both readers, 3 runs each, against DeepSeek-V3.2 (the repository
+   secrets `FOUNDRY_ENDPOINT` and `FOUNDRY_API_KEY`).
+4. Builds the report, and the diff from the last nightly run (or, with none, from the baseline
+   run, `backend/evals/reports/baseline_run.json`).
+5. Checks the results against the baseline (`python -m evals.check_baseline`): regressions in
+   the stable tier, things to watch, things fixed or improving, and lines the baseline does not
+   know. The Markdown summary goes on the run's page.
+6. Uploads `results.json`, `report.html`, `diff.html`, and `summary.md` as the `golden-evals`
+   artifact, kept 90 days.
+
+The workflow fails on a regression only when `EVALS_ENFORCE` is `"true"`; it starts `"false"`
+for D14's report-only weeks.
 
 ## Later in Phase 1: explore smaller purchases
 
@@ -698,5 +751,7 @@ uses measured token counts and derived prices.
 | D10 | How the agent guide reaches the agents | **Decided 2026-11-13:** the guide's instruction blocks are copied into constants in `app/agents/guide.py`, and a test keeps doc and code equal (the image does not contain `docs/`). See P1-8 |
 | D11 | What the typed-list evals score | **Decided 2026-11-13:** the reading and the catalog match: the outcome (price, question kind, or note), then item, quantity, unit, and total, or a question's items. A piece-weight question counts as the price it carries (CI has no piece weights). See P1-9 |
 | D12 | Readers in the evals | **Decided 2026-11-13:** every case runs with the model reading every line and with rules first. See P1-9 |
-| D14 | Flagging regressions and nightly noise | **Decided 2026-11-15:** two weeks report-only; then fail on a clear drop against the baseline (3/3 to 1/3 or 0/3, a one-run drop two nights running, extraction fields more than about 3 points down, a failed run); one-run dips are "watch"; rules first held stricter; flaky cases run more; results record the commit. See P1-9 |
 | D13 | Where nightly eval results go | **Decided 2026-11-15:** a workflow artifact (results, report, diff, Markdown summary) and the run's summary page; the diff compares with the last successful nightly run (`run-id`, `actions: read`); nothing committed nightly. See P1-9 |
+| D14 | Flagging regressions and nightly noise | **Decided 2026-11-15:** two weeks report-only; then fail on a clear drop against the baseline (3/3 to 1/3 or 0/3, a one-run drop two nights running, extraction fields more than about 3 points down, a failed run); one-run dips are "watch"; rules first held stricter; flaky cases run more; results record the commit. See P1-9 |
+| D15 | The eval baseline | **Decided 2026-11-15:** three tiers, for every case and reader and every line: stable (the regression bar), flaky (tracked), broken (the bar to reach); written from a reviewed 5-run live run, changed only by PR. See P1-9 |
+| D16 | Scoring the best-buy explanations | **Decided 2026-11-15:** rule checks only: finishes within its rules, numbers only from the table (the trace check, on the run's messages), no dieting words, names each item's marked-best store; tries reported. See P1-9 |

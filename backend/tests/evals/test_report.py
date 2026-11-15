@@ -7,7 +7,7 @@ from evals.generate_evals_report_diff import main as diff_main
 from evals.report import render_diff, render_report
 from evals.results import CaseResult, Miss, Results, load_results
 
-FIRST_RUN = Path(__file__).parents[2] / "evals" / "reports" / "first_golden_run.json"
+BASELINE_RUN = Path(__file__).parents[2] / "evals" / "reports" / "baseline_run.json"
 
 
 def result(
@@ -59,11 +59,11 @@ def test_the_report_shows_scores_and_every_miss_escaped() -> None:
     assert "checked by hand" in html
 
 
-def test_the_first_run_is_committed_and_renders() -> None:
-    first = load_results(FIRST_RUN)
-    assert first.model == "foundry:deepseek-v3.2"
-    assert sum(r.passed == r.runs for r in first.cases.values()) == 28
-    assert "28 of 40" in render_report(first)
+def test_the_baseline_run_is_committed_and_renders() -> None:
+    run = load_results(BASELINE_RUN)
+    assert (run.model, run.repeat) == ("foundry:deepseek-v3.2", 5)
+    assert sum(r.passed == r.runs for r in run.cases.values()) == 25
+    assert "25 of 40" in render_report(run)
 
 
 def test_the_diff_shows_only_what_changed() -> None:
@@ -104,8 +104,8 @@ def test_the_diff_shows_only_what_changed() -> None:
 
 
 def test_a_diff_of_the_same_results_says_nothing_changed() -> None:
-    first = load_results(FIRST_RUN)
-    html = render_diff(first, first)
+    run = load_results(BASELINE_RUN)
+    html = render_diff(run, run)
     assert "Nothing changed" in html
     assert "Cases whose result changed" not in html
 
@@ -123,8 +123,8 @@ def test_the_diff_notes_a_new_model_new_cases_and_token_jumps() -> None:
 
 def test_both_tools_write_their_pages(tmp_path: Path) -> None:
     out = tmp_path / "report.html"
-    assert report_main([str(FIRST_RUN), "-o", str(out), "--title", "First run"]) == 0
+    assert report_main([str(BASELINE_RUN), "-o", str(out), "--title", "First run"]) == 0
     assert "<title>First run</title>" in out.read_text()
     diff = tmp_path / "diff.html"
-    assert diff_main([str(FIRST_RUN), str(FIRST_RUN), "-o", str(diff)]) == 0
+    assert diff_main([str(BASELINE_RUN), str(BASELINE_RUN), "-o", str(diff)]) == 0
     assert "Nothing changed" in diff.read_text()
