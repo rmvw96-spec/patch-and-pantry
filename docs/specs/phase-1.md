@@ -457,7 +457,8 @@ installed yet and would be a new dependency), `.github/workflows/nightly-evals.y
   3; extraction at least 95% of fields correct.
 - Nightly at 03:00 Central on `master`, using the repository secrets; never on pull requests.
   Results are compared with `backend/evals/baseline.json` (the last good run: pass rate per case,
-  run time, tokens), and a drop fails the workflow. The baseline updates only by a reviewed PR.
+  run time, tokens), and a clear drop fails the workflow (D14). The baseline updates only by a
+  reviewed PR.
 - Token counts from these runs complete Phase 0's P0-2: measured tokens per run, prices derived
   from Azure Cost Management, and the budget table.
 
@@ -532,6 +533,29 @@ the starting point that later runs are compared with. Nightly pages are not comm
 - Nightly results are not committed to `master`. Runs worth keeping longer (a new model, a
   prompt change) are committed to `backend/evals/reports/` by a PR. A bot commit of the reports
   is parked until a release is cut (`docs/design.md`, Parked ideas).
+
+**D14, how a regression is flagged, and the noise allowed. Decided (owner, 2026-11-15); built in
+the nightly PR:**
+- **Why a tolerance.** With 3 runs, one flaky line moves a case between 1/3, 2/3, and 3/3 with
+  no change. In the first run, "Mangoes 2 @ $1.25" was wrong in 2 of 3 runs (model) and 1 of 3
+  (rules first), and the "SYSTEM:" line in 2 of 3 (rules first).
+- **Report only first.** For about two weeks the nightly run writes its reports and never
+  fails, to measure how much each case moves from night to night.
+- **Then the workflow fails only on a clear drop** against `baseline.json`:
+  - a case and reader that passed 3/3 in the baseline passes 1/3 or 0/3, or passes one run
+    fewer on two nights in a row;
+  - an extraction case's share of fields drops more than a set number of points below the
+    baseline (about 3; set from the report-only weeks);
+  - a run fails outright (for example, rate-limit retries used up).
+  A one-run dip shows as "watch" in the summary and does not fail.
+- **Rules first is held to the stricter bar,** since it is how the app reads lists and most of
+  its lines never reach the model. Results with the model reading every line mostly track the
+  model.
+- **Cases that stay flaky run more often** (for example 5 runs) instead of loosening the bar for
+  every case.
+- **Tracing a drop to a change.** The results file records the commit it ran on, and the summary
+  links the commits since the last nightly run, so a code change can be told apart from a model
+  change with no commit (Foundry can update a deployment).
 
 ## Later in Phase 1: explore smaller purchases
 
@@ -674,4 +698,5 @@ uses measured token counts and derived prices.
 | D10 | How the agent guide reaches the agents | **Decided 2026-11-13:** the guide's instruction blocks are copied into constants in `app/agents/guide.py`, and a test keeps doc and code equal (the image does not contain `docs/`). See P1-8 |
 | D11 | What the typed-list evals score | **Decided 2026-11-13:** the reading and the catalog match: the outcome (price, question kind, or note), then item, quantity, unit, and total, or a question's items. A piece-weight question counts as the price it carries (CI has no piece weights). See P1-9 |
 | D12 | Readers in the evals | **Decided 2026-11-13:** every case runs with the model reading every line and with rules first. See P1-9 |
+| D14 | Flagging regressions and nightly noise | **Decided 2026-11-15:** two weeks report-only; then fail on a clear drop against the baseline (3/3 to 1/3 or 0/3, a one-run drop two nights running, extraction fields more than about 3 points down, a failed run); one-run dips are "watch"; rules first held stricter; flaky cases run more; results record the commit. See P1-9 |
 | D13 | Where nightly eval results go | **Decided 2026-11-15:** a workflow artifact (results, report, diff, Markdown summary) and the run's summary page; the diff compares with the last successful nightly run (`run-id`, `actions: read`); nothing committed nightly. See P1-9 |
