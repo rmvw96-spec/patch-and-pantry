@@ -58,6 +58,8 @@ uv run python scripts/compare_readers.py evals/lists/shoals-farm-market.txt --ru
 uv run python -m evals --cases extraction    # LIVE golden evals on SIM_MODEL (--model demo: free); see evals/README.md
 uv run python -m evals.generate_evals_report results.json -o report.html       # page from --json results
 uv run python -m evals.generate_evals_report_diff before.json after.json -o diff.html   # only what changed
+uv run python -m evals.check_baseline results.json --markdown summary.md   # vs evals/baseline.json (nightly: .github/workflows/nightly-evals.yml)
+uv run python -m evals.make_baseline results.json   # rewrite the baseline from a reviewed 5-run live run (by PR only)
 uv run python -m app.seed all <FDC zips> <sr28asc.zip>   # load reference data (see app/seed_data/README.md)
 uv run python -m app.seed report            # catalog coverage gaps
 uv run bash scripts/format.sh

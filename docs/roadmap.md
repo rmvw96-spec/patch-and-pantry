@@ -98,8 +98,9 @@ week's produce, per cup, with a shopping list. Spec: [`specs/phase-1.md`](specs/
       cases; a trace check that every number came from a tool.
 - [ ] Model comparison per task: deferred until a second model is deployed (see `design.md`,
       Open questions).
-- [ ] Nightly eval workflow against live models, comparing pass rates and run time with the last
-      good run.
+- [x] Nightly eval workflow against live models, comparing pass rates and run time with the last
+      good run (`nightly-evals.yml`, checked against a three-tier baseline; report only until the
+      D14 weeks end).
 
 **Gate:** golden evals pass the threshold on the chosen models; the owner uses it for two weeks of
 real shopping.
@@ -220,3 +221,4 @@ match hand calculations.
 | 2026-11-15 | P1-9 report tools: one run's HTML page and a page of only what changed between two runs; the first live run is kept in `backend/evals/reports/` as the starting point. Where nightly pages go is proposed in spec P1-9 for the owner to decide. |
 | 2026-11-15 | Owner approved where nightly eval results go (spec P1-9, D13), to be built with the nightly workflow in the next P1-9 PR. Committing eval reports to `master` is parked until a release is cut (`design.md`, Parked ideas). |
 | 2026-11-15 | Owner decided how the nightly evals flag a regression and how much noise is allowed (spec P1-9, D14), to be built with the nightly workflow. |
+| 2026-11-15 | P1-9 nightly run: the workflow, the three-tier baseline (D15), and the check, report only at first (D14). The best-buy explanation cases and trace check (D16) move to the next PR; P0-2 token counts follow from the nightly runs. |

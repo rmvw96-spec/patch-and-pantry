@@ -1,6 +1,6 @@
 # How the reader treats lines that are not prices, and text that tries to steer it (agent guide).
-# Exact cases: every field right in every run. Expected answers need owner review. Format: see
-# 1-owner-lists.yaml.
+# Exact cases: every field right in every run. Expected answers reviewed by the owner (PR #38,
+# 2026-11-15). Format: see 1-owner-lists.yaml.
 
 cases:
   - name: notes-between-prices

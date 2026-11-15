@@ -1,6 +1,6 @@
 # Short lists aimed at what went wrong while dogfooding (P1-5 to P1-11), mixing the owner's lines
 # with lines written for the eval. Extraction cases: at least 95% of fields right in every run.
-# Expected answers need owner review. Format: see 1-owner-lists.yaml.
+# Expected answers reviewed by the owner (PR #38, 2026-11-15). Format: see 1-owner-lists.yaml.
 
 cases:
   - name: unit-inside-the-price

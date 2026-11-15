@@ -1,0 +1,115 @@
+name: Nightly evals
+
+# Golden evals against the live model (spec P1-9). Never on pull requests: PR CI makes no live
+# model calls. Results, the report, what changed since the last nightly run, and a Markdown
+# summary are uploaded as the run's artifact (D13); the summary is also shown on the run's page.
+
+on:
+  schedule:
+    # 09:00 UTC: 03:00 Central in standard time, 04:00 in daylight time (cron is UTC only).
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read  # to find and download the last nightly run's artifact
+
+concurrency:
+  group: nightly-evals
+  cancel-in-progress: false
+
+env:
+  # D14: report only while night-to-night noise is measured (from 2026-11-15, about two weeks).
+  # Set to "true" by a reviewed PR to fail the workflow on a regression against the baseline.
+  EVALS_ENFORCE: "false"
+
+jobs:
+  golden-evals:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: .python-version
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "latest-known"
+      - run: uv sync
+        working-directory: backend
+      - run: docker compose up -d --wait db
+      - name: Migrate DB
+        run: uv run bash scripts/prestart.sh
+        working-directory: backend
+      # The committed reference data, as Playwright loads it. No USDA zips, so no piece weights:
+      # the evals count a piece-weight question as the price it carries (D11).
+      - name: Load reference data
+        run: uv run python -m app.seed all
+        working-directory: backend
+
+      - name: Find the last successful nightly run
+        id: last
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow nightly-evals.yml \
+            --branch master --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Download its results
+        if: steps.last.outputs.run_id != ''
+        # An artifact older than 90 days is gone; the diff then starts from the baseline run.
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: golden-evals
+          path: backend/last-night
+          run-id: ${{ steps.last.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Run the golden evals
+        env:
+          FOUNDRY_ENDPOINT: ${{ secrets.FOUNDRY_ENDPOINT }}
+          FOUNDRY_API_KEY: ${{ secrets.FOUNDRY_API_KEY }}
+        run: |
+          mkdir -p eval-out
+          set +e
+          uv run python -m evals --model foundry:deepseek-v3.2 --verbose --json eval-out/results.json
+          code=$?
+          # 1 means a case failed, which the baseline check judges; anything else is an error.
+          if [ "$code" -gt 1 ]; then exit "$code"; fi
+        working-directory: backend
+      - name: Build the report and what changed
+        run: |
+          previous=evals/reports/baseline_run.json
+          if [ -f last-night/results.json ]; then previous=last-night/results.json; fi
+          uv run python -m evals.generate_evals_report eval-out/results.json \
+            -o eval-out/report.html --title "Typed list evals: nightly"
+          uv run python -m evals.generate_evals_report_diff "$previous" eval-out/results.json \
+            -o eval-out/diff.html
+        working-directory: backend
+      - name: Check against the baseline
+        run: |
+          args=(--markdown eval-out/summary.md)
+          if [ -f last-night/results.json ]; then args+=(--previous last-night/results.json); fi
+          if [ "$EVALS_ENFORCE" = "true" ]; then args+=(--enforce); fi
+          set +e
+          uv run python -m evals.check_baseline eval-out/results.json "${args[@]}"
+          code=$?
+          cat eval-out/summary.md >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+        working-directory: backend
+      - name: Upload the results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: golden-evals
+          path: backend/eval-out
+          retention-days: 90
+      - run: docker compose down -v --remove-orphans
+        if: always()
