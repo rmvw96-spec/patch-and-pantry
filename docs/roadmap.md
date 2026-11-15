@@ -181,7 +181,7 @@ match hand calculations.
 | --- | --- | --- |
 | Name of the job record | **Decided 2026-11-11:** `grocery_analysis_run` (Phase 1 spec, D1) | Settled |
 | Money representation | **Decided:** integer cents (P0-3, PR #12) | Settled |
-| Eval pass threshold | **Decided 2026-11-11:** exact answers 3 of 3 runs; extraction at least 95% of fields; lowered only on measured results (Phase 1 spec, D2) | Settled; revisit after the first nightly runs |
+| Eval pass threshold | **Decided 2026-11-11:** exact answers 3 of 3 runs; extraction at least 95% of fields; lowered only on measured results (Phase 1 spec, D2). Nightly noise allowed against the baseline: Phase 1 spec, D14 (2026-11-15) | Settled; the D14 tolerances are set after two report-only weeks |
 | Model for each task | **Decided 2026-11-11:** DeepSeek-V3.2 for every text task; judging and comparisons wait for a second model | Settled for text; photo model before Phase 2 |
 | Hours per week for building | **Decided 2026-11-11:** not needed; phases have no dates | Settled |
 | App name | **Decided 2026-11-11:** Patch & Pantry; domain [patchandpantry.app](https://patchandpantry.app) | Settled |
@@ -216,3 +216,7 @@ match hand calculations.
 | 2026-11-13 | P1-11 built: lemons, limes, garlic, elephant garlic, walnuts, pecans, and hazelnuts added; best-buy amounts are in each item's measure. |
 | 2026-11-13 | Agent guide done (P1-8): `docs/agent-guide.md` holds the prompts, copied into `app/agents/guide.py` and kept equal by a test. Next: P1-9 (golden evals). |
 | 2026-11-13 | Owner reviewed every pending item: the alias list, the piece weights and crosswalk rows added 2026-11-12 (including `poblano-pepper`), the P1-11 seed rows, and integer cents for money. |
+| 2026-11-13 | P1-9 started: typed-list eval cases (20 cases, 161 lines, from the owner's lists plus new lines aimed at dogfooding problems) and the `python -m evals` runner on `pydantic-evals`. The nightly workflow, baseline, and best-buy explanation cases come in a second PR. |
+| 2026-11-15 | P1-9 report tools: one run's HTML page and a page of only what changed between two runs; the first live run is kept in `backend/evals/reports/` as the starting point. Where nightly pages go is proposed in spec P1-9 for the owner to decide. |
+| 2026-11-15 | Owner approved where nightly eval results go (spec P1-9, D13), to be built with the nightly workflow in the next P1-9 PR. Committing eval reports to `master` is parked until a release is cut (`design.md`, Parked ideas). |
+| 2026-11-15 | Owner decided how the nightly evals flag a regression and how much noise is allowed (spec P1-9, D14), to be built with the nightly workflow. |

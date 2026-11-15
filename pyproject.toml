@@ -17,6 +17,8 @@ extend-exclude = [
     "frontend/dist/",
     "frontend/public/assets/images/",
     "backend/evals/lists/",  # real lists, typed as written: misspellings are the test
+    "backend/evals/cases/",  # eval lists, typed as written: misspellings are the test
+    "backend/evals/reports/",  # eval results quote those lists
     "data/sources/",
 ]
 
