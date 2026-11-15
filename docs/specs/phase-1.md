@@ -523,16 +523,17 @@ tools build self-contained HTML pages from it:
   more) changed, and each line that is newly wrong, now right, or wrong differently. It reports
   and does not fail; the baseline check fails the workflow.
 
-The first live run is kept in `backend/evals/reports/` (`first_golden_run.json` and `.html`) as
-the starting point that later runs are compared with. Nightly pages are not committed.
+The baseline run is kept in `backend/evals/reports/` (`baseline_run.json` and `.html`) as the
+starting point that later runs are compared with; it replaced the first live run's files
+(owner, 2026-11-15), whose cases predate the owner's review. Nightly pages are not committed.
 
 **D13, where nightly results go. Decided (owner, 2026-11-15); built in the nightly PR:**
 - Each night uploads the results file, both pages, and a Markdown summary as a workflow artifact
   (`actions/upload-artifact`; kept 90 days, the most a public repository allows).
 - The same Markdown summary is written to the run's page (`$GITHUB_STEP_SUMMARY`).
 - The diff compares with the last successful nightly run's artifact (`actions/download-artifact`
-  with that run's `run-id` and a token with `actions: read`), or with `first_golden_run.json`
-  when there is none.
+  with that run's `run-id` and a token with `actions: read`), or with the baseline run
+  (`baseline_run.json`) when there is none.
 - Nightly results are not committed to `master`. Runs worth keeping longer (a new model, a
   prompt change) are committed to `backend/evals/reports/` by a PR. A bot commit of the reports
   is parked until a release is cut (`docs/design.md`, Parked ideas).

@@ -71,7 +71,7 @@ cents, for the whole amount bought. `ask` is a question kind: `which_item`, `no_
 ```bash
 uv run python -m evals --json results.json
 uv run python -m evals.generate_evals_report results.json -o report.html
-uv run python -m evals.generate_evals_report_diff reports/first_golden_run.json results.json -o diff.html
+uv run python -m evals.generate_evals_report_diff reports/baseline_run.json results.json -o diff.html
 ```
 
 `generate_evals_report` builds one run's page: scores by case and reader, and every line that
@@ -81,10 +81,9 @@ lines, or used 20% more or fewer output tokens, and each line newly wrong, now r
 differently. Both pages are single HTML files. `--title` names a page, and `--note` adds a note
 to a report.
 
-`reports/` keeps runs worth comparing with: `first_golden_run` (DeepSeek-V3.2, 2026-11-13, the
-cases before the owner's review; its page is the one published after that run) and
-`baseline_run` (2026-11-15, the reviewed cases, 5 runs a case), which `baseline.json` was made
-from and the nightly diff starts from.
+`reports/` keeps runs worth comparing with: `baseline_run` (DeepSeek-V3.2, 2026-11-15, the
+reviewed cases, 5 runs a case), which `baseline.json` was made from. The nightly diff compares
+with it when there is no earlier nightly run.
 
 ## The nightly run and the baseline
 
