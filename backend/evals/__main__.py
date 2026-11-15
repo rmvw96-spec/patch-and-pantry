@@ -15,10 +15,11 @@ is saved: each run is rolled back. Exit status 1 when a case fails.
 
 import argparse
 import asyncio
-import json
 import sys
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,7 @@ from evals.capture import (
     show_expect,
 )
 from evals.cases import CASES_DIR, EXTRACTION_THRESHOLD, GROUPS, Case, load_cases
+from evals.results import CaseResult, Miss, Results
 
 READERS: tuple[CaptureReader, ...] = ("model", "rules_first")
 Inputs = tuple[Case, CaptureReader]
@@ -142,21 +144,52 @@ def print_report(tallies: list[Tally], repeat: int, verbose: bool) -> None:
                 print(f"      got      {got}")
 
 
-def summary(tallies: list[Tally], model: str, repeat: int) -> dict[str, Any]:
-    return {
-        "model": model,
-        "repeat": repeat,
-        "cases": {
-            f"{t.case.name} [{t.reader}]": {
-                "group": t.case.group,
-                "pass_rate": t.passed / t.runs,
-                "fields": t.right / t.scored if t.scored else 0.0,
-                "seconds_per_run": round(t.seconds / t.runs, 2),
-                "output_tokens_per_run": t.output_tokens // t.runs,
-            }
+def summary(
+    tallies: list[Tally],
+    model: str,
+    repeat: int,
+    started: datetime | None = None,
+    seconds: float | None = None,
+) -> Results:
+    return Results(
+        model=model,
+        repeat=repeat,
+        started=started,
+        seconds=seconds,
+        cases={
+            f"{t.case.name} [{t.reader}]": CaseResult(
+                case=t.case.name,
+                reader=t.reader,
+                group=t.case.group,
+                why=t.case.why,
+                lines=len(t.case.lines),
+                runs=t.runs,
+                passed=t.passed,
+                pass_rate=t.passed / t.runs,
+                fields=t.right / t.scored if t.scored else 0.0,
+                seconds_per_run=round(t.seconds / t.runs, 2),
+                output_tokens_per_run=t.output_tokens // t.runs,
+                errors=tuple(t.errors),
+                misses=tuple(
+                    Miss(
+                        text=text,
+                        wrong=len(misses),
+                        expected=show_expect(misses[0].closest),
+                        got=tuple(
+                            sorted(
+                                {
+                                    m.got.show() if m.got else "(no outcome)"
+                                    for m in misses
+                                }
+                            )
+                        ),
+                    )
+                    for text, misses in t.misses.items()
+                ),
+            )
             for t in tallies
         },
-    }
+    )
 
 
 async def main(argv: list[str] | None = None) -> int:
@@ -174,7 +207,9 @@ async def main(argv: list[str] | None = None) -> int:
         default=2,
         help="cases at once (Foundry limits tokens a minute)",
     )
-    parser.add_argument("--json", type=Path, help="write per-case results here")
+    parser.add_argument(
+        "--json", type=Path, help="write results here, for the report tools"
+    )
     parser.add_argument("--dir", type=Path, default=CASES_DIR, help="case files")
     parser.add_argument("--verbose", action="store_true", help="every distinct miss")
     args = parser.parse_args(argv)
@@ -205,6 +240,8 @@ async def main(argv: list[str] | None = None) -> int:
         ],
         evaluators=[FieldScore()],
     )
+    started = datetime.now(UTC)
+    clock = time.monotonic()
     report = await dataset.evaluate(
         task,
         name=f"typed-lists {args.model}",
@@ -212,13 +249,13 @@ async def main(argv: list[str] | None = None) -> int:
         max_concurrency=args.concurrency,
         progress=False,
     )
+    seconds = round(time.monotonic() - clock, 1)
     tallies = tally(cases, report)
     print(f"{len(cases)} cases, readers: {', '.join(readers)}, model: {args.model}")
     print_report(tallies, args.repeat, args.verbose)
     if args.json:
-        args.json.write_text(
-            json.dumps(summary(tallies, args.model, args.repeat), indent=2) + "\n"
-        )
+        results = summary(tallies, args.model, args.repeat, started, seconds)
+        args.json.write_text(results.model_dump_json(indent=2) + "\n")
     return 0 if all(t.passed == t.runs for t in tallies) else 1
 
 

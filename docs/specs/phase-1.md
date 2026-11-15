@@ -506,6 +506,30 @@ question about its unit, which passes one more model case. What failed:
 - [ ] The owner reviews the expected answers.
 - [ ] The nightly workflow passes zizmor and pins actions by SHA, like the others.
 
+### Reports (2026-11-15)
+
+The runner's `--json` file holds everything a report needs: per case and reader, the scores and
+every line that was wrong, with what was expected and what came back (`evals/results.py`). Two
+tools build self-contained HTML pages from it:
+
+- `python -m evals.generate_evals_report results.json -o report.html`: one run, as in the first
+  run's page.
+- `python -m evals.generate_evals_report_diff before.json after.json -o diff.html`: only what
+  changed: cases whose pass count, share of fields, missed lines, or output tokens (by 20% or
+  more) changed, and each line that is newly wrong, now right, or wrong differently. It reports
+  and does not fail; the baseline check fails the workflow.
+
+The first live run is kept in `backend/evals/reports/` (`first_golden_run.json` and `.html`) as
+the starting point that later runs are compared with. Nightly pages are not committed.
+
+**Proposed for the nightly PR (needs the owner's decision):** each night uploads the results
+file and both pages as a workflow artifact (`actions/upload-artifact`; kept 90 days, the most a
+public repository allows) and writes a short summary to the run's page (`$GITHUB_STEP_SUMMARY`).
+The diff compares with the last successful nightly run's artifact (`actions/download-artifact`
+with `run-id` and a token with `actions: read`), or with `first_golden_run.json` when there is
+none. Runs worth keeping longer (a new model, a prompt change) are committed to
+`backend/evals/reports/` by a PR.
+
 ## Later in Phase 1: explore smaller purchases
 
 Not a task yet; explore after P1-6 works. The spoilage examples show the purchase size is often

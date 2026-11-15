@@ -209,7 +209,12 @@ cases:
     assert results["repeat"] == 2
     assert results["cases"]["notes [rules_first]"]["pass_rate"] == 1.0
     assert results["cases"]["notes [model]"]["pass_rate"] == 1.0
-    assert results["cases"]["wrong-on-purpose [model]"]["pass_rate"] == 0.0
+    wrong = results["cases"]["wrong-on-purpose [model]"]
+    assert wrong["pass_rate"] == 0.0
+    assert wrong["misses"] == [
+        {"text": "Aldi", "wrong": 2, "expected": "asks no_match", "got": ["note"]}
+    ]
+    assert results["started"] and results["seconds"] is not None
 
     assert asyncio.run(main([*argv, "--case", "notes", "--reader", "model"])) == 0
     assert asyncio.run(main([*argv, "--case", "nothing"])) == 2

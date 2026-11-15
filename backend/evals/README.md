@@ -66,5 +66,23 @@ Several `expect` entries mean any of them is fine, and the closest one is scored
 cents, for the whole amount bought. `ask` is a question kind: `which_item`, `no_match`,
 `missing_price`, `missing_unit`, `unknown_unit`, or `unreadable`.
 
+## Reports
+
+```bash
+uv run python -m evals --json results.json
+uv run python -m evals.generate_evals_report results.json -o report.html
+uv run python -m evals.generate_evals_report_diff reports/first_golden_run.json results.json -o diff.html
+```
+
+`generate_evals_report` builds one run's page: scores by case and reader, and every line that
+missed. `generate_evals_report_diff` shows only what changed between two results files: cases
+that passed a different number of runs, scored a different share of fields, missed different
+lines, or used 20% more or fewer output tokens, and each line newly wrong, now right, or wrong
+differently. Both pages are single HTML files. `--title` names a page, and `--note` adds a note
+to a report.
+
+`reports/` keeps runs worth comparing with: `first_golden_run` (DeepSeek-V3.2, 2026-11-13) is
+the starting point. Its page is the one published after that run.
+
 `scripts/compare_readers.py` still scores the reading alone (no catalog) against
 `evals/lists/*.csv`.
