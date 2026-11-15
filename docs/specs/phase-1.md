@@ -327,8 +327,8 @@ pages).
 - **Prices page** (`/prices`) replaces Studies: choose or add a store, a date, and a typed list;
   the status polls, then drafts with cost per cup, questions, and set-aside lines. Confirming
   drafts comes with P1-7.
-- The Playwright workflow loads the committed reference data (`python -m app.seed all`, no USDA
-  zips) before the browser tests, and sets `DEMO_DELAY_SECONDS=1`, so the page must poll.
+- The Playwright workflow loads the committed reference data (`python -m app.seed all --no-usda`
+  since 2026-11-15: no USDA zips) before the browser tests, and sets `DEMO_DELAY_SECONDS=1`, so the page must poll.
 - The live smoke check reads a short typed list with the capture agent instead of a study.
 
 **Acceptance criteria:**
@@ -593,7 +593,9 @@ and a weight with no price read as a note (1 of 5). The run and its report are i
 
 **The workflow** (`.github/workflows/nightly-evals.yml`), at 09:00 UTC (03:00 Central in
 standard time, 04:00 in daylight time) and by hand from the Actions tab, on `master` only:
-1. Starts Postgres, migrates, and loads the committed reference data (no piece weights, D11).
+1. Starts Postgres, migrates, and loads every committed source, the USDA zips included (owner,
+   2026-11-15), so the catalog is the one a user has, with piece weights and nut cup weights. D11
+   still counts a piece-weight question as a price, for the PR tests' catalog.
 2. Finds the last successful nightly run and downloads its results (`actions: read`).
 3. Runs every case with both readers, 3 runs each, against DeepSeek-V3.2 (the repository
    secrets `FOUNDRY_ENDPOINT` and `FOUNDRY_API_KEY`).

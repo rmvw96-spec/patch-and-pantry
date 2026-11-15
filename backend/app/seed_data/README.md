@@ -26,18 +26,23 @@ changed byte would be a new snapshot. Download a new version, put it next to the
 | `data/sources/usda-ers/all-vegetables-average-prices.csv` | [USDA ERS](https://www.ers.usda.gov/media/6240/all-vegetables-average-prices-csv-format.csv?v=47411) | 2026-11-11 | `7228c4bccd6a` | Data year 2023. Byte-order mark, CRLF line endings, and a trailing space in one header. ERS's published price-per-cup column is swapped for Artichoke (Fresh, Canned) and Lima beans (Frozen, Dried); see `docs/specs/known-answers.md`. |
 | `data/sources/usda-ers/all-fruits-average-prices.csv` | [USDA ERS](https://www.ers.usda.gov/media/6210/all-fruits-average-prices-csv-format.csv?v=97997) | 2026-11-11 | `b7fc0b4a9c11` | Data year 2023. Juices are priced per pint. |
 | `data/sources/usda-fsis/foodkeeper.json` | [USDA FSIS FoodKeeper](https://catalog.data.gov/dataset/fsis-foodkeeper-data) (`FMA-Data-v128`) | 2026-11-11 | `037df0d30112` | **Download by hand in a browser**: FSIS blocks automated downloads. |
-| *Not committed*: `FoodData_Central_foundation_food_csv_2026-04-30.zip` | [USDA FDC](https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_csv_2026-04-30.zip) | 2026-11-11 | `70457ee9d934` | 3.8 MB. The 2026-10-29 release was skipped: its zip lacks `food.csv` and `food_nutrient.csv`. |
-| *Not committed*: `sr28asc.zip` | [USDA ARS SR28](https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip) | 2026-11-11 | `8308fd1d224e` | 6.2 MB. Household-measure weights (edible) and refuse percentages. Its weights match FDC's SR Legacy `food_portion.csv` for all 43 mapped rows. |
-| *Not committed*: `FoodData_Central_sr_legacy_food_csv_2018-04.zip` | [USDA FDC](https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip) | 2026-11-11 | `b80817294b88` | 6.1 MB. SR Legacy is final (2018). |
+| `data/sources/usda-fdc/FoodData_Central_foundation_food_csv_2026-04-30.zip` | [USDA FDC](https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_csv_2026-04-30.zip) | 2026-11-11 | `70457ee9d934` | 3.8 MB. The 2026-10-29 release was skipped: its zip lacks `food.csv` and `food_nutrient.csv`. |
+| `data/sources/usda-ars/sr28asc.zip` | [USDA ARS SR28](https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip) | 2026-11-11 | `8308fd1d224e` | 6.2 MB. Household-measure weights (edible) and refuse percentages. Its weights match FDC's SR Legacy `food_portion.csv` for all 43 mapped rows. |
+| `data/sources/usda-fdc/FoodData_Central_sr_legacy_food_csv_2018-04.zip` | [USDA FDC](https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip) | 2026-11-11 | `b80817294b88` | 6.1 MB. SR Legacy is final (2018). |
 
 ## Loading
 
 From `backend/`, with the database migrated (`scripts/prestart.sh`):
 
 ```bash
-uv run python -m app.seed all ~/Downloads/FoodData_Central_*.zip ~/Downloads/sr28asc.zip  # every source above
-uv run python -m app.seed report                                    # catalog coverage gaps
+uv run python -m app.seed all              # every source above, the USDA zips included
+uv run python -m app.seed all --no-usda    # without the USDA zips (Playwright CI)
+uv run python -m app.seed report           # catalog coverage gaps
 ```
+
+The USDA zips (about 16 MB) are committed since 2026-11-15 (owner decision), so the nightly evals
+load the same catalog a user has. A newer download can be loaded instead by naming it:
+`uv run python -m app.seed all path/to/new.zip`.
 
 Each file loads in its own transaction inside a Prefect flow. Loading the same file again changes
 nothing, unless the crosswalk changed: each snapshot records a fingerprint of the crosswalk rows

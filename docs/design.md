@@ -200,6 +200,12 @@ and every plan records which reference-data versions it used. The catalog holds 
 Each source refreshes on its own schedule, and every refresh stores a new versioned snapshot
 instead of overwriting the old one. Plans and eval runs record which versions they used.
 
+Every raw download the catalog uses is committed under `data/sources/`, byte for byte, the USDA
+FDC and SR28 zips included (about 16 MB; decided 2026-11-15), so every environment can load the
+same catalog: development, the nightly evals, and a deployment. Playwright CI skips the zips
+(`python -m app.seed all --no-usda`): its tests check the pages and their wiring to the API, not
+catalog rules or model behavior, and they are already the slowest PR checks.
+
 | Source | Supplies | How often it changes | Refresh approach |
 | --- | --- | --- | --- |
 | [USDA ERS fruit and vegetable prices](https://www.ers.usda.gov/data-products/fruit-and-vegetable-prices) ([vegetable CSV](https://www.ers.usda.gov/media/6240/all-vegetables-average-prices-csv-format.csv?v=47411), [fruit CSV](https://www.ers.usda.gov/media/6210/all-fruits-average-prices-csv-format.csv?v=97997)) | National average price per pound or pint; preparation yield factor (edible share); cup-equivalent size; price per cup | Roughly yearly; data years 2013, 2016, 2020, 2022, 2023 (page updated 2025-12-09); **not valid for year-to-year trends** | Check yearly; version by data year |
@@ -515,3 +521,4 @@ Specification gaps to close in phase specs:
 | 2026-11-15 | Owner decision (spec P1-9, D13): nightly eval results (results file, report, diff, and a Markdown summary) are uploaded as a workflow artifact and summarized on the run's page; the diff compares with the last successful nightly run, fetched by `run-id` with an `actions: read` token. Nothing is committed nightly; a bot commit of eval reports is parked until a release is cut. |
 | 2026-11-15 | Owner decision (spec P1-9, D14): the nightly evals run report-only for about two weeks to measure noise, then fail only on a clear drop against the baseline (a 3/3 case falling to 1/3 or 0/3, a one-run drop two nights in a row, extraction fields more than about 3 points down, or a failed run). One-run dips are shown as "watch". Rules first is held to the stricter bar; flaky cases get more runs instead of a looser bar; results record the commit so a drop can be traced to a change or to the model. |
 | 2026-11-15 | Owner decisions (spec P1-9, D15 and D16): the eval baseline sorts every case, reader, and line into stable (the regression bar), flaky (tracked), and broken (the bar to reach), from a reviewed live run, and changes only by PR. Best-buy explanations are scored by rule checks only (no model judge): finished within the rules, numbers only from the table, no dieting words, each item's best store named. |
+| 2026-11-15 | Owner decision: the USDA FDC and SR28 zips are committed under `data/sources/` (byte for byte, about 16 MB) and `python -m app.seed all` loads them by default, so the nightly evals see the catalog a user has (piece weights, nut cup weights, nutrients). Playwright CI skips them (`--no-usda`): it checks the pages and their wiring, not rules or model behavior, and is already the slowest PR check. |

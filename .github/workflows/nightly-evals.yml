@@ -47,8 +47,8 @@ jobs:
       - name: Migrate DB
         run: uv run bash scripts/prestart.sh
         working-directory: backend
-      # The committed reference data, as Playwright loads it. No USDA zips, so no piece weights:
-      # the evals count a piece-weight question as the price it carries (D11).
+      # Every committed source, the USDA zips included (piece weights, nut cup weights), so the
+      # catalog is the one a user has.
       - name: Load reference data
         run: uv run python -m app.seed all
         working-directory: backend

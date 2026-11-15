@@ -84,9 +84,10 @@ jobs:
     - run: docker compose run --rm backend bash scripts/prestart.sh
     # The committed reference data (ERS, FoodKeeper, planting calendar, yields), so typed items
     # match the catalog. The image has no data/sources/, so this runs on the runner against the
-    # compose database. No USDA zips: piece weights and nutrients are not needed here.
+    # compose database. No USDA zips (owner, 2026-11-15): these tests check the pages and their
+    # wiring to the API, not catalog rules or model behavior, and loading the zips is slow.
     - name: Load reference data
-      run: uv run python -m app.seed all
+      run: uv run python -m app.seed all --no-usda
       working-directory: backend
     - name: Run Playwright tests
       run: docker compose run --rm playwright bunx playwright test --fail-on-flaky-tests --trace=retain-on-failure --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}

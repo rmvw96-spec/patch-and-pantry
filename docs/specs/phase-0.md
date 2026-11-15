@@ -180,7 +180,10 @@ Alembic revision. Money is **integer cents** (reviewed by the owner).
 - The FDC loader reads the zip as downloaded and detects Foundation or SR Legacy from its files.
   The 2026-10-29 Foundation release is incomplete, so 2026-04-30 is used.
 - Raw ERS and FoodKeeper files are committed under `data/sources/`, byte for byte; FDC zips are
-  not (about 10 MB), and their URLs and hashes are in the seed-data README.
+  not (about 10 MB), and their URLs and hashes are in the seed-data README. **Changed
+  2026-11-15 (owner):** the FDC and SR28 zips are committed too (`data/sources/usda-fdc/`,
+  `usda-ars/`, about 16 MB), so the nightly evals load the catalog a user has; Playwright skips
+  them (`--no-usda`).
 - Each file is loaded in its own transaction inside a Prefect flow (`python -m app.seed`).
 - Added in P0-5: each snapshot records a fingerprint of the crosswalk rows used
   (`crosswalk_sha256`) and its `loaded_at` time. Loading a file again through a changed

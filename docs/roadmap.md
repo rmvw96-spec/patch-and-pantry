@@ -222,3 +222,4 @@ match hand calculations.
 | 2026-11-15 | Owner approved where nightly eval results go (spec P1-9, D13), to be built with the nightly workflow in the next P1-9 PR. Committing eval reports to `master` is parked until a release is cut (`design.md`, Parked ideas). |
 | 2026-11-15 | Owner decided how the nightly evals flag a regression and how much noise is allowed (spec P1-9, D14), to be built with the nightly workflow. |
 | 2026-11-15 | P1-9 nightly run: the workflow, the three-tier baseline (D15), and the check, report only at first (D14). The best-buy explanation cases and trace check (D16) move to the next PR; P0-2 token counts follow from the nightly runs. |
+| 2026-11-15 | USDA zips committed and loaded by default, so the nightly evals run on the catalog a user has; Playwright CI skips them. |

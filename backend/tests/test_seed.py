@@ -802,7 +802,7 @@ def test_report_with_no_gaps() -> None:
 
 
 def test_committed_sources_exist() -> None:
-    for _, path in seed_cli.COMMITTED:
+    for _, path in [*seed_cli.COMMITTED, *seed_cli.USDA_ZIPS]:
         assert path.is_file(), path
 
 
@@ -829,7 +829,9 @@ def test_seed_flow_runs_in_prefect(
     ("argv", "expected"),
     [
         (["ers_prices", "a.csv", "b.csv"], [("ers_prices", Path("a.csv")), ("ers_prices", Path("b.csv"))]),
+        (["all"], [*seed_cli.COMMITTED, *seed_cli.USDA_ZIPS]),
         (["all", "x.zip"], [*seed_cli.COMMITTED, ("usda_zip", Path("x.zip"))]),
+        (["all", "--no-usda"], seed_cli.COMMITTED),
     ],
 )  # fmt: skip
 def test_cli_builds_jobs(
@@ -848,6 +850,11 @@ def test_cli_builds_jobs(
     assert seed_cli.main(argv) == 0
     assert seen == [expected]
     assert "done" in capsys.readouterr().out
+
+
+def test_cli_refuses_no_usda_with_zips() -> None:
+    with pytest.raises(SystemExit):
+        seed_cli.main(["all", "--no-usda", "x.zip"])
 
 
 def test_cli_report(
